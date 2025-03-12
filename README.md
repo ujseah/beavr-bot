@@ -29,6 +29,6 @@ This will install all the dependencies required for the server code.
 
 After installing all the prerequisites, you can install this pipeline as a package with pip:
 
-`pip install -e . `
+`pip install -e .`
 
 You can test if it had installed correctly by running `import beavr` from the python shell.
