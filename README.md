@@ -3,7 +3,6 @@
 </p>
 
 # BeaVR-Bot
-
 ## Bimanual, multi-Embodiment, Accessible, Virtual Reality Teleoperation System for Robots
 
 This is the official implementation of BeaVR teleoperation control pipeline.
