@@ -1,12 +1,10 @@
-# OPEN TEACH: A Versatile Teleoperation System for Robotic Manipulation
+# BeaVR-Bot
 
-##### Authors: Aadhithya Iyer ,Zhuoran Peng, Yinlong Dai, Irmak Guzey, Siddhant Haldar, Soumith Chintala, Lerrel Pinto 
+Bimanual, multi-Embodiment, Accessible, Virtual Reality Teleoperation System for Robots
 
-[Paper](https://arxiv.org/abs/2403.07870) [Website](https://open-teach.github.io/)
+This is the official implementation of BeaVR teleoperation control pipeline.
 
-This is the official implementation of the Open Teach including unity scripts for the VR application, teleoperation pipeline and demonstration collection pipeline.
-
-Open Teach consists of two parts. 
+BeaVR consists of two parts. 
 
 - [x] Teleoperation using Meta Quest 3 and data collection over a range of robot morphologies and simulation environments.
 
