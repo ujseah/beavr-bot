@@ -34,12 +34,15 @@ logs/pose_log*
 
 xarm_ros/*
 
+# Docker 
 docker/docker_build_private.sh
+
+# VR
 VR/Bimanual-Robot-Unity/Assets/Oculus/LipSync/Plugins/MacOSX/OVRLipSync.bundle
 VR/Bimanual-Robot-Unity/Assets/Oculus/LipSync/Plugins/iOS/libOVRLipSync.dylib
-dist/
 
 # Python
+dist/
 __pycache__/
 *.py[cod]
 *$py.class
