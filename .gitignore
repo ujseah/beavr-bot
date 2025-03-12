@@ -37,3 +37,40 @@ xarm_ros/*
 docker/docker_build_private.sh
 VR/Bimanual-Robot-Unity/Assets/Oculus/LipSync/Plugins/MacOSX/OVRLipSync.bundle
 VR/Bimanual-Robot-Unity/Assets/Oculus/LipSync/Plugins/iOS/libOVRLipSync.dylib
+dist/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+ENV/
+env/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
