@@ -2,7 +2,9 @@
   <img src="docs/images/beavr_logo.png" alt="BeaVR-Bot Logo" width="300"/>
 </p>
 
-# BeaVR-Bot: Bimanual, multi-Embodiment, Accessible, Virtual Reality Teleoperation System for Robots
+# BeaVR-Bot
+
+## Bimanual, multi-Embodiment, Accessible, Virtual Reality Teleoperation System for Robots
 
 This is the official implementation of BeaVR teleoperation control pipeline.
 
@@ -30,46 +32,4 @@ After installing all the prerequisites, you can install this pipeline as a packa
 
 `pip install -e . `
 
-You can test if it had installed correctly by running ` import openteach` from the python shell.
-
-### Robot Controller Installation Specific Information
-
-1. For Simulation specific information, follow the instructions [here](/docs/simulation.md).
-
-2. For Robot controller installation, follow the instructions [here](https://github.com/NYU-robot-learning/OpenTeach-Controllers)
-
-### For starting the camera sensors
-
-For starting the camera sensors and streaming them inside the screen in the oculus refer [here](/docs/sensors.md)
-
-### Running the Teleoperation and Data Collection
-
-For information on running the teleoperation and data collection refer [here](/docs/teleop_data_collect.md).
-
-
-### Policy Learning 
-
-For open-source code of the policies we trained on the robots refer [here](/docs/policy_learning.md) 
-
-### Policy Learning API
-
-For using the API we use for policy learning, use [this](https://github.com/NYU-robot-learning/Open-Teach-API)
-
-### Call for contributions
-
-For adding your own robot and simulation refer [here](/docs/add_your_own_robot.md)
-
-### Citation
-If you use this repo in your research, please consider citing the paper as follows:
-```
-@misc{iyer2024open,
-      title={OPEN TEACH: A Versatile Teleoperation System for Robotic Manipulation}, 
-      author={Aadhithya Iyer and Zhuoran Peng and Yinlong Dai and Irmak Guzey and Siddhant Haldar and Soumith Chintala and Lerrel Pinto},
-      year={2024},
-      eprint={2403.07870},
-      archivePrefix={arXiv},
-      primaryClass={cs.RO}
-}
-
-
-
+You can test if it had installed correctly by running `import beavr` from the python shell.

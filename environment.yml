@@ -1,4 +1,4 @@
-name: arclab-vr
+name: beavr
 channels:
   - defaults
 dependencies:
