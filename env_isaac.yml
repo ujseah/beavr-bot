@@ -1,4 +1,4 @@
-name: openteach_isaac
+name: beavr_isaac
 channels:
   - defaults
 dependencies:

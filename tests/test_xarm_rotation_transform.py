@@ -32,8 +32,8 @@ def test_rotation_transform():
     
     # Load table and robot
     current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    table_urdf_path = os.path.join(current_dir, "openteach/components/environment/assets/urdf/table/square_table.urdf")
-    xarm_urdf_path = os.path.join(current_dir, "openteach/components/environment/assets/urdf/leap_xarm7/leap_xarm7.urdf")
+    table_urdf_path = os.path.join(current_dir, "beavr/src/components/environment/assets/urdf/table/square_table.urdf")
+    xarm_urdf_path = os.path.join(current_dir, "beavr/src/components/environment/assets/urdf/leap_xarm7/leap_xarm7.urdf")
     
     # Load table
     table_height = 0.3

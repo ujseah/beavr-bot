@@ -21,7 +21,8 @@ def test_xarm_joints_setup():
     # Load table
     table_urdf_path = os.path.join(
         current_dir,
-        "openteach",
+        "beavr",
+        "src",
         "components",
         "environment",
         "assets",
@@ -45,7 +46,8 @@ def test_xarm_joints_setup():
     # Load robot on top of table
     xarm_urdf_path = os.path.join(
         current_dir,
-        "openteach",
+        "beavr",
+        "src",
         "components",
         "environment",
         "assets",

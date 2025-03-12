@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
 import numpy as np
-from openteach.ros_links.xarm7_right import DexArmControl, Robot
+from beavr.src.ros_links.xarm7_right import DexArmControl, Robot
 from copy import copy
 from scipy.spatial.transform import Rotation
 

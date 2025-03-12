@@ -2,7 +2,7 @@
 import time
 import numpy as np
 import zmq
-from openteach.utils.network import ZMQKeypointSubscriber, ZMQKeypointPublisher
+from beavr.src.utils.network import ZMQKeypointSubscriber, ZMQKeypointPublisher
 from scipy.spatial.transform import Rotation as R
 
 class EndEffectorMonitor:

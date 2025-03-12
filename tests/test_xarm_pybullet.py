@@ -3,7 +3,7 @@ import pybullet_data
 import time
 import numpy as np
 import os
-from openteach.components.environment.xarm_env import XArmEnv  # We can import our env class if needed
+from beavr.src.components.environment.xarm_env import XArmEnv  # We can import our env class if needed
 import argparse
 
 def test_xarm():
@@ -13,7 +13,7 @@ def test_xarm():
     
     # Load xArm7
     current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    xarm_urdf_path = os.path.join(current_dir, "openteach/components/environment/assets/urdf/leap_xarm7/leap_xarm7.urdf")
+    xarm_urdf_path = os.path.join(current_dir, "beavr/src/components/environment/assets/urdf/leap_xarm7/leap_xarm7.urdf")
     robot_id = p.loadURDF(xarm_urdf_path, basePosition=[0, 0, 0], useFixedBase=True)
     
     # Print information about joints and links
@@ -46,7 +46,7 @@ def test_xarm_link(link_index=8):
     p.setAdditionalSearchPath(pybullet_data.getDataPath())
     
     current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    xarm_urdf_path = os.path.join(current_dir, "openteach/components/environment/assets/urdf/leap_xarm7/leap_xarm7.urdf")
+    xarm_urdf_path = os.path.join(current_dir, "beavr/src/components/environment/assets/urdf/leap_xarm7/leap_xarm7.urdf")
     robot_id = p.loadURDF(xarm_urdf_path, [0, 0, 0], useFixedBase=True)
     
     # Get detailed information about the specified link
@@ -83,7 +83,8 @@ def test_xarm_table():
     current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     table_urdf_path = os.path.join(
         current_dir,
-        "openteach",
+        "beavr",
+        "src",
         "components",
         "environment",
         "assets",
@@ -101,7 +102,8 @@ def test_xarm_table():
     # Get path to xArm URDF
     xarm_urdf_path = os.path.join(
         current_dir,
-        "openteach",
+        "beavr",
+        "src",
         "components",
         "environment",
         "assets",
@@ -185,7 +187,8 @@ def test_xarm_initial_pose():
     # Load table
     table_urdf_path = os.path.join(
         current_dir,
-        "openteach",
+        "beavr",
+        "src",
         "components",
         "environment",
         "assets",
@@ -203,7 +206,8 @@ def test_xarm_initial_pose():
     # Load xArm
     xarm_urdf_path = os.path.join(
         current_dir,
-        "openteach",
+        "beavr",
+        "src",
         "components",
         "environment",
         "assets",
@@ -255,7 +259,7 @@ def test_xarm_links():
     
     # Get paths
     current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    xarm_urdf_path = os.path.join(current_dir, "openteach/components/environment/assets/urdf/leap_xarm7/leap_xarm7.urdf")
+    xarm_urdf_path = os.path.join(current_dir, "beavr/src/components/environment/assets/urdf/leap_xarm7/leap_xarm7.urdf")
     
     # Expected link/joint names from URDF
     expected_links = {

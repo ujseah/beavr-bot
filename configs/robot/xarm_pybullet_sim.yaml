@@ -2,7 +2,7 @@ robot_name: xarm_pybullet
 
 # Detection from the oculus
 detector:
-  _target_: openteach.components.detector.oculus.OculusVRHandDetector
+  _target_: beavr.src.components.detector.oculus.OculusVRHandDetector
   host: ${host_address}
   oculus_port: ${oculus_reciever_port}
   keypoint_pub_port: ${keypoint_port}
@@ -14,7 +14,7 @@ detector:
 # Transform the keypoints
 transforms:
   - 
-    _target_: openteach.components.detector.keypoint_transform.TransformHandPositionCoords
+    _target_: beavr.src.components.detector.keypoint_transform.TransformHandPositionCoords
     host: ${host_address}
     keypoint_port: ${keypoint_port}
     transformation_port: ${transformed_position_keypoint_port}
@@ -23,7 +23,7 @@ transforms:
 # Visualizers (optional)
 visualizers:
   - 
-    _target_: openteach.components.visualizers.visualizer_2d.Hand2DVisualizer
+    _target_: beavr.src.components.visualizers.visualizer_2d.Hand2DVisualizer
     host: ${host_address}
     transformed_keypoint_port: ${transformed_position_keypoint_port}
     oculus_feedback_port: ${oculus_graph_port}
@@ -32,7 +32,7 @@ visualizers:
 # XArm PyBullet operator
 operators:
   - 
-    _target_: openteach.components.operators.xarm_pybullet_sim.XArmPyBulletOperator
+    _target_: beavr.src.components.operators.xarm_pybullet_sim.XArmPyBulletOperator
     host: ${host_address}
     transformed_keypoints_port: ${transformed_position_keypoint_port}
     finger_configs:
@@ -66,7 +66,7 @@ operators:
 # XArm PyBullet environment
 environment:
   - 
-    _target_: openteach.components.environment.xarm_env.XArmEnv
+    _target_: beavr.src.components.environment.xarm_env.XArmEnv
     host: ${host_address}
     camport: ${sim_image_port}
     timestamppublisherport: 10008

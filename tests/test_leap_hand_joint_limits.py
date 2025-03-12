@@ -25,7 +25,8 @@ def test_leap_hand_joint_limits():
     # Get path to Leap Hand URDF
     hand_urdf_path = os.path.join(
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-        "openteach",
+        "beavr",
+        "src",
         "components",
         "environment",
         "assets",

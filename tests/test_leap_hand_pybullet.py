@@ -17,7 +17,8 @@ def test_leap_hand():
     hand_urdf_path = os.path.join(
         os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
         "VR_Teleoperation",
-        "openteach",
+        "beavr",
+        "src",
         "components",
         "environment",
         "assets",

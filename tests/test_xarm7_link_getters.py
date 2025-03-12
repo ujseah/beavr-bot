@@ -1,5 +1,5 @@
 import numpy as np
-from openteach.robot.xarm7_right import XArm7Right
+from beavr.src.robot.xarm7_right import XArm7Right
 import zmq
 import time
 from threading import Thread

@@ -1,4 +1,4 @@
-from openteach.components.detector.oculus import OculusVRHandDetector
+from beavr.src.components.detector.oculus import OculusVRHandDetector
 import time
 import threading
 import zmq

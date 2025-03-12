@@ -1,5 +1,5 @@
 import hydra
-from openteach.components.deploy.deployer import DeployServer
+from beavr.src.components.deploy.deployer import DeployServer
 
 @hydra.main(version_base = '1.2', config_path='./configs', config_name = 'deploy')
 def deploy(configs):

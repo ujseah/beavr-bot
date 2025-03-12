@@ -2,7 +2,7 @@ robot_name: robot_arm
 
 # Detector used to teleoperate the robot
 detector:
-  _target_: openteach.components.detector.oculus.OculusVRHandDetector
+  _target_: beavr.src.components.detector.oculus.OculusVRHandDetector
   host: ${host_address}
   oculus_port: ${oculus_reciever_port}
   keypoint_pub_port: ${keypoint_port}
@@ -14,7 +14,7 @@ detector:
 # Transformation classes used to transform the keypoints
 transforms:
   - 
-    _target_: openteach.components.detector.keypoint_transform.TransformHandPositionCoords
+    _target_: beavr.src.components.detector.keypoint_transform.TransformHandPositionCoords
     host: ${host_address}
     keypoint_port: ${keypoint_port}
     transformation_port: ${transformed_position_keypoint_port}
@@ -23,7 +23,7 @@ transforms:
 # Visualizers used to visualize the keypoints stream
 visualizers:
   -
-    _target_: openteach.components.visualizers.visualizer_2d.Hand2DVisualizer
+    _target_: beavr.src.components.visualizers.visualizer_2d.Hand2DVisualizer
     host: ${host_address}
     transformed_keypoint_port: ${transformed_position_keypoint_port}
     oculus_feedback_port: ${oculus_graph_port}
@@ -32,7 +32,7 @@ visualizers:
 # Operators used to retarget the keypoints
 operators:
   - 
-    _target_: openteach.components.operators.template.TemplateArmOperator
+    _target_: beavr.src.components.operators.template.TemplateArmOperator
     host: ${host_address}
     transformed_keypoints_port: ${transformed_position_keypoint_port}
     arm_resolution_port: ${resolution_button_publish_port} 
@@ -45,9 +45,8 @@ operators:
 # List of controller classes used
 controllers:
   -
-    _target_: openteach.robot.robot.RobotWrapper
+    _target_: beavr.src.robot.robot.RobotWrapper
     record: False
-
 
 # Information to be recorded by the robot 
 recorded_data:
