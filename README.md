@@ -1,18 +1,14 @@
 # BeaVR-Bot
 
-## Bimanual, multi-Embodiment, Accessible, Virtual Reality Teleoperation System for Robots
+Bimanual, multi-Embodiment, Accessible, Virtual Reality Teleoperation System for Robots
 
 This is the official implementation of BeaVR teleoperation control pipeline.
 
 BeaVR consists of two parts. 
 
-- [x] Teleoperation using Meta Quest 3 and data collection over a range of robot morphologies and simulation environments.
+- Teleoperation using Meta Quest 3 and data collection over a range of robot morphologies and simulation environments.
 
-- [x] Policy training for various dexterous manipulation tasks across different robots and simulations.
-
-### VR Code and User Interface
-
-Read VR specific information, User Interface and APK files [here](/docs/vr.md)
+- Policy training for various dexterous manipulation tasks across different robots and simulations.
 
 ### Server Code Installation 
 
