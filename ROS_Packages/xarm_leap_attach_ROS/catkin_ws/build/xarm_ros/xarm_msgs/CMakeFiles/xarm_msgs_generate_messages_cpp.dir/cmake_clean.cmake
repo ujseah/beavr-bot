@@ -1,0 +1,42 @@
+file(REMOVE_RECURSE
+  "CMakeFiles/xarm_msgs_generate_messages_cpp"
+  "/root/catkin_ws/devel/include/xarm_msgs/RobotMsg.h"
+  "/root/catkin_ws/devel/include/xarm_msgs/IOState.h"
+  "/root/catkin_ws/devel/include/xarm_msgs/CIOState.h"
+  "/root/catkin_ws/devel/include/xarm_msgs/MoveVelocity.h"
+  "/root/catkin_ws/devel/include/xarm_msgs/GripperConfig.h"
+  "/root/catkin_ws/devel/include/xarm_msgs/SetAxis.h"
+  "/root/catkin_ws/devel/include/xarm_msgs/ClearErr.h"
+  "/root/catkin_ws/devel/include/xarm_msgs/SetInt16.h"
+  "/root/catkin_ws/devel/include/xarm_msgs/SetString.h"
+  "/root/catkin_ws/devel/include/xarm_msgs/ConfigToolModbus.h"
+  "/root/catkin_ws/devel/include/xarm_msgs/GetInt32.h"
+  "/root/catkin_ws/devel/include/xarm_msgs/GetFloat32List.h"
+  "/root/catkin_ws/devel/include/xarm_msgs/MoveVelo.h"
+  "/root/catkin_ws/devel/include/xarm_msgs/SetDigitalIO.h"
+  "/root/catkin_ws/devel/include/xarm_msgs/FtCaliLoad.h"
+  "/root/catkin_ws/devel/include/xarm_msgs/GetSetModbusData.h"
+  "/root/catkin_ws/devel/include/xarm_msgs/PlayTraj.h"
+  "/root/catkin_ws/devel/include/xarm_msgs/GetErr.h"
+  "/root/catkin_ws/devel/include/xarm_msgs/GetControllerDigitalIO.h"
+  "/root/catkin_ws/devel/include/xarm_msgs/SetToolModbus.h"
+  "/root/catkin_ws/devel/include/xarm_msgs/GetDigitalIO.h"
+  "/root/catkin_ws/devel/include/xarm_msgs/Move.h"
+  "/root/catkin_ws/devel/include/xarm_msgs/GripperMove.h"
+  "/root/catkin_ws/devel/include/xarm_msgs/SetLoad.h"
+  "/root/catkin_ws/devel/include/xarm_msgs/SetMultipleInts.h"
+  "/root/catkin_ws/devel/include/xarm_msgs/GetAnalogIO.h"
+  "/root/catkin_ws/devel/include/xarm_msgs/FtIdenLoad.h"
+  "/root/catkin_ws/devel/include/xarm_msgs/SetControllerAnalogIO.h"
+  "/root/catkin_ws/devel/include/xarm_msgs/MoveAxisAngle.h"
+  "/root/catkin_ws/devel/include/xarm_msgs/SetModbusTimeout.h"
+  "/root/catkin_ws/devel/include/xarm_msgs/GripperState.h"
+  "/root/catkin_ws/devel/include/xarm_msgs/TCPOffset.h"
+  "/root/catkin_ws/devel/include/xarm_msgs/Call.h"
+  "/root/catkin_ws/devel/include/xarm_msgs/SetFloat32.h"
+)
+
+# Per-language clean rules from dependency scanning.
+foreach(lang )
+  include(CMakeFiles/xarm_msgs_generate_messages_cpp.dir/cmake_clean_${lang}.cmake OPTIONAL)
+endforeach()

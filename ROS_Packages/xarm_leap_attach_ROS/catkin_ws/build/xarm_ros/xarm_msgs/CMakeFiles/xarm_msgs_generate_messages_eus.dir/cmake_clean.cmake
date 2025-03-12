@@ -1,0 +1,43 @@
+file(REMOVE_RECURSE
+  "CMakeFiles/xarm_msgs_generate_messages_eus"
+  "/root/catkin_ws/devel/share/roseus/ros/xarm_msgs/msg/RobotMsg.l"
+  "/root/catkin_ws/devel/share/roseus/ros/xarm_msgs/msg/IOState.l"
+  "/root/catkin_ws/devel/share/roseus/ros/xarm_msgs/msg/CIOState.l"
+  "/root/catkin_ws/devel/share/roseus/ros/xarm_msgs/srv/MoveVelocity.l"
+  "/root/catkin_ws/devel/share/roseus/ros/xarm_msgs/srv/GripperConfig.l"
+  "/root/catkin_ws/devel/share/roseus/ros/xarm_msgs/srv/SetAxis.l"
+  "/root/catkin_ws/devel/share/roseus/ros/xarm_msgs/srv/ClearErr.l"
+  "/root/catkin_ws/devel/share/roseus/ros/xarm_msgs/srv/SetInt16.l"
+  "/root/catkin_ws/devel/share/roseus/ros/xarm_msgs/srv/SetString.l"
+  "/root/catkin_ws/devel/share/roseus/ros/xarm_msgs/srv/ConfigToolModbus.l"
+  "/root/catkin_ws/devel/share/roseus/ros/xarm_msgs/srv/GetInt32.l"
+  "/root/catkin_ws/devel/share/roseus/ros/xarm_msgs/srv/GetFloat32List.l"
+  "/root/catkin_ws/devel/share/roseus/ros/xarm_msgs/srv/MoveVelo.l"
+  "/root/catkin_ws/devel/share/roseus/ros/xarm_msgs/srv/SetDigitalIO.l"
+  "/root/catkin_ws/devel/share/roseus/ros/xarm_msgs/srv/FtCaliLoad.l"
+  "/root/catkin_ws/devel/share/roseus/ros/xarm_msgs/srv/GetSetModbusData.l"
+  "/root/catkin_ws/devel/share/roseus/ros/xarm_msgs/srv/PlayTraj.l"
+  "/root/catkin_ws/devel/share/roseus/ros/xarm_msgs/srv/GetErr.l"
+  "/root/catkin_ws/devel/share/roseus/ros/xarm_msgs/srv/GetControllerDigitalIO.l"
+  "/root/catkin_ws/devel/share/roseus/ros/xarm_msgs/srv/SetToolModbus.l"
+  "/root/catkin_ws/devel/share/roseus/ros/xarm_msgs/srv/GetDigitalIO.l"
+  "/root/catkin_ws/devel/share/roseus/ros/xarm_msgs/srv/Move.l"
+  "/root/catkin_ws/devel/share/roseus/ros/xarm_msgs/srv/GripperMove.l"
+  "/root/catkin_ws/devel/share/roseus/ros/xarm_msgs/srv/SetLoad.l"
+  "/root/catkin_ws/devel/share/roseus/ros/xarm_msgs/srv/SetMultipleInts.l"
+  "/root/catkin_ws/devel/share/roseus/ros/xarm_msgs/srv/GetAnalogIO.l"
+  "/root/catkin_ws/devel/share/roseus/ros/xarm_msgs/srv/FtIdenLoad.l"
+  "/root/catkin_ws/devel/share/roseus/ros/xarm_msgs/srv/SetControllerAnalogIO.l"
+  "/root/catkin_ws/devel/share/roseus/ros/xarm_msgs/srv/MoveAxisAngle.l"
+  "/root/catkin_ws/devel/share/roseus/ros/xarm_msgs/srv/SetModbusTimeout.l"
+  "/root/catkin_ws/devel/share/roseus/ros/xarm_msgs/srv/GripperState.l"
+  "/root/catkin_ws/devel/share/roseus/ros/xarm_msgs/srv/TCPOffset.l"
+  "/root/catkin_ws/devel/share/roseus/ros/xarm_msgs/srv/Call.l"
+  "/root/catkin_ws/devel/share/roseus/ros/xarm_msgs/srv/SetFloat32.l"
+  "/root/catkin_ws/devel/share/roseus/ros/xarm_msgs/manifest.l"
+)
+
+# Per-language clean rules from dependency scanning.
+foreach(lang )
+  include(CMakeFiles/xarm_msgs_generate_messages_eus.dir/cmake_clean_${lang}.cmake OPTIONAL)
+endforeach()

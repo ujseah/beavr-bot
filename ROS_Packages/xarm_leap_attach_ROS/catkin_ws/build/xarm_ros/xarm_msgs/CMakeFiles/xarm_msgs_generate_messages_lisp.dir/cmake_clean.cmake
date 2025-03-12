@@ -1,0 +1,42 @@
+file(REMOVE_RECURSE
+  "CMakeFiles/xarm_msgs_generate_messages_lisp"
+  "/root/catkin_ws/devel/share/common-lisp/ros/xarm_msgs/msg/RobotMsg.lisp"
+  "/root/catkin_ws/devel/share/common-lisp/ros/xarm_msgs/msg/IOState.lisp"
+  "/root/catkin_ws/devel/share/common-lisp/ros/xarm_msgs/msg/CIOState.lisp"
+  "/root/catkin_ws/devel/share/common-lisp/ros/xarm_msgs/srv/MoveVelocity.lisp"
+  "/root/catkin_ws/devel/share/common-lisp/ros/xarm_msgs/srv/GripperConfig.lisp"
+  "/root/catkin_ws/devel/share/common-lisp/ros/xarm_msgs/srv/SetAxis.lisp"
+  "/root/catkin_ws/devel/share/common-lisp/ros/xarm_msgs/srv/ClearErr.lisp"
+  "/root/catkin_ws/devel/share/common-lisp/ros/xarm_msgs/srv/SetInt16.lisp"
+  "/root/catkin_ws/devel/share/common-lisp/ros/xarm_msgs/srv/SetString.lisp"
+  "/root/catkin_ws/devel/share/common-lisp/ros/xarm_msgs/srv/ConfigToolModbus.lisp"
+  "/root/catkin_ws/devel/share/common-lisp/ros/xarm_msgs/srv/GetInt32.lisp"
+  "/root/catkin_ws/devel/share/common-lisp/ros/xarm_msgs/srv/GetFloat32List.lisp"
+  "/root/catkin_ws/devel/share/common-lisp/ros/xarm_msgs/srv/MoveVelo.lisp"
+  "/root/catkin_ws/devel/share/common-lisp/ros/xarm_msgs/srv/SetDigitalIO.lisp"
+  "/root/catkin_ws/devel/share/common-lisp/ros/xarm_msgs/srv/FtCaliLoad.lisp"
+  "/root/catkin_ws/devel/share/common-lisp/ros/xarm_msgs/srv/GetSetModbusData.lisp"
+  "/root/catkin_ws/devel/share/common-lisp/ros/xarm_msgs/srv/PlayTraj.lisp"
+  "/root/catkin_ws/devel/share/common-lisp/ros/xarm_msgs/srv/GetErr.lisp"
+  "/root/catkin_ws/devel/share/common-lisp/ros/xarm_msgs/srv/GetControllerDigitalIO.lisp"
+  "/root/catkin_ws/devel/share/common-lisp/ros/xarm_msgs/srv/SetToolModbus.lisp"
+  "/root/catkin_ws/devel/share/common-lisp/ros/xarm_msgs/srv/GetDigitalIO.lisp"
+  "/root/catkin_ws/devel/share/common-lisp/ros/xarm_msgs/srv/Move.lisp"
+  "/root/catkin_ws/devel/share/common-lisp/ros/xarm_msgs/srv/GripperMove.lisp"
+  "/root/catkin_ws/devel/share/common-lisp/ros/xarm_msgs/srv/SetLoad.lisp"
+  "/root/catkin_ws/devel/share/common-lisp/ros/xarm_msgs/srv/SetMultipleInts.lisp"
+  "/root/catkin_ws/devel/share/common-lisp/ros/xarm_msgs/srv/GetAnalogIO.lisp"
+  "/root/catkin_ws/devel/share/common-lisp/ros/xarm_msgs/srv/FtIdenLoad.lisp"
+  "/root/catkin_ws/devel/share/common-lisp/ros/xarm_msgs/srv/SetControllerAnalogIO.lisp"
+  "/root/catkin_ws/devel/share/common-lisp/ros/xarm_msgs/srv/MoveAxisAngle.lisp"
+  "/root/catkin_ws/devel/share/common-lisp/ros/xarm_msgs/srv/SetModbusTimeout.lisp"
+  "/root/catkin_ws/devel/share/common-lisp/ros/xarm_msgs/srv/GripperState.lisp"
+  "/root/catkin_ws/devel/share/common-lisp/ros/xarm_msgs/srv/TCPOffset.lisp"
+  "/root/catkin_ws/devel/share/common-lisp/ros/xarm_msgs/srv/Call.lisp"
+  "/root/catkin_ws/devel/share/common-lisp/ros/xarm_msgs/srv/SetFloat32.lisp"
+)
+
+# Per-language clean rules from dependency scanning.
+foreach(lang )
+  include(CMakeFiles/xarm_msgs_generate_messages_lisp.dir/cmake_clean_${lang}.cmake OPTIONAL)
+endforeach()

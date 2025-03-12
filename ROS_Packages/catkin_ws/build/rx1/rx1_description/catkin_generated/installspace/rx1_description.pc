@@ -1,0 +1,8 @@
+prefix=/home/catkin_ws/install
+
+Name: rx1_description
+Description: Description of rx1_description
+Version: 1.2.5
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: urdf xacro

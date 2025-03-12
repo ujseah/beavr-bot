@@ -1,0 +1,99 @@
+robot_name: xarm7_right
+
+# Detector used to teleoperate the robot
+detector:
+  _target_: openteach.components.detector.oculus.OculusVRHandDetector
+  host: ${host_address}
+  oculus_port: ${oculus_reciever_port}
+  keypoint_pub_port: ${keypoint_port}
+  button_port: ${resolution_button_port}
+  button_publish_port: ${resolution_button_publish_port}
+  teleop_reset_port: ${teleop_reset_port}
+  teleop_reset_publish_port: ${teleop_reset_publish_port}
+
+
+# Transformation classes used to transform the keypoints
+transforms:
+  - 
+    _target_: openteach.components.detector.keypoint_transform.TransformHandPositionCoords
+    host: ${host_address}
+    keypoint_port: ${keypoint_port}
+    transformation_port: ${transformed_position_keypoint_port}
+    moving_average_limit: 1
+
+# Visualizers used to visualize the keypoints stream
+visualizers:
+  -
+    _target_: openteach.components.visualizers.visualizer_2d.Hand2DVisualizer
+    host: ${host_address}
+    transformed_keypoint_port: ${transformed_position_keypoint_port}
+    oculus_feedback_port: ${oculus_graph_port}
+    display_plot: ${visualize_right_2d}
+
+# Then define the robot that uses this controller
+robots:
+  - 
+    _target_: openteach.robot.xarm7_right.XArm7Right
+    host: ${host_address}
+    endeff_publish_port: 10010
+    endeff_subscribe_port: 10009
+    joint_subscribe_port: 8119
+    reset_subscribe_port: 9069
+    robot_ip: ${right_xarm_ip}
+  -
+    _target_: openteach.robot.leap_robot.LeapHand
+    host: ${host_address}
+    joint_angle_subscribe_port: 8120
+    joint_angle_publish_port: 8119
+    reset_subscribe_port: 9068
+
+# Then the operator that uses the robot
+operators:
+  - 
+    _target_: openteach.components.operators.xarm7_right.XArm7RightOperator
+    host: ${host_address}
+    transformed_keypoints_port: ${transformed_position_keypoint_port}
+    stream_configs:
+      host: ${host_address}
+      port: ${sim_image_port}
+    stream_oculus: true
+    endeff_publish_port: 10009
+    endeff_subscribe_port: 10010
+    moving_average_limit: 1
+    arm_resolution_port: ${resolution_button_publish_port} 
+    use_filter: False
+    teleoperation_reset_port: ${teleop_reset_publish_port}
+    reset_publish_port: 9069
+    logging_config:
+      enabled: False
+      log_dir: "logs"
+      log_poses: True
+      log_prefix: "xarm"
+
+  -
+    _target_: openteach.components.operators.leap.LeapHandOperator
+    host: ${host_address}
+    transformed_keypoints_port: ${transformed_position_keypoint_port}
+    joint_angle_subscribe_port: 8119
+    joint_angle_publish_port: 8120
+    reset_publish_port: 9068
+    finger_configs:
+      freeze_index: false
+      freeze_middle: false
+      freeze_ring: false
+      freeze_thumb: true
+      no_index: false
+      no_middle: false 
+      no_ring: false
+      no_thumb: false
+      three_dim: true
+    logging_config:
+      enabled: false
+      log_dir: "logs"
+      log_poses: true
+      log_prefix: "leap"
+
+recorded_data:
+  - 
+    - joint_states
+    - cartesian_states

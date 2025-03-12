@@ -1,0 +1,2 @@
+set(xarm_gripper_MESSAGE_FILES "/root/catkin_ws/devel/share/xarm_gripper/msg/MoveAction.msg;/root/catkin_ws/devel/share/xarm_gripper/msg/MoveActionGoal.msg;/root/catkin_ws/devel/share/xarm_gripper/msg/MoveActionResult.msg;/root/catkin_ws/devel/share/xarm_gripper/msg/MoveActionFeedback.msg;/root/catkin_ws/devel/share/xarm_gripper/msg/MoveGoal.msg;/root/catkin_ws/devel/share/xarm_gripper/msg/MoveResult.msg;/root/catkin_ws/devel/share/xarm_gripper/msg/MoveFeedback.msg")
+set(xarm_gripper_SERVICE_FILES "")

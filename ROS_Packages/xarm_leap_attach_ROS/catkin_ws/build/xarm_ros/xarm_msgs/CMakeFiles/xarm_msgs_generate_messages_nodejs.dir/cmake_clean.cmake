@@ -1,0 +1,42 @@
+file(REMOVE_RECURSE
+  "CMakeFiles/xarm_msgs_generate_messages_nodejs"
+  "/root/catkin_ws/devel/share/gennodejs/ros/xarm_msgs/msg/RobotMsg.js"
+  "/root/catkin_ws/devel/share/gennodejs/ros/xarm_msgs/msg/IOState.js"
+  "/root/catkin_ws/devel/share/gennodejs/ros/xarm_msgs/msg/CIOState.js"
+  "/root/catkin_ws/devel/share/gennodejs/ros/xarm_msgs/srv/MoveVelocity.js"
+  "/root/catkin_ws/devel/share/gennodejs/ros/xarm_msgs/srv/GripperConfig.js"
+  "/root/catkin_ws/devel/share/gennodejs/ros/xarm_msgs/srv/SetAxis.js"
+  "/root/catkin_ws/devel/share/gennodejs/ros/xarm_msgs/srv/ClearErr.js"
+  "/root/catkin_ws/devel/share/gennodejs/ros/xarm_msgs/srv/SetInt16.js"
+  "/root/catkin_ws/devel/share/gennodejs/ros/xarm_msgs/srv/SetString.js"
+  "/root/catkin_ws/devel/share/gennodejs/ros/xarm_msgs/srv/ConfigToolModbus.js"
+  "/root/catkin_ws/devel/share/gennodejs/ros/xarm_msgs/srv/GetInt32.js"
+  "/root/catkin_ws/devel/share/gennodejs/ros/xarm_msgs/srv/GetFloat32List.js"
+  "/root/catkin_ws/devel/share/gennodejs/ros/xarm_msgs/srv/MoveVelo.js"
+  "/root/catkin_ws/devel/share/gennodejs/ros/xarm_msgs/srv/SetDigitalIO.js"
+  "/root/catkin_ws/devel/share/gennodejs/ros/xarm_msgs/srv/FtCaliLoad.js"
+  "/root/catkin_ws/devel/share/gennodejs/ros/xarm_msgs/srv/GetSetModbusData.js"
+  "/root/catkin_ws/devel/share/gennodejs/ros/xarm_msgs/srv/PlayTraj.js"
+  "/root/catkin_ws/devel/share/gennodejs/ros/xarm_msgs/srv/GetErr.js"
+  "/root/catkin_ws/devel/share/gennodejs/ros/xarm_msgs/srv/GetControllerDigitalIO.js"
+  "/root/catkin_ws/devel/share/gennodejs/ros/xarm_msgs/srv/SetToolModbus.js"
+  "/root/catkin_ws/devel/share/gennodejs/ros/xarm_msgs/srv/GetDigitalIO.js"
+  "/root/catkin_ws/devel/share/gennodejs/ros/xarm_msgs/srv/Move.js"
+  "/root/catkin_ws/devel/share/gennodejs/ros/xarm_msgs/srv/GripperMove.js"
+  "/root/catkin_ws/devel/share/gennodejs/ros/xarm_msgs/srv/SetLoad.js"
+  "/root/catkin_ws/devel/share/gennodejs/ros/xarm_msgs/srv/SetMultipleInts.js"
+  "/root/catkin_ws/devel/share/gennodejs/ros/xarm_msgs/srv/GetAnalogIO.js"
+  "/root/catkin_ws/devel/share/gennodejs/ros/xarm_msgs/srv/FtIdenLoad.js"
+  "/root/catkin_ws/devel/share/gennodejs/ros/xarm_msgs/srv/SetControllerAnalogIO.js"
+  "/root/catkin_ws/devel/share/gennodejs/ros/xarm_msgs/srv/MoveAxisAngle.js"
+  "/root/catkin_ws/devel/share/gennodejs/ros/xarm_msgs/srv/SetModbusTimeout.js"
+  "/root/catkin_ws/devel/share/gennodejs/ros/xarm_msgs/srv/GripperState.js"
+  "/root/catkin_ws/devel/share/gennodejs/ros/xarm_msgs/srv/TCPOffset.js"
+  "/root/catkin_ws/devel/share/gennodejs/ros/xarm_msgs/srv/Call.js"
+  "/root/catkin_ws/devel/share/gennodejs/ros/xarm_msgs/srv/SetFloat32.js"
+)
+
+# Per-language clean rules from dependency scanning.
+foreach(lang )
+  include(CMakeFiles/xarm_msgs_generate_messages_nodejs.dir/cmake_clean_${lang}.cmake OPTIONAL)
+endforeach()
