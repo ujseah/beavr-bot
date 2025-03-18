@@ -28,6 +28,7 @@ urdf/*
 
 # Logs
 logs/pose_log*
+logs/*.json
 
 *ik*.json
 *log*.json

@@ -1,10 +1,11 @@
-robot_name: xarm7_right
+robot_name: xarm7_left
 
 # Detector used to teleoperate the robot
 detector:
-  _target_: beavr.components.detector.oculus.OculusVRHandDetector
+  _target_: beavr.components.detector.oculusbimanual.OculusVRTwoHandDetector
   host: ${host_address}
-  oculus_port: ${oculus_reciever_port}
+  oculus_right_port: ${oculus_reciever_port}
+  oculus_left_port: ${left_hand_receiver_port}
   keypoint_pub_port: ${keypoint_port}
   button_port: ${resolution_button_port}
   button_publish_port: ${resolution_button_publish_port}
@@ -14,11 +15,11 @@ detector:
 
 # Transformation classes used to transform the keypoints
 transforms:
-  - 
-    _target_: beavr.components.detector.keypoint_transform.TransformHandPositionCoords
+  -
+    _target_: beavr.components.detector.left_keypoint_transform.TransformLeftHandPositionCoords
     host: ${host_address}
     keypoint_port: ${keypoint_port}
-    transformation_port: ${transformed_position_keypoint_port}
+    transformation_port: ${transformed_position_left_keypoint_port}
     moving_average_limit: 1
 
 # Visualizers used to visualize the keypoints stream
@@ -39,20 +40,15 @@ robots:
     endeff_subscribe_port: 10009
     joint_subscribe_port: 8119
     reset_subscribe_port: 9069
-    robot_ip: ${right_xarm_ip}
-  -
-    _target_: beavr.interfaces.leap_robot.LeapHandRobot
-    host: ${host_address}
-    joint_angle_subscribe_port: 8120
-    joint_angle_publish_port: 8119
-    reset_subscribe_port: 9068
+    robot_ip: ${left_xarm_ip}
+    is_right_arm: False
 
 # Then the operator that uses the robot
 operators:
   - 
-    _target_: beavr.components.operators.xarm7_right.XArm7RightOperator
+    _target_: beavr.components.operators.xarm7_left.XArm7LeftOperator
     host: ${host_address}
-    transformed_keypoints_port: ${transformed_position_keypoint_port}
+    transformed_keypoints_port: ${transformed_position_left_keypoint_port}
     stream_configs:
       host: ${host_address}
       port: ${sim_image_port}
@@ -69,29 +65,6 @@ operators:
       log_dir: "logs"
       log_poses: True
       log_prefix: "xarm"
-
-  -
-    _target_: beavr.components.operators.leap_pybullet.LeapHandOperator
-    host: ${host_address}
-    transformed_keypoints_port: ${transformed_position_keypoint_port}
-    joint_angle_subscribe_port: 8119
-    joint_angle_publish_port: 8120
-    reset_publish_port: 9068
-    finger_configs:
-      freeze_index: false
-      freeze_middle: false
-      freeze_ring: false
-      freeze_thumb: false
-      no_index: false
-      no_middle: false 
-      no_ring: false
-      no_thumb: false
-      three_dim: true
-    logging_config:
-      enabled: false
-      log_dir: "logs"
-      log_poses: true
-      log_prefix: "leap"
 
 recorded_data:
   - 

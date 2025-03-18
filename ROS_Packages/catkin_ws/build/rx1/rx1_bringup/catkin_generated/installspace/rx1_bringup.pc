@@ -1,8 +1,0 @@
-prefix=/home/catkin_ws/install
-
-Name: rx1_bringup
-Description: Description of rx1_bringup
-Version: 1.2.5
-Cflags: 
-Libs: -L${prefix}/lib 
-Requires: roscpp std_msgs sensor_msgs diagnostic_msgs

@@ -1,8 +1,0 @@
-prefix=/home/catkin_ws/devel
-
-Name: feetech_lib
-Description: Description of feetech_lib
-Version: 0.0.1
-Cflags: -I/home/catkin_ws/src/feetech_lib/include
-Libs: -L${prefix}/lib -lfeetech_lib
-Requires: roscpp rospy std_msgs

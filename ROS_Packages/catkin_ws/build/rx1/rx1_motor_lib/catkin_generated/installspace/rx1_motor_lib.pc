@@ -1,8 +1,0 @@
-prefix=/home/catkin_ws/install
-
-Name: rx1_motor_lib
-Description: Description of rx1_motor_lib
-Version: 0.0.1
-Cflags: -I${prefix}/include
-Libs: -L${prefix}/lib -lrx1_motor_lib
-Requires: feetech_lib roscpp rospy std_msgs

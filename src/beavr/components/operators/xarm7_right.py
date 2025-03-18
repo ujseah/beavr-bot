@@ -128,15 +128,6 @@ class XArm7RightOperator(Operator):
         else:
             self.pose_logger = None
 
-        # Precalculate constant matrices
-        self.H_R_V_inv = np.linalg.pinv(np.array([[-1, 0, 0, 0],
-                                                 [0, -1, 0, 0],
-                                                 [0, 0, -1, 0],
-                                                 [0, 0, 0, 1]]))
-        self.H_T_V = np.array([[0, 0, 1],
-                              [-1, 0, 0],
-                              [0, -1, 0]])
-
     @property
     def timer(self):
         return self._timer
@@ -330,8 +321,8 @@ class XArm7RightOperator(Operator):
         #                 [0, 0, -1, 0],
         #                 [0, 0 ,0 , 1]])
 
-        H_R_V = np.array([[ 0, -1,  0,  0],
-                          [ 0,  0, -1,  0],
+        H_R_V = np.array([[ 0,  0,  1,  0],
+                          [ 0, -1,  0,  0],
                           [ 1,  0,  0,  0],
                           [ 0,  0,  0,  1]])
 

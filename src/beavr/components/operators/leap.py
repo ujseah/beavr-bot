@@ -3,8 +3,7 @@ from beavr.utils.network import ZMQKeypointSubscriber, ZMQKeypointPublisher
 from .operator import Operator
 from shapely.geometry import Point, Polygon 
 from shapely.ops import nearest_points
-from .calibrators.allegro import OculusThumbBoundCalibrator
-from beavr.robot.allegro.allegro_retargeters import AllegroKDLControl, AllegroJointControl
+
 from beavr.utils.files import *
 from beavr.utils.vectorops import coord_in_bound
 from beavr.utils.timer import FrequencyTimer
@@ -54,11 +53,6 @@ class LeapHandOperator(Operator):
 
         # NOTE: This is a bypass when doing our own code this should be removed
         self.return_real = lambda: False
-        
-        #Initializing the solvers for allegro hand which work on leaphand
-        #We can spend more time and make our own but these work well enough
-        self.fingertip_solver = AllegroKDLControl()
-        self.finger_joint_solver = AllegroJointControl()
 
         # Initialzing the moving average queues
         self.moving_average_queues = {
@@ -134,8 +128,6 @@ class LeapHandOperator(Operator):
     # Calibrate the thumb bounds
     def _calibrate_bounds(self):
         self.notify_component_start('calibration')
-        calibrator = OculusThumbBoundCalibrator(self._host, self._port)
-        self.hand_thumb_bounds = calibrator.get_bounds() # Provides [thumb-index bounds, index-middle bounds, middle-ring-bounds]
         print(f'THUMB BOUNDS IN THE OPERATOR: {self.hand_thumb_bounds}')
 
     # Get the transformed finger coordinates

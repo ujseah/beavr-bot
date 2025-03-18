@@ -9,10 +9,10 @@ defaults:
 operate: true
 
 #To run the robot interface
-robot_interface: false
+robot_interface: true
 
 # To run the simulation environment
-sim_env: true
+sim_env: false
 
 # To run the Xela controller
 run_xela:  false

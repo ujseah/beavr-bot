@@ -1,8 +1,0 @@
-prefix=/root/catkin_ws/install
-
-Name: xarm5_moveit_config
-Description: Description of xarm5_moveit_config
-Version: 0.3.0
-Cflags: 
-Libs: -L${prefix}/lib 
-Requires: 

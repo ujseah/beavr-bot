@@ -1,8 +1,0 @@
-prefix=/root/catkin_ws/install
-
-Name: xarm7
-Description: Description of xarm7
-Version: 0.0.1
-Cflags: 
-Libs: -L${prefix}/lib 
-Requires: 

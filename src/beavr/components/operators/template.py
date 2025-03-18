@@ -13,11 +13,13 @@ from beavr.utils.network import ZMQKeypointSubscriber, ZMQKeypointPublisher
 from beavr.utils.vectorops import *
 from beavr.utils.files import *
 
-from beavr.robot.robot import RobotWrapper
+from beavr.interfaces.robot import RobotWrapper
 from scipy.spatial.transform import Rotation, Slerp
 from .operator import Operator
 from scipy.spatial.transform import Rotation as R
 from numpy.linalg import pinv
+
+from beavr.constants import BIMANUAL_VR_FREQ, XARM_SCALE_FACTOR as SCALE_FACTOR
 
 
 np.set_printoptions(precision=2, suppress=True)

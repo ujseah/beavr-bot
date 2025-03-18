@@ -1,8 +1,0 @@
-prefix=/home/catkin_ws/devel
-
-Name: ik_solver_lib
-Description: Description of ik_solver_lib
-Version: 0.0.1
-Cflags: -I/home/catkin_ws/src/ik_solver_lib/include
-Libs: -L${prefix}/lib -lik_solver_lib
-Requires: roscpp trac_ik_lib kdl_parser pluginlib

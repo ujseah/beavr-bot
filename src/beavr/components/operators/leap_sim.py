@@ -4,9 +4,7 @@ from beavr.utils.network import ZMQKeypointSubscriber, ZMQKeypointPublisher
 from .operator import Operator
 from shapely.geometry import Point, Polygon 
 from shapely.ops import nearest_points
-from .calibrators.allegro import OculusThumbBoundCalibrator
-# from openteach.robot.allegro.allegro import AllegroHand
-from beavr.robot.allegro.allegro_retargeters import AllegroKDLControl, AllegroJointControl
+
 from beavr.utils.files import *
 from beavr.utils.vectorops import coord_in_bound
 from beavr.utils.timer import FrequencyTimer
@@ -53,12 +51,6 @@ class LeapHandSimOperator(Operator):
         )
         # Initializing the solvers
         self.finger_configs = finger_configs
-
-        #solvers for allegro han also work for Leaphand
-        self.fingertip_solver = AllegroKDLControl()
-        self.finger_joint_solver = AllegroJointControl()
-
-
        
         # Initializing the queues
         self.moving_average_queues = {
@@ -85,7 +77,8 @@ class LeapHandSimOperator(Operator):
         else:
             self.thumb_angle_calculator = self._get_2d_thumb_angles
 
-        self._robot='Allegro_Sim'
+        self._robot='Leap_sim'
+    
     @property
     def timer(self):
         return self._timer
@@ -109,8 +102,6 @@ class LeapHandSimOperator(Operator):
     # Calibrate the bounds for the thumb
     def _calibrate_bounds(self):
         self.notify_component_start('calibration')
-        calibrator = OculusThumbBoundCalibrator(self._host, self._port)
-        self.hand_thumb_bounds = calibrator.get_bounds() # Provides [thumb-index bounds, index-middle bounds, middle-ring-bounds]
         print(f'THUMB BOUNDS IN THE OPERATOR: {self.hand_thumb_bounds}')  
 
     # Get Finger Coordinates
@@ -229,17 +220,4 @@ class LeapHandSimOperator(Operator):
             self._generate_frozen_angles(desired_joint_angles, 'thumb')
             print("No thumb")
 
-        # The main difference is an offset in angle of the second joint of each finger
-        # This is because the LEAP hand has a different zero position than the Allegro hand
-        # We can just apply this difference to get accurate joint angles for the LeapHand
-        desired_joint_angles = allegro_to_LEAPhand(desired_joint_angles)
         self.joint_angle_publisher.pub_keypoints(desired_joint_angles,'desired_angles')
-
-
-def allegro_to_LEAPhand(joints, teleop = True, zeros = True):
-    ret_joints = np.array(joints)
-    ret_joints[1] -= 0.2
-    ret_joints[5] -= 0.2
-    ret_joints[9] -= 0.2
-    return ret_joints
-

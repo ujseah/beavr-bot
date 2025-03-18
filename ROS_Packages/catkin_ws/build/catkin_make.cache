@@ -1,2 +1,0 @@
-feetech_lib:ik_solver_lib:rx1/rx1:rx1/rx1_bringup:rx1/rx1_description:rx1/rx1_gazebo:rx1/rx1_ik:rx1/rx1_motor:rx1/rx1_motor_lib:trac_ik/trac_ik:trac_ik/trac_ik_examples:trac_ik/trac_ik_kinematics_plugin:trac_ik/trac_ik_lib:trac_ik/trac_ik_python
--DCATKIN_DEVEL_PREFIX=/home/catkin_ws/devel -DCMAKE_INSTALL_PREFIX=/home/catkin_ws/install -G Unix Makefiles

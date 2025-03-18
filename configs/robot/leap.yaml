@@ -57,7 +57,7 @@ operators:
 
 robots:
   -
-    _target_: beavr.robot.leap_robot.LeapHand
+    _target_: beavr.interfaces.leap_robot.LeapHandRobot
     host: ${host_address}
     joint_angle_subscribe_port: 8120
     joint_angle_publish_port: 8119
@@ -67,11 +67,3 @@ recorded_data:
   - 
     - joint_states
     - commanded_joint_states
-
-debuggers:
-  - 
-    _target_: beavr.robot.allegro.thumb_calibration.AllegroTransformationTester
-    host: ${host_address}
-    keypoint_ports:
-      - ${pre_action_thumb_ee_position_port}
-      - ${post_action_thumb_ee_position_port}

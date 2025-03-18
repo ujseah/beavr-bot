@@ -1,8 +1,0 @@
-prefix=/home/catkin_ws/devel
-
-Name: rx1_gazebo
-Description: Description of rx1_gazebo
-Version: 1.2.5
-Cflags: 
-Libs: -L${prefix}/lib 
-Requires: urdf xacro

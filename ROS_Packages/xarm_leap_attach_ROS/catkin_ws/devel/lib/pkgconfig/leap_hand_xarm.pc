@@ -1,8 +1,0 @@
-prefix=/root/catkin_ws/devel
-
-Name: leap_hand_xarm
-Description: Description of leap_hand_xarm
-Version: 0.0.0
-Cflags: 
-Libs: -L${prefix}/lib 
-Requires: 

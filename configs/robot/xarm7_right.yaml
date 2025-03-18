@@ -33,7 +33,7 @@ visualizers:
 # Then define the robot that uses this controller
 robots:
   - 
-    _target_: beavr.robot.xarm7_right.XArm7Right
+    _target_: beavr.interfaces.xarm7_robot.XArm7Robot
     host: ${host_address}
     endeff_publish_port: 10010
     endeff_subscribe_port: 10009

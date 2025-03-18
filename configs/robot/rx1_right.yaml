@@ -33,7 +33,7 @@ visualizers:
 # Then define the robot that uses this controller
 robots:
   - 
-    _target_: beavr.robot.rx1_right_robot.RX1Right
+    _target_: beavr.interfaces.rx1.rx1_right_robot.RX1Right
     host: ${host_address}
     ee_pose_op_pub: 10010
     ee_pose_op_sub: 10009
@@ -70,7 +70,6 @@ recorded_data:
   - 
     - joint_states
     - cartesian_states
-  - 
     - position
     - velocity
     - effort
