@@ -78,9 +78,6 @@ env/
 *.swp
 *.swo
 
-# Tests
-tests/
-
 # Pytest
 .pytest_cache/
 
