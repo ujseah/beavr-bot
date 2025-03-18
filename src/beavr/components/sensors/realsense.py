@@ -5,6 +5,7 @@ from beavr.utils.images import rotate_image, rescale_image
 from beavr.utils.timer import FrequencyTimer
 from beavr.utils.network import ZMQCameraPublisher, ZMQCompressedImageTransmitter
 from beavr.constants import *
+import time
 
 class RealsenseCamera(Component):
     def __init__(self, stream_configs, cam_serial_num, cam_id, cam_configs, stream_oculus = False):
@@ -63,9 +64,19 @@ class RealsenseCamera(Component):
         cfg = self.pipeline.start(config)
         device = cfg.get_device()
 
-        # Setting the depth mode to high accuracy mode
-        depth_sensor = device.first_depth_sensor()
-        depth_sensor.set_option(rs.option.visual_preset, self.cam_configs.processing_preset)
+        # Add a small delay before setting the preset
+        time.sleep(0.5)  # Give the camera time to initialize fully
+
+        try:
+            # Confirm we're using the right device
+            print(f"Setting visual_preset {self.cam_configs.processing_preset} for camera {self._cam_serial_num}")
+            depth_sensor = device.first_depth_sensor()
+            depth_sensor.set_option(rs.option.visual_preset, self.cam_configs.processing_preset)
+            current = depth_sensor.get_option(rs.option.visual_preset)
+            print(f"Verified: Current preset is {current}")
+        except Exception as e:
+            print(f"Warning: Could not set visual_preset: {e}")
+            print("Continuing with default preset...")
         self.realsense = self.pipeline
 
         # Obtaining the color intrinsics matrix for aligning the color and depth images
@@ -108,7 +119,7 @@ class RealsenseCamera(Component):
             print('Starting oculus stream on port: {}\n'.format(self._stream_configs['port'] + VIZ_PORT_OFFSET))
 
         while True:
-            #try:
+            try:
                 self.timer.start_loop()
                 color_image, depth_image, timestamp = self.get_rgb_depth_images()
 
@@ -126,8 +137,8 @@ class RealsenseCamera(Component):
                 self.depth_publisher.pub_intrinsics(self.intrinsics_matrix) # Publishing inrinsics along with the depth publisher
 
                 self.timer.end_loop()
-            # except KeyboardInterrupt:
-            #     break
+            except KeyboardInterrupt:
+                break
         
         print('Shutting down realsense pipeline for camera {}.'.format(self.cam_id))
         self.rgb_publisher.stop()

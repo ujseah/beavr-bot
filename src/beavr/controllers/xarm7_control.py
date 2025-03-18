@@ -16,7 +16,7 @@ class RobotControlMode(Enum):
 
 # Wrapper for XArm
 class Robot(XArmAPI):
-    def __init__(self, ip="192.168.1.197", is_radian=True, simulation_mode=False):
+    def __init__(self, ip="192.168.1.197", is_radian=True, simulation_mode=True):
         super(Robot, self).__init__(
             port=ip, is_radian=is_radian, is_tool_coord=False, enable_report=True, report_type="rich")
         if simulation_mode and not self.is_simulation_robot:

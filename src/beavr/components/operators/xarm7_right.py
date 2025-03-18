@@ -36,7 +36,7 @@ class XArm7RightOperator(Operator):
         endeff_publish_port,
         endeff_subscribe_port,
         moving_average_limit,
-        use_filter=False,
+        use_filter=True,
         arm_resolution_port = None,
         teleoperation_reset_port = None,
         reset_publish_port = None,
@@ -110,10 +110,10 @@ class XArm7RightOperator(Operator):
         self.use_filter = use_filter
         self.comp_filter = None
 
-        # Moving average
-        # self.moving_Average_queue = []
-        # self.moving_average_limit = moving_average_limit
-        # self.hand_frames = []
+        # Moving average setup
+        self.moving_average_queue = []
+        self.moving_average_limit = moving_average_limit
+        self.hand_frames = []
 
         self._stream_oculus = stream_oculus
         self.stream_configs = stream_configs
@@ -311,25 +311,15 @@ class XArm7RightOperator(Operator):
         # Convert frame to homogeneous matrix
         self.hand_moving_H = self._turn_frame_to_homo_mat(moving_hand_frame)
         
-        # Transformation code (same order as Allegro)
+        # Transformation beigns
         H_HI_HH = copy(self.hand_init_H)
         H_HT_HH = copy(self.hand_moving_H)
         H_RI_RH = copy(self.robot_init_H)
 
-        # H_R_V = np.array([[-1, 0, 0, 0],
-        #                 [0 , -1, 0, 0],
-        #                 [0, 0, -1, 0],
-        #                 [0, 0 ,0 , 1]])
-
-        H_R_V = np.array([[ 0,  0,  1,  0],
-                          [ 0, -1,  0,  0],
+        H_R_V = np.array([[ 0, 0,  1,   0],
+                          [ 0,  -1, 0,  0],
                           [ 1,  0,  0,  0],
                           [ 0,  0,  0,  1]])
-
-        # H_T_V = np.array([[-1, 0, 0, 0],
-        #                 [0 , -1, 0, 0],
-        #                 [0, 0, -1, 0],
-        #                 [0, 0, 0, 1]])
 
         H_T_V = np.array([[ 0, -1,  0,  0],
                           [ 0,  0, -1,  0],
@@ -347,22 +337,40 @@ class XArm7RightOperator(Operator):
         # H_RT_RH = self.project_to_rotation_matrix(H_RT_RH)
         self.robot_moving_H = copy(H_RT_RH)
 
-        # Get cart pose and publish (like Allegro)
+        # Get cart pose and apply filters
         cart = self._homo2cart(H_RT_RH)
 
+        # Apply complementary filter if enabled
         if self.use_filter:
-            # cart = self.comp_filter(cart)
-            # TODO: Add filter
-            pass
+            if self.comp_filter is None:
+                self.comp_filter = CompStateFilter(cart)
+            else:
+                cart = self.comp_filter(cart)
         
-        # Convert cartesian orientation to radians
+        # Apply moving average for additional smoothing
+        self.moving_average_queue.append(cart)
+        if len(self.moving_average_queue) > self.moving_average_limit:
+            self.moving_average_queue.pop(0)
+        
+        # Average positions but handle orientation separately
+        positions = np.mean([q[:3] for q in self.moving_average_queue], axis=0)
+        
+        # For orientation, use SLERP between first and last quaternion
+        if len(self.moving_average_queue) > 1:
+            quats = np.array([q[3:] for q in self.moving_average_queue])
+            rot_interp = Slerp([0, 1], Rotation.from_quat([quats[0], quats[-1]]))
+            orientation = rot_interp([0.5])[0].as_quat()
+        else:
+            orientation = cart[3:7]
+        
+        # Combine smoothed position and orientation
+        cart = np.concatenate([positions, orientation])
+
+        # Convert to euler angles and publish
         position = cart[0:3]
         orientation = cart[3:7]
         roll, pitch, yaw = self.quat_to_euler_rad(orientation[0], orientation[1], orientation[2], orientation[3])
         euler_orientation = [roll, pitch, yaw]
-        # print(f"Publishing cartesian state: {cart}")
-
-        # print(f"Publishing cartesian state: {position}, {euler_orientation}")
 
         # Send cartesian coordinates
         self.end_eff_position_publisher.pub_keypoints({

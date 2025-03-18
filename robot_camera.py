@@ -1,7 +1,7 @@
 import hydra
 from beavr.components import RealsenseCameras
 
-@hydra.main(version_base = '1.2', config_path = 'configs', config_name = 'camera')
+@hydra.main(version_base = '1.2', config_path = 'configs', config_name = 'realsense')
 def main(configs):
     cameras = RealsenseCameras(configs)
     processes = cameras.get_processes()
