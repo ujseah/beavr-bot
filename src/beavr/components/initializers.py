@@ -8,6 +8,7 @@ from .recorders.sensors import XelaSensorRecorder
 from .sensors import *
 from multiprocessing import Process
 from beavr.constants import *
+from beavr.utils.registry import GlobalRegistry
 
 
 class ProcessInstantiator(ABC):
@@ -168,6 +169,10 @@ class TeleOperator(ProcessInstantiator):
     
     def _init_robot_interface(self):
         for robot_config in self.configs.robot.robots:
+            robot_name = robot_config['_target_'].split('.')[-1].lower()
+            robot = hydra.utils.instantiate(robot_config)
+            GlobalRegistry.register(robot_name, robot)
+            
             self.processes.append(Process(
                 target = self._start_component,
                 args = (robot_config, )
@@ -343,12 +348,12 @@ class Collector(ProcessInstantiator):
 
     #Function to start the robot recorders
     def _init_robot_recorders(self):
-        # Instantiating the robot classes
-        for idx, robot_controller_configs in enumerate(self.configs.robot.controllers):
+        # Use robots directly since they manage their own controllers
+        for idx, robot_configs in enumerate(self.configs.robot.robots):
             for key in self.configs.robot.recorded_data[idx]:
                 self.processes.append(Process(
                     target = self._start_robot_component,
-                    args = (robot_controller_configs, key, )
+                    args = (robot_configs, key, )
                 ))
 
 

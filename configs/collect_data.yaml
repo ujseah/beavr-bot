@@ -1,6 +1,6 @@
 defaults:
   - _self_
-  - camera
+  - realsense
   - network
   - robot: xela_hand_franka
   - override hydra/hydra_logging: disabled  

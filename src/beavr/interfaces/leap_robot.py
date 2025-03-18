@@ -12,8 +12,12 @@ import zmq
 from beavr.utils.registry import GlobalRegistry
 
 class LeapHandRobot(RobotWrapper):
-    def __init__(self, host, joint_angle_subscribe_port, joint_angle_publish_port, reset_subscribe_port):
-        self._controller = DexArmControl()
+    def __init__(self, host, joint_angle_subscribe_port, joint_angle_publish_port, reset_subscribe_port, simulation_mode=True):
+        if simulation_mode:
+            self._controller = None  # Skip hardware initialization in sim mode
+        else:
+            self._controller = DexArmControl()  # Only init hardware in real mode
+        
         self._data_frequency = 60
         self._command_queue = Queue(maxsize=1)
         self._last_command = None
@@ -55,6 +59,7 @@ class LeapHandRobot(RobotWrapper):
 
     @property
     def recorder_functions(self):
+        """Define available recording functions for the robot"""
         return {
             'joint_states': self.get_joint_state, 
             'commanded_joint_states': self.get_commanded_joint_state,
@@ -82,14 +87,13 @@ class LeapHandRobot(RobotWrapper):
 
     # State information functions
     def get_joint_state(self):
-        """Get current joint state"""
-        if not self._is_recording_enabled or self._latest_joint_angles is None:
-            return None
-            
-        return {
-            'position': self._latest_joint_angles,
-            'timestamp': self._latest_joint_angles_timestamp
-        }
+        """Get joint state data, handle sim mode"""
+        if self._controller is None:  # In sim mode
+            return {
+                'position': np.zeros(16),  # Or whatever default shape you need
+                'timestamp': time.time()
+            }
+        return self._controller.get_joint_state()
 
     def get_commanded_joint_state(self):
         """Get the last commanded joint state"""

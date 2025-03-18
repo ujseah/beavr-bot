@@ -62,6 +62,7 @@ robots:
     joint_angle_subscribe_port: 8120
     joint_angle_publish_port: 8119
     reset_subscribe_port: 9069
+    simulation_mode: true
 
 recorded_data:
   - 
