@@ -1,5 +1,5 @@
 import hydra
-from beavr.src.components import TeleOperator
+from beavr.components import TeleOperator
 
 @hydra.main(version_base = '1.2', config_path = 'configs', config_name = 'teleop')
 def main(configs):

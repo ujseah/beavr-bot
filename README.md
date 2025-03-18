@@ -13,9 +13,11 @@ BeaVR consists of two parts.
 
 - Policy training for various dexterous manipulation tasks across different robots and simulations
 
-### Server Code Installation 
+## Installation Options
 
-Install the conda environment from the yaml file in the codebase
+### Option 1: Conda Environment (Recommended for Development)
+
+For development and running the full system with all dependencies (including PyTorch and simulation tools), we recommend using Conda:
 
 **Allegro Sim**
 

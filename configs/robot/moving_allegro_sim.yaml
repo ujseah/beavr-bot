@@ -1,7 +1,7 @@
 robot_name: moving_allegro_sim
 
 detector:
-  _target_: beavr.src.components.detector.oculus.OculusVRHandDetector
+  _target_: beavr.components.detector.oculus.OculusVRHandDetector
   host: ${host_address}
   oculus_port: ${oculus_reciever_port}
   keypoint_pub_port: ${keypoint_port}
@@ -15,7 +15,7 @@ detector:
 # Transforming the keypoints from the oculus
 transforms:
   - 
-    _target_: beavr.src.components.detector.keypoint_transform.TransformHandPositionCoords
+    _target_: beavr.components.detector.keypoint_transform.TransformHandPositionCoords
     host: ${host_address}
     keypoint_port: ${keypoint_port}
     transformation_port: ${transformed_position_keypoint_port}
@@ -25,7 +25,7 @@ transforms:
 # Visualizers used to visualize the keypoints stream
 visualizers:
   - 
-    _target_: beavr.src.components.visualizers.visualizer_2d.Hand2DVisualizer
+    _target_: beavr.components.visualizers.visualizer_2d.Hand2DVisualizer
     host: ${host_address}
     transformed_keypoint_port: ${transformed_position_keypoint_port}
     oculus_feedback_port: ${oculus_graph_port}
@@ -36,7 +36,7 @@ visualizers:
 
 operators:
   - 
-    _target_: beavr.src.components.operators.moving_allegro_sim.MovingAllegroSimOperator
+    _target_: beavr.components.operators.moving_allegro_sim.MovingAllegroSimOperator
     host: ${host_address}
     transformed_keypoints_port: ${transformed_position_keypoint_port}
     finger_configs:
@@ -66,7 +66,7 @@ operators:
 
 environment:
   - 
-    _target_: beavr.src.components.environment.allegro_hand_moving_env.AllegroHandMovingEnv
+    _target_: beavr.components.environment.allegro_hand_moving_env.AllegroHandMovingEnv
     host: ${host_address}
     camport: ${sim_image_port}
     jointanglepublishport: 10012
