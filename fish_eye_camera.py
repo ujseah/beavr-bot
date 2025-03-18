@@ -1,5 +1,5 @@
 import hydra
-from beavr.src.components.initializers import FishEyeCameras
+from beavr.components.initializers import FishEyeCameras
 
 @hydra.main(version_base = '1.2', config_path = 'configs', config_name = 'fisheyecamera')
 def main(configs):

@@ -77,3 +77,18 @@ env/
 .vscode/
 *.swp
 *.swo
+
+# Tests
+tests/
+
+# Pytest
+.pytest_cache/
+
+# Pyright
+.pyright*
+
+# Pycharm
+.idea/
+
+# Egg
+*.egg-info/

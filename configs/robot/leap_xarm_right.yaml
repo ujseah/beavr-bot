@@ -2,7 +2,7 @@ robot_name: xarm7_right
 
 # Detector used to teleoperate the robot
 detector:
-  _target_: beavr.src.components.detector.oculus.OculusVRHandDetector
+  _target_: beavr.components.detector.oculus.OculusVRHandDetector
   host: ${host_address}
   oculus_port: ${oculus_reciever_port}
   keypoint_pub_port: ${keypoint_port}
@@ -15,7 +15,7 @@ detector:
 # Transformation classes used to transform the keypoints
 transforms:
   - 
-    _target_: beavr.src.components.detector.keypoint_transform.TransformHandPositionCoords
+    _target_: beavr.components.detector.keypoint_transform.TransformHandPositionCoords
     host: ${host_address}
     keypoint_port: ${keypoint_port}
     transformation_port: ${transformed_position_keypoint_port}
@@ -24,7 +24,7 @@ transforms:
 # Visualizers used to visualize the keypoints stream
 visualizers:
   -
-    _target_: beavr.src.components.visualizers.visualizer_2d.Hand2DVisualizer
+    _target_: beavr.components.visualizers.visualizer_2d.Hand2DVisualizer
     host: ${host_address}
     transformed_keypoint_port: ${transformed_position_keypoint_port}
     oculus_feedback_port: ${oculus_graph_port}
@@ -33,7 +33,7 @@ visualizers:
 # Then define the robot that uses this controller
 robots:
   - 
-    _target_: beavr.src.robot.xarm7_right.XArm7Right
+    _target_: beavr.robot.xarm7_right.XArm7Right
     host: ${host_address}
     endeff_publish_port: 10010
     endeff_subscribe_port: 10009
@@ -41,7 +41,7 @@ robots:
     reset_subscribe_port: 9069
     robot_ip: ${right_xarm_ip}
   -
-    _target_: beavr.src.robot.leap_robot.LeapHand
+    _target_: beavr.robot.leap_robot.LeapHand
     host: ${host_address}
     joint_angle_subscribe_port: 8120
     joint_angle_publish_port: 8119
@@ -50,7 +50,7 @@ robots:
 # Then the operator that uses the robot
 operators:
   - 
-    _target_: beavr.src.components.operators.xarm7_right.XArm7RightOperator
+    _target_: beavr.components.operators.xarm7_right.XArm7RightOperator
     host: ${host_address}
     transformed_keypoints_port: ${transformed_position_keypoint_port}
     stream_configs:
@@ -71,7 +71,7 @@ operators:
       log_prefix: "xarm"
 
   -
-    _target_: beavr.src.components.operators.leap.LeapHandOperator
+    _target_: beavr.components.operators.leap.LeapHandOperator
     host: ${host_address}
     transformed_keypoints_port: ${transformed_position_keypoint_port}
     joint_angle_subscribe_port: 8119

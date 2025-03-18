@@ -1,65 +1,65 @@
-robot_name: allegro_hand
+x_coord: 0.054 # Fixing X for 2D movement
 
-# Detection from the oculus
-detector:
-  _target_: beavr.src.components.detector.oculus.OculusVRHandDetector
-  host: ${host_address}
-  oculus_port: ${oculus_reciever_port}
-  keypoint_pub_port: ${keypoint_port}
-  button_port: ${resolution_button_port}
-  button_publish_port: ${resolution_button_publish_port}
-  teleop_reset_port: ${teleop_reset_port}
-  teleop_reset_publish_port: ${teleop_reset_publish_port}
+thumb_bounds:
+  # - # thumb_index
+  #   x_bounds: [0.0169, 0.117]
+  #   projective_bounds:
+  #     - # Top right
+  #       - 0.1154
+  #       - -0.0051
+  #     - # Bottom right
+  #       - 0.1321
+  #       - -0.0481
+  #     - # index_top
+  #       - 0.0495
+  #       - 0.0106
+  #     - # Index bottom
+  #       - 0.0413
+  #       - -0.1017
 
+  # - # index_middle
+  #   x_bounds: [0.054, 0.117]
+  #   projective_bounds:
+  #     - # index_top
+  #       - 0.0495
+  #       - 0.0106
+  #     - # index_bottom
+  #       - 0.0413
+  #       - -0.1017
+  #     - # middle_top
+  #       - 0.0094
+  #       - 0.0124
+  #     - # middle_bottom
+  #       -  0.0079
+  #       - -0.0997
 
-# Transforming the keypoints from the oculus
-transforms:
-  - 
-    _target_: beavr.src.components.detector.keypoint_transform.TransformHandPositionCoords
-    host: ${host_address}
-    keypoint_port: ${keypoint_port}
-    transformation_port: ${transformed_position_keypoint_port}
-    moving_average_limit: 1
-
-
-# Visualizers used to visualize the keypoints stream
-visualizers:
-  - 
-    _target_: beavr.src.components.visualizers.visualizer_2d.Hand2DVisualizer
-    host: ${host_address}
-    transformed_keypoint_port: ${transformed_position_keypoint_port}
-    oculus_feedback_port: ${oculus_graph_port}
-    display_plot: ${visualize_right_2d}
-
-operators:
-  - 
-    _target_: beavr.src.components.operators.allegro.AllegroHandOperator
-    host: ${host_address}
-    transformed_keypoints_port: ${transformed_position_keypoint_port}
-    finger_configs:
-      freeze_index: false
-      freeze_middle: false
-      freeze_ring: false
-      freeze_thumb: false
-      no_index: false
-      no_middle: false 
-      no_ring: false
-      no_thumb: false
-      three_dim: true
-
-controllers:
-  -
-    _target_: beavr.src.robot.allegro.allegro.AllegroHand
-
-recorded_data:
-  - 
-    - joint_states
-    - commanded_joint_states
-
-debuggers:
-  - 
-    _target_: beavr.src.robot.allegro.thumb_calibration.AllegroTransformationTester
-    host: ${host_address}
-    keypoint_ports:
-      - ${pre_action_thumb_ee_position_port}
-      - ${post_action_thumb_ee_position_port}
+  # - # middle_ring
+  #   x_bounds: [0.0518, 0.117]
+  #   projective_bounds:
+  #     - # middle_top:
+  #       - 0.0094
+  #       - 0.0124
+  #     - # middle_bottom
+  #       -  0.0079
+  #       - -0.0997
+  #     - # ring_bottom
+  #       - -0.0373
+  #       - -0.0961
+  #     - # ring_top
+  #       - -0.024
+  #       - -0.0087
+  - # middle_ring
+    x_bounds: [0.054, 0.117] # Here we're getting the smallest limits
+    projective_bounds:
+      - # Top right
+        - 0.1154
+        - -0.0051
+      - # Bottom right
+        - 0.1321
+        - -0.0481
+      - # ring_bottom
+        - -0.0373
+        - -0.0961
+      - # ring_top
+        - -0.024
+        - -0.0087

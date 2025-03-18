@@ -44,23 +44,26 @@ dependencies = [
     "IPython",
     "xarm-python-sdk",
     "dynamixel-sdk",
+    "pybullet",
+    "hydra-core",
 ]
 
 # Note: PyTorch and torchvision are not included here as they're typically
 # installed via conda or special instructions
 
-[tool.setuptools]
-package-dir = {"" = "beavr/src"}
-
 [tool.setuptools.packages.find]
-where = ["beavr/src"]
+where = ["src"]
 include = ["*"]
 
 [tool.setuptools.package-data]
-"components.environment" = ["assets/**/*", "configs/*"]
-"robot" = ["assets/*", "configs/*"]
-"robot.allegro.configs" = ["*.yaml"]
-"components.operators.configs" = ["*.yaml"]
+beavr = [
+    "components/environment/assets/**/*", 
+    "components/environment/configs/*",
+    "robot/assets/*", 
+    "robot/configs/*",
+    "robot/allegro/configs/*.yaml",
+    "components/operators/configs/*.yaml"
+]
 
 [project.urls]
 # Add any relevant URLs here

@@ -1,10 +1,5 @@
-<<<<<<< HEAD
-# Your wireless interface IP
-host_address: '10.29.190.204'
+host_address: '10.29.158.169'
 
-=======
-host_address: '10.29.215.96'
->>>>>>> main
 left_xarm_ip: '192.168.86.216' # Won't be using this for now
 right_xarm_ip: '192.168.1.197'
 
