@@ -3,15 +3,15 @@ import zmq
 from copy import deepcopy as copy
 from scipy.spatial.transform import Rotation, Slerp
 import time
-from typing import Tuple
+import pdb
+from typing import Dict, Any, List, Tuple, Optional, Union
 
 from beavr.constants import *
 from beavr.utils.timer import FrequencyTimer
-from beavr.utils.network import ZMQKeypointSubscriber, ZMQKeypointPublisher
+from beavr.utils.logger import PoseLogger
+from beavr.utils.network import EnhancedZMQKeypointSubscriber as ZMQKeypointSubscriber, EnhancedZMQKeypointPublisher as ZMQKeypointPublisher
 from beavr.utils.vectorops import *
 from .operator import Operator
-
-from beavr.utils.logger import PoseLogger
 
 # Simple complementary filter with SLERP for orientation (same as Allegro)
 class CompStateFilter:

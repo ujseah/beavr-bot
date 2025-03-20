@@ -2,7 +2,7 @@
 import time
 import zmq
 import numpy as np
-from beavr.utils.network import ZMQKeypointSubscriber, ZMQKeypointPublisher
+from beavr.utils.network import EnhancedZMQKeypointSubscriber as ZMQKeypointSubscriber, EnhancedZMQKeypointPublisher as ZMQKeypointPublisher
 from scipy.spatial.transform import Rotation as R
 
 class RX1RightRobot:
