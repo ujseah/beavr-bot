@@ -30,7 +30,6 @@ visualizers:
     oculus_feedback_port: ${oculus_graph_port}
     display_plot: ${visualize_right_2d}
 
-# Then define the robot that uses this controller
 robots:
   - 
     _target_: beavr.interfaces.xarm7_robot.XArm7Robot
@@ -41,7 +40,6 @@ robots:
     reset_subscribe_port: 9069
     robot_ip: ${right_xarm_ip}
 
-# Then the operator that uses the robot
 operators:
   - 
     _target_: beavr.components.operators.xarm7_right.XArm7RightOperator

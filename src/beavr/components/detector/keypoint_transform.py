@@ -55,7 +55,7 @@ class TransformHandPositionCoords(Component):
 
         palm_normal = normalize_vector(np.cross(index_knuckle_coord, pinky_knuckle_coord))   # Unity space - Y
         palm_direction = normalize_vector(index_knuckle_coord + pinky_knuckle_coord)         # Unity space - Z
-        cross_product = normalize_vector(index_knuckle_coord - pinky_knuckle_coord)              # Unity space - X
+        cross_product = normalize_vector(index_knuckle_coord - pinky_knuckle_coord)          # Unity space - X
         
         return [origin_coord, cross_product, palm_normal, palm_direction]
 

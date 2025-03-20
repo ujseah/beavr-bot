@@ -12,7 +12,7 @@ import zmq
 from beavr.utils.registry import GlobalRegistry
 
 class LeapHandRobot(RobotWrapper):
-    def __init__(self, host, joint_angle_subscribe_port, joint_angle_publish_port, reset_subscribe_port, simulation_mode=True):
+    def __init__(self, host, joint_angle_subscribe_port, joint_angle_publish_port, reset_subscribe_port, simulation_mode=False):
         if simulation_mode:
             self._controller = None  # Skip hardware initialization in sim mode
         else:

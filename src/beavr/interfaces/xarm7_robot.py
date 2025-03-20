@@ -54,10 +54,9 @@ class XArm7Robot(RobotWrapper):
     @property
     def recorder_functions(self):
         return {
-            'joint_states': self.get_joint_state_from_operator,
+            'joint_states': self.get_robot_actual_joint_position,
             'operator_cartesian_states': self.get_cartesian_state_from_operator,
             'xarm_cartesian_states': self.get_robot_actual_cartesian_position,
-            'xarm_joint_states': self.get_robot_actual_joint_position,
             'commanded_cartesian_state': self.get_cartesian_commanded_position
         }
 
@@ -210,12 +209,6 @@ class XArm7Robot(RobotWrapper):
                 if self._is_recording_enabled:
                     self._latest_cartesian_coords = recv_coords
                     self._latest_cartesian_state_timestamp = time.time()
-            
-            # Joint state handling - only cache if recording is enabled
-            # joint_state = self._joint_state_subscriber.recv_keypoints(zmq.NOBLOCK)
-            # if joint_state is not None and self._is_recording_enabled:
-            #     self._latest_joint_state = joint_state
-            #     self._latest_joint_state_timestamp = time.time()
             
             if self.check_reset():
                 self.send_robot_pose()

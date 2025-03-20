@@ -9,6 +9,7 @@ from .sensors import *
 from multiprocessing import Process
 from beavr.constants import *
 from beavr.utils.registry import GlobalRegistry
+import time
 
 
 class ProcessInstantiator(ABC):
@@ -169,16 +170,17 @@ class TeleOperator(ProcessInstantiator):
     
     def _init_robot_interface(self):
         for robot_config in self.configs.robot.robots:
+            # Don't instantiate here, only in the process
             robot_name = robot_config['_target_'].split('.')[-1].lower()
-            robot = hydra.utils.instantiate(robot_config)
-            GlobalRegistry.register(robot_name, robot)
             
-            self.processes.append(Process(
+            # Create the process first
+            process = Process(
                 target = self._start_component,
                 args = (robot_config, )
-            ))
+            )
+            self.processes.append(process)
 
-    
+
 # Data Collector Class
 class Collector(ProcessInstantiator):
     """

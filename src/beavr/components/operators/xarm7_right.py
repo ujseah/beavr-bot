@@ -206,16 +206,17 @@ class XArm7RightOperator(Operator):
     
     def quat_to_euler_rad(self, qx: float, qy: float, qz: float, qw: float) -> list[float, float, float]:
         """
-        Convert quaternion to Euler angles in degrees
+        Convert quaternion to Euler angles in radians
         
         Args:
             qx, qy, qz, qw: Quaternion components in qx,qy,qz,qw order
             
         Returns:
-            List of (roll, pitch, yaw) in degrees
+            List of (roll, pitch, yaw) in radians
         """
         rot = Rotation.from_quat([qx, qy, qz, qw])
-        euler_rad = rot.as_euler('xyz')  # Get Euler angles in radians
+        # Use uppercase 'XYZ' for extrinsic rotations around fixed axes
+        euler_rad = rot.as_euler('XYZ')  # Get Euler angles in radians
         return euler_rad
 
     def _get_resolution_scale_mode(self):
@@ -316,8 +317,8 @@ class XArm7RightOperator(Operator):
         H_HT_HH = copy(self.hand_moving_H)
         H_RI_RH = copy(self.robot_init_H)
 
-        H_R_V = np.array([[ 0, 0,  1,   0],
-                          [ 0,  -1, 0,  0],
+        H_R_V = np.array([[ 0,  0,  1,  0],
+                          [ 0, -1,  0,  0],
                           [ 1,  0,  0,  0],
                           [ 0,  0,  0,  1]])
 
