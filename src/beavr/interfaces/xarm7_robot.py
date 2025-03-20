@@ -23,24 +23,30 @@ class XArm7Robot(RobotWrapper):
         self._controller = DexArmControl(ip=robot_ip)
         self._is_right_arm = is_right_arm
         self._data_frequency = 90
+        
+        # Subscribers
         self._cartesian_coords_subscriber = ZMQKeypointSubscriber(
             host = host, 
             port = endeff_subscribe_port,
             topic = 'endeff_coords'
         )
-        self._cartesian_state_publisher = ZMQKeypointPublisher(
-            host = host, 
-            port = endeff_publish_port
-        )
+        
         self._joint_state_subscriber = ZMQKeypointSubscriber(
             host = host, 
             port = joint_subscribe_port,
             topic = 'joint'
         )
+        
         self._reset_subscriber = ZMQKeypointSubscriber(
             host = host,
             port = reset_subscribe_port,
             topic = 'reset'
+        )
+
+        # ONE unified publisher for all messages
+        self._unified_publisher = ZMQKeypointPublisher(
+            host = host, 
+            port = endeff_publish_port
         )
 
         # Add caches for received messages
@@ -132,7 +138,7 @@ class XArm7Robot(RobotWrapper):
         return joint_state_dict
     
     def get_cartesian_commanded_position(self):
-        cartesian_state = self._cartesian_state_subscriber.recv_keypoints()
+        cartesian_state = self._cartesian_coords_subscriber.recv_keypoints()
         cartesian_state_dict= dict(
             commanded_cartesian_position = np.array(cartesian_state, dtype=np.float32),
             timestamp = time.time()
@@ -153,7 +159,7 @@ class XArm7Robot(RobotWrapper):
     
     def send_robot_pose(self):
         cartesian_state = self._controller.get_arm_pose()
-        self._cartesian_state_publisher.pub_keypoints(cartesian_state, "endeff_homo")
+        self._unified_publisher.pub_keypoints(cartesian_state, "endeff_homo")
 
     def check_reset(self):
         reset_bool = self._reset_subscriber.recv_keypoints(flags=zmq.NOBLOCK)

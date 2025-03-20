@@ -3,7 +3,7 @@ from copy import deepcopy as copy
 from beavr.components import Component
 from beavr.constants import *
 from beavr.utils.vectorops import *
-from beavr.utils.network import ZMQKeypointPublisher, ZMQKeypointSubscriber,ZMQButtonFeedbackSubscriber
+from beavr.utils.network import ZMQKeypointPublisher, ZMQKeypointSubscriber
 from beavr.utils.timer import FrequencyTimer
 from enum import Enum, auto, IntEnum
 
@@ -33,6 +33,8 @@ class TransformHandPositionCoords(Component):
     # Function to get the hand coordinates from the VR
     def _get_hand_coords(self):
         data = self.original_keypoint_subscriber.recv_keypoints()
+        if data is None:
+            return None, None
         if data[0] == HandMode.ABSOLUTE:
             data_type = 'absolute'
         else:
@@ -122,6 +124,7 @@ class TransformHandPositionCoords(Component):
                     self.averaged_hand_frame = [origin, x_vec, y_vec, z_vec]
 
                 self.transformed_keypoint_publisher.pub_keypoints(self.averaged_hand_coords, 'transformed_hand_coords')
+
                 if data_type == 'absolute':
                     self.transformed_keypoint_publisher.pub_keypoints(self.averaged_hand_frame, 'transformed_hand_frame')
 

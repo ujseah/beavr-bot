@@ -64,7 +64,7 @@ class ZMQKeypointPublisher(object):
         self.socket.close()
         self.context.term()
 
-class ZMQKeypointSubscriber(threading.Thread):
+class ZMQKeypointSubscriber:
     def __init__(self, host, port, topic):
         self._host, self._port, self._topic = host, port, topic
         self._init_subscriber()

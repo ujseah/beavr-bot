@@ -79,14 +79,10 @@ class XArm7RightOperator(Operator):
             topic = 'endeff_homo'
         )
 
-        self.end_eff_position_publisher = ZMQKeypointPublisher(
+        # ONE publisher for all messages
+        self.unified_publisher = ZMQKeypointPublisher(
             host = host,
             port = endeff_publish_port
-        )
-
-        self.reset_publisher = ZMQKeypointPublisher(
-            host = host,
-            port = reset_publish_port
         )
 
         self._stream_oculus=stream_oculus
@@ -243,10 +239,10 @@ class XArm7RightOperator(Operator):
     # ------------------------------
     def _reset_teleop(self):
         print('****** RESETTING TELEOP ******')
-        self.reset_publisher.pub_keypoints(1, 'reset')
+        self.unified_publisher.pub_keypoints(1, 'reset')
         self.robot_frame = self.endeff_homo_subscriber.recv_keypoints(flags=zmq.NOBLOCK)
         while self.robot_frame is None:
-            self.reset_publisher.pub_keypoints(1, 'reset')
+            self.unified_publisher.pub_keypoints(1, 'reset')
             self.robot_frame = self.endeff_homo_subscriber.recv_keypoints(flags=zmq.NOBLOCK)
             time.sleep(0.01)
         if self.robot_frame is None:
@@ -387,7 +383,7 @@ class XArm7RightOperator(Operator):
         euler_orientation = [roll, pitch, yaw]
 
         # Send cartesian coordinates
-        self.end_eff_position_publisher.pub_keypoints({
+        self.unified_publisher.pub_keypoints({
             "position": position,
             "orientation": euler_orientation,
             "timestamp": time.time()
