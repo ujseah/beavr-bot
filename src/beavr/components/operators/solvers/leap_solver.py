@@ -68,7 +68,7 @@ class LeapHandIKSolver:
         self.all_indices = self.fingertip_indices + self.tip_head_indices
         
         # Scale factor for transformations
-        self.scale_factor = 1.2
+        self.scale_factor = 1.6
         
         # Store last calculated joint angles to use as seed for next calculation
         self.last_joint_angles = None

@@ -1,6 +1,7 @@
 from beavr.controllers.xarm7_control import DexArmControl 
 from .robot import RobotWrapper
-from beavr.utils.network import ZMQKeypointSubscriber, ZMQKeypointPublisher
+from beavr.utils.network import EnhancedZMQKeypointSubscriber as ZMQKeypointSubscriber
+from beavr.utils.network import EnhancedZMQKeypointPublisher as ZMQKeypointPublisher
 import numpy as np
 import time
 import zmq
@@ -157,25 +158,9 @@ class XArm7Robot(RobotWrapper):
     def check_reset(self):
         reset_bool = self._reset_subscriber.recv_keypoints(flags=zmq.NOBLOCK)
         if reset_bool is not None:
-            print(f"Received data from reset subscriber: {reset_bool}")
             return True
         else:
             return False
-    
-    # Add methods to control recording
-    def start_recording(self):
-        """Enable data recording"""
-        self._is_recording_enabled = True
-        print(f"Recording started for {self.name}")
-
-    def stop_recording(self):
-        """Disable data recording"""
-        self._is_recording_enabled = False
-        print(f"Recording stopped for {self.name}")
-
-    def is_recording(self):
-        """Check if recording is enabled"""
-        return self._is_recording_enabled
 
     # Modified stream method with automatic recording start after reset
     def stream(self):
@@ -205,14 +190,11 @@ class XArm7Robot(RobotWrapper):
                 ])
                 self.move_coords(cartesian_coords)
                 
-                # Only update cache if recording is enabled
-                if self._is_recording_enabled:
-                    self._latest_cartesian_coords = recv_coords
-                    self._latest_cartesian_state_timestamp = time.time()
+                # Always update cache for data collection
+                self._latest_cartesian_coords = recv_coords
+                self._latest_cartesian_state_timestamp = time.time()
             
             if self.check_reset():
                 self.send_robot_pose()
-                # Automatically start recording after reset
-                self.start_recording()
             
             time.sleep(1/self._data_frequency)

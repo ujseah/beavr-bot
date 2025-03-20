@@ -49,6 +49,10 @@ class DexArmControl():
     def __init__(self,ip):
         self.robot = Robot(ip, is_radian=True, simulation_mode=False) 
         self.robot.reset()
+        self._last_mode_check = 0
+        self._mode_check_interval = 0.05  # 50ms check interval, no blocking
+        self._max_step_distance = 50.0  # Maximum allowed movement in mm (1 cm = 10 mm)
+        self._last_position = None  # To track last commanded position
 
     # Controller initializers
     def _init_xarm_control(self):
@@ -137,42 +141,88 @@ class DexArmControl():
             print('\033[93m' + f"Warning: Failed to move robot, error code: {status}" + '\033[0m')
         return status
 
+    def _ensure_correct_mode(self, desired_mode, desired_state=0):
+        """Ensure robot is in the correct mode for the operation without blocking"""
+        current_time = time.time()
+        
+        # Only perform actual mode changes when needed
+        if self.robot.mode != desired_mode or self.robot.state != desired_state:
+            # If we're switching modes, we need to make sure it happens
+            self.robot.set_mode(desired_mode)
+            self.robot.set_state(desired_state)
+            self._last_mode_check = current_time
+            return True
+            
+        # Periodically check for errors even if mode seems correct
+        if current_time - self._last_mode_check > self._mode_check_interval:
+            self._last_mode_check = current_time
+            if self.robot.has_error:
+                self.robot.clear()
+                self.robot.set_mode(desired_mode)
+                self.robot.set_state(desired_state)
+                
+        return False
+        
+    def _exceeds_movement_limit(self, target_pose):
+        """
+        Check if proposed movement exceeds the maximum allowed distance in a single step
+        
+        Args:
+            target_pose: Target cartesian pose [x, y, z, roll, pitch, yaw]
+            
+        Returns:
+            bool: True if movement exceeds limit, False otherwise
+        """
+        # Always refresh current position to avoid drift issues
+        status, current_pose = self.robot.get_position_aa()
+        if status != 0:
+            # If we can't get current position, play it safe and allow the movement
+            print("Warning: Couldn't get current position, allowing movement")
+            return False
+            
+        # Use actual robot position as reference, not last commanded position
+        current_position = np.array(current_pose[0:3])
+        
+        # Calculate distance (only for position xyz, not orientation)
+        target_position = np.array(target_pose[0:3])
+        distance = np.linalg.norm(target_position - current_position)
+        
+        # Check if distance exceeds limit
+        if distance > self._max_step_distance:
+            print(f"\033[91mWarning: Movement rejected - distance {distance:.2f}mm exceeds {self._max_step_distance}mm limit\033[0m")
+            return True
+            
+        return False
+        
+    def arm_control(self, cartesian_pose):
+        # Check if movement exceeds safety limit
+        if self._exceeds_movement_limit(cartesian_pose):
+            return  # Skip this movement
+            
+        # Use servo mode (1) for real-time teleoperation
+        self._ensure_correct_mode(1, 0)
+        self.robot.set_servo_cartesian_aa(
+                    cartesian_pose, wait=False, relative=False, mvacc=5, speed=1)
+        
     def move_arm_cartesian(self, cartesian_pos, duration=3):
         """
             Input: cartesian_pos: list of [x, y, z] (mm), [roll, pitch, yaw] (radians)
             Output: None
         """
-        if self.robot.mode != 1 or self.robot.state != 0:
-            self.robot.set_mode(1)
-            self.robot.set_state(0)
+        # Scale position before checking movement limit (so we compare in same units)
+        scaled_pos = copy(cartesian_pos)
+        scaled_pos[0:3] = np.array(cartesian_pos[0:3]) * XARM_SCALE_FACTOR
+        
+        # Check if movement exceeds safety limit
+        if self._exceeds_movement_limit(scaled_pos):
+            return  # Skip this movement
+            
+        # Use servo mode (1) for cartesian movement
+        self._ensure_correct_mode(1, 0)
         cartesian_pos[0:3] = np.array(cartesian_pos[0:3]) * XARM_SCALE_FACTOR
         self.robot.set_servo_cartesian_aa(
-                    cartesian_pos, wait=False, relative=False, mvacc=5, speed=1, is_radian=True)
-
-    def arm_control(self, cartesian_pose):
-        if self.robot.has_error:
-            self.robot.clear()
-            self.robot.set_mode_and_state(1)
-        self.robot.set_servo_cartesian_aa(
-                    cartesian_pose, wait=False, relative=False, mvacc=5, speed=1)
-        
-    def get_arm_joint_state(self):
-        joint_positions = np.array(self.robot.get_servo_angle()[1])
-        joint_state = dict(
-            position = np.array(joint_positions, dtype=np.float32),
-            timestamp = time.time()
-        )
-        return joint_state
-        
-    def get_cartesian_state(self):
-        status,current_pos=self.robot.get_position_aa()
-        cartesian_state = dict(
-            position = np.array(current_pos[0:3], dtype=np.float32).flatten(),
-            orientation = np.array(current_pos[3:], dtype=np.float32).flatten(),
-            timestamp = time.time()
-        )
-        return cartesian_state
-
+                    cartesian_pos, wait=True, relative=False, mvacc=5, speed=1, is_radian=True)
+    
     def home_arm(self):
         """
         Move the arm to home position using joint angles
@@ -181,13 +231,12 @@ class DexArmControl():
             # Convert ROBOT_HOME_JS to numpy array
             home_joints = np.array(ROBOT_HOME_JS, dtype=np.float32)
             
-            if self.robot.mode != 0:
-                # Set mode to position control
-                self.robot.set_mode(0)
-                self.robot.set_state(0)
+            # Use position control mode (0) for homing
+            self._ensure_correct_mode(0, 0)
             
             # Move to home position
-            status = self.robot.set_servo_angle(angle=home_joints, wait=True, is_radian=True, mvacc=5, speed=1)
+            status = self.robot.set_servo_angle(angle=home_joints, wait=True, 
+                                              is_radian=True, mvacc=5, speed=1)
             return status
         except Exception as e:
             print(f"Error in home_arm: {e}")

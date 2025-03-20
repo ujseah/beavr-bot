@@ -7,7 +7,8 @@ from typing import Tuple
 
 from beavr.constants import *
 from beavr.utils.timer import FrequencyTimer
-from beavr.utils.network import ZMQKeypointSubscriber, ZMQKeypointPublisher
+from beavr.utils.network import EnhancedZMQKeypointSubscriber as ZMQKeypointSubscriber
+from beavr.utils.network import EnhancedZMQKeypointPublisher as ZMQKeypointPublisher
 from beavr.utils.vectorops import *
 from .operator import Operator
 
@@ -312,39 +313,47 @@ class XArm7RightOperator(Operator):
         # Convert frame to homogeneous matrix
         self.hand_moving_H = self._turn_frame_to_homo_mat(moving_hand_frame)
         
-        # Transformation beigns
+        # Transformation begins
         H_HI_HH = copy(self.hand_init_H)
         H_HT_HH = copy(self.hand_moving_H)
         H_RI_RH = copy(self.robot_init_H)
 
-        H_R_V = np.array([[ 0,  0,  1,  0],
-                          [ 0, -1,  0,  0],
-                          [ 1,  0,  0,  0],
+        # These transformation matrices define the mapping between coordinate systems
+        # Adjust these if your coordinate systems aren't aligning correctly
+        H_R_V = np.array([[ 0,  0,  -1,  0],
+                          [ 0,  1,  0,  0],
+                          [ -1, 0,  0,  0],
                           [ 0,  0,  0,  1]])
 
         H_T_V = np.array([[ 0, -1,  0,  0],
                           [ 0,  0, -1,  0],
-                          [ 1,  0,  0,  0],
+                          [ -1,  0,  0,  0],
                           [ 0,  0,  0,  1]])
         
-        # Calculate transformations (same order as Allegro)
+        # Calculate transformations
         H_HT_HI = np.linalg.solve(H_HI_HH, H_HT_HH)  # More efficient than pinv for square matrices
         H_HT_HI_r = np.linalg.solve(H_R_V, H_HT_HI @ H_R_V)[:3,:3]
         H_HT_HI_t = np.linalg.solve(H_T_V, H_HT_HI @ H_T_V)[:3,3]
+        
+        # Make sure rotation part is a valid rotation matrix
+        H_HT_HI_r = self.project_to_rotation_matrix(H_HT_HI_r)
+        
         relative_affine = np.block([[H_HT_HI_r, H_HT_HI_t.reshape(3,1)], [0, 0, 0, 1]])
         
-        # Update robot state (like Allegro)
+        # Update robot state
         H_RT_RH = H_RI_RH @ relative_affine
-        # H_RT_RH = self.project_to_rotation_matrix(H_RT_RH)
+        
+        # Ensure we have a valid transformation matrix
+        H_RT_RH[:3, :3] = self.project_to_rotation_matrix(H_RT_RH[:3, :3])
         self.robot_moving_H = copy(H_RT_RH)
 
         # Get cart pose and apply filters
         cart = self._homo2cart(H_RT_RH)
 
-        # Apply complementary filter if enabled
+        # Apply complementary filter if enabled (stronger smoothing)
         if self.use_filter:
             if self.comp_filter is None:
-                self.comp_filter = CompStateFilter(cart)
+                self.comp_filter = CompStateFilter(cart, comp_ratio=0.8)  # Increased ratio for more smoothing
             else:
                 cart = self.comp_filter(cart)
         
@@ -353,14 +362,18 @@ class XArm7RightOperator(Operator):
         if len(self.moving_average_queue) > self.moving_average_limit:
             self.moving_average_queue.pop(0)
         
-        # Average positions but handle orientation separately
+        # Average positions
         positions = np.mean([q[:3] for q in self.moving_average_queue], axis=0)
         
-        # For orientation, use SLERP between first and last quaternion
-        if len(self.moving_average_queue) > 1:
+        # For orientation, use SLERP between multiple quaternions for smoother interpolation
+        if len(self.moving_average_queue) > 2:
             quats = np.array([q[3:] for q in self.moving_average_queue])
-            rot_interp = Slerp([0, 1], Rotation.from_quat([quats[0], quats[-1]]))
-            orientation = rot_interp([0.5])[0].as_quat()
+            # Create timestamps for interpolation (equally spaced)
+            times = np.linspace(0, 1, len(quats))
+            # Create Slerp object with all quaternions
+            rot_slerp = Slerp(times, Rotation.from_quat(quats))
+            # Get the middle point
+            orientation = rot_slerp([0.5])[0].as_quat()
         else:
             orientation = cart[3:7]
         

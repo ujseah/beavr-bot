@@ -84,7 +84,6 @@ class TransformHandPositionCoords(Component):
                 self.timer.start_loop()
                 data_type, hand_coords = self._get_hand_coords()
 
-               
                 # Shift the points to required axes
                 transformed_hand_coords, translated_hand_coord_frame = self.transform_keypoints(hand_coords)
 
@@ -95,11 +94,32 @@ class TransformHandPositionCoords(Component):
                     self.moving_average_limit
                 )
 
+                # Apply moving average to frame vectors
                 self.averaged_hand_frame = moving_average(
                     translated_hand_coord_frame, 
                     self.frame_moving_average_queue, 
                     self.moving_average_limit
                 )
+                
+                # Ensure frame vectors remain orthogonal
+                if data_type == 'absolute':
+                    # Keep origin point as is
+                    origin = self.averaged_hand_frame[0]
+                    # Extract the rotation vectors
+                    x_vec = normalize_vector(self.averaged_hand_frame[1])
+                    y_vec = normalize_vector(self.averaged_hand_frame[2])
+                    z_vec = normalize_vector(self.averaged_hand_frame[3])
+                    
+                    # Re-orthogonalize the frame using Gram-Schmidt process
+                    # Start with x (assuming it's the most stable direction)
+                    x_vec = normalize_vector(x_vec)
+                    # Make y orthogonal to x
+                    y_vec = normalize_vector(y_vec - np.dot(y_vec, x_vec) * x_vec)
+                    # Make z orthogonal to x and y
+                    z_vec = normalize_vector(np.cross(x_vec, y_vec))
+                    
+                    # Reconstruct orthogonal frame
+                    self.averaged_hand_frame = [origin, x_vec, y_vec, z_vec]
 
                 self.transformed_keypoint_publisher.pub_keypoints(self.averaged_hand_coords, 'transformed_hand_coords')
                 if data_type == 'absolute':

@@ -11,13 +11,8 @@ from beavr.utils.registry import GlobalRegistry
 # To record robot information
 class RobotInformationRecord(Recorder):
     def __init__(self, robot_configs, recorder_function_key, storage_path):
-        # Instead of creating new robot instance, get existing one from registry
-        robot_name = robot_configs['_target_'].split('.')[-1]  # Get class name
-        self.robot = GlobalRegistry.get(robot_name.lower())  # Match the name used in registration
-        
-        if self.robot is None:
-            raise ValueError(f"Robot {robot_name} not found in registry. Make sure robot is initialized before recorder.")
-            
+        # Create a robot instance in "record-only" mode
+        self.robot = hydra.utils.instantiate(robot_configs, _record_mode=True)
         self.record_type = recorder_function_key
         self.storage_path = storage_path
         
@@ -28,14 +23,35 @@ class RobotInformationRecord(Recorder):
         if self.record_type not in self.robot.recorder_functions:
             raise ValueError(f"Robot {type(self.robot)} does not support recording type {self.record_type}")
         
+        # Get the specific recorder function
+        self.keypoint_function = self.robot.recorder_functions[self.record_type]
+        
         # Initialize storage
         self._init_storage()
 
     def stream(self):
+        # Checking if the keypoint port is active
+        print(f'Checking if the keypoint port is active for {self.robot.name}...')
+        retry_count = 0
+        max_retries = 30
+        
+        while retry_count < max_retries:
+            data = self.keypoint_function()
+            if data is not None:
+                break
+            
+            retry_count += 1
+            print(f"Waiting for data... {retry_count}/{max_retries}")
+            time.sleep(1)
+        
+        if retry_count >= max_retries:
+            print(f"Warning: Could not get data after {max_retries} attempts. Continuing anyway.")
+        else:
+            print(f'Starting to record {self.record_type} for {self.robot.name}')
+
         while True:
             try:
-                # Get data using the appropriate recorder function
-                data = self.robot.recorder_functions[self.record_type]()
+                data = self.keypoint_function()
                 if data is not None:
                     self._save_data(data)
             except Exception as e:
