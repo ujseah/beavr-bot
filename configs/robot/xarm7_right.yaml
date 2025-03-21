@@ -33,7 +33,7 @@ robots:
     host: ${host_address}
     endeff_publish_port: 10010
     endeff_subscribe_port: 10009
-    joint_subscribe_port: 8119
+    joint_subscribe_port: 10029
     reset_subscribe_port: 10009
     robot_ip: ${right_xarm_ip}
 
@@ -52,7 +52,6 @@ operators:
     arm_resolution_port: ${unified_data_port}
     use_filter: False
     teleoperation_reset_port: ${unified_data_port}
-    reset_publish_port: 10009
     logging_config:
       enabled: False
       log_dir: "logs"

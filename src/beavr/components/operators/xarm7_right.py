@@ -7,7 +7,7 @@ from typing import Tuple
 
 from beavr.constants import *
 from beavr.utils.timer import FrequencyTimer
-from beavr.utils.network import EnhancedZMQKeypointSubscriber as ZMQKeypointSubscriber
+from beavr.utils.network import ZMQKeypointSubscriber
 from beavr.utils.network import EnhancedZMQKeypointPublisher as ZMQKeypointPublisher
 from beavr.utils.vectorops import *
 from .operator import Operator
@@ -40,7 +40,6 @@ class XArm7RightOperator(Operator):
         use_filter=True,
         arm_resolution_port = None,
         teleoperation_reset_port = None,
-        reset_publish_port = None,
         logging_config=None,
     ):
         # Basic initialization
@@ -151,6 +150,7 @@ class XArm7RightOperator(Operator):
     def _get_hand_frame(self):
         for _ in range(10):
             data = self._arm_transformed_keypoint_subscriber.recv_keypoints(flags=zmq.NOBLOCK)
+            print(data)
             if data is not None:
                 break
         if data is None:

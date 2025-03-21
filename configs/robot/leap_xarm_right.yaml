@@ -38,14 +38,14 @@ robots:
     endeff_publish_port: 10010
     endeff_subscribe_port: 10009
     joint_subscribe_port: 8119
-    reset_subscribe_port: 9069
+    reset_subscribe_port: 10009
     robot_ip: ${right_xarm_ip}
   -
     _target_: beavr.interfaces.leap_robot.LeapHandRobot
     host: ${host_address}
     joint_angle_subscribe_port: 8120
     joint_angle_publish_port: 8119
-    reset_subscribe_port: 9068
+    reset_subscribe_port: 9069
 
 # Then the operator that uses the robot
 operators:

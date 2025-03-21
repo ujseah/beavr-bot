@@ -1,5 +1,5 @@
 from copy import deepcopy as copy
-from beavr.utils.network import EnhancedZMQKeypointSubscriber as ZMQKeypointSubscriber, EnhancedZMQKeypointPublisher as ZMQKeypointPublisher
+from beavr.utils.network import ZMQKeypointSubscriber, EnhancedZMQKeypointPublisher as ZMQKeypointPublisher
 from .operator import Operator
 from beavr.utils.timer import FrequencyTimer
 from beavr.constants import *
