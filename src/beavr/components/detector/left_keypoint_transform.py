@@ -8,8 +8,8 @@ from beavr.utils.timer import FrequencyTimer
 from enum import Enum, auto, IntEnum
 
 class HandMode(IntEnum):
-    ABSOLUTE = 0
-    RELATIVE = 1
+    ABSOLUTE = 1
+    RELATIVE = 0
 
 # This class is used to transform the left hand coordinates from the VR to the robot frame.
 class TransformLeftHandPositionCoords(Component):
@@ -39,6 +39,7 @@ class TransformLeftHandPositionCoords(Component):
         if data is None:
             return None, None
             
+        print(data[0])
         if data[0] == HandMode.ABSOLUTE:
             data_type = 'absolute'
             print(f"Received absolute hand coords: {data[1:]}")
