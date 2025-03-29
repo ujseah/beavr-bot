@@ -22,6 +22,11 @@ class Robot(XArmAPI):
         if simulation_mode and not self.is_simulation_robot:
             self.set_simulation_robot(on_off=True)
         self.ip = ip
+        
+        # Add these attributes to the Robot class
+        self._max_step_distance = 50.0  # Maximum allowed movement in mm
+        self._last_command_time = 0     # Fix for the attribute error
+        self._command_interval = 0.033  # ~30Hz rate
 
     def clear(self):
         self.clean_error()
@@ -29,51 +34,56 @@ class Robot(XArmAPI):
         # self.motion_enable(enable=False)
         self.motion_enable(enable=True)
 
-    def set_mode_and_state(self, mode: RobotControlMode, state: int = 0):
-        self.set_mode(mode.value)
+    def set_mode_and_state(self, mode, state=0):
+        """Set mode correctly and verify state change to READY"""
+        # First set the mode
+        self.set_mode(mode)
+        time.sleep(0.2)
+        
+        # Then set state to STANDBY (0), which should transition to READY (2)
         self.set_state(state)
+        time.sleep(0.3)  # Wait for transition to READY
+        
+        # Check if we're in the expected mode and READY state
+        if self.mode == mode and self.state == 2:
+            print(f"Robot ready: Mode={mode}, State={self.state} (READY)")
+            return True
+        else:
+            print(f"Warning: Robot not ready. Mode={self.mode} (expected {mode}), State={self.state} (expected 2)")
+            return False
 
     def reset(self):
-        # Clean error
-        self.clear()
-        print("Slow reset...")
-        self.set_mode_and_state(RobotControlMode.CARTESIAN_CONTROL, 0)
-        status = self.set_servo_angle(angle=ROBOT_HOME_JS, wait=True, is_radian=True, speed=math.radians(50))
-        assert status == 0, "Failed to set robot at home joint position"
-        self.set_mode_and_state(RobotControlMode.SERVO_CONTROL, 0)
-        time.sleep(0.1)
-
-
-
-class DexArmControl():
-    def __init__(self,ip):
-        self.robot = Robot(ip, is_radian=True, simulation_mode=False) 
-        self.robot.reset()
-        self._last_mode_check = 0
-        self._mode_check_interval = 0.05  # 50ms check interval, no blocking
-        self._max_step_distance = 50.0  # Maximum allowed movement in mm (1 cm = 10 mm)
-        self._last_position = None  # To track last commanded position
-
-    # Controller initializers
-    def _init_xarm_control(self):
-       
-        self.robot.reset()
+        """Reset arm to home position with proper mode setting"""
+        # Clean errors
+        self.clean_error()
+        self.clean_warn()
+        self.motion_enable(enable=True)
         
-        status, home_pose = self.robot.get_position_aa()
-        assert status == 0, "Failed to get robot position"
-        home_affine = self.robot_pose_aa_to_affine(home_pose)
-        # Initialize timestamp; used to send messages to the robot at a fixed frequency.
-        last_sent_msg_ts = time.time()
+        print("Resetting arm to home...")
+        # Set to position control mode
+        self.set_mode_and_state(0, 0)  # Cartesian control mode
+        time.sleep(0.5)  # Longer wait between mode setting and movement
+        
+        # Move to home position
+        status = self.set_servo_angle(angle=ROBOT_HOME_JS, wait=True, 
+                                   is_radian=True, speed=math.radians(30))
+        if status != 0:
+            print(f"Warning: Failed to home robot via joint angles, status={status}")
+        
+        time.sleep(0.5)  # Wait before changing modes again
+        
+        # Set back to servo mode for teleoperation
+        self.set_mode_and_state(1, 0)  # Servo control mode
+        
+        return status
 
-        # Initialize the environment state action tuple.
-   
     def get_arm_pose(self):
-        status, home_pose = self.robot.get_position_aa()
+        status, home_pose = self.get_position_aa()
         home_affine = self.robot_pose_aa_to_affine(home_pose)
         return home_affine
 
     def get_arm_position(self):
-        code,joint_state = self.robot.get_servo_angle()
+        code,joint_state = self.get_servo_angle()
         if code != 0:
             raise RuntimeError(f"Failed to get joint states, error code: {code}")
         joint_state = np.array(joint_state[1], dtype=np.float32)
@@ -87,7 +97,7 @@ class DexArmControl():
             numpy.ndarray: Array of joint velocities [joint1_velocity, ..., joint7_velocity] in radians/second
             or None if failed to get joint states
         """
-        status, states = self.robot.get_joint_states()
+        status, states = self.get_joint_states()
         if status != 0:
             print('\033[93m' + f"Warning: Failed to get joint states, error code: {status}" + '\033[0m')
             return None
@@ -103,7 +113,7 @@ class DexArmControl():
             numpy.ndarray: Array of joint torques [joint1_torque, ..., joint7_torque] in Nm
             or None if failed to get joint torques
         """
-        status, torques = self.robot.get_joints_torque()
+        status, torques = self.get_joints_torque()
         if status != 0:
             print('\033[93m' + f"Warning: Failed to get joint torques, error code: {status}" + '\033[0m')
             return None
@@ -117,7 +127,7 @@ class DexArmControl():
             Output Format:
             [x, y, z] (mm), [roll, pitch, yaw] (radians/degrees)
         """
-        status, home_pose = self.robot.get_position_aa()
+        status, home_pose = self.get_position_aa()
         return home_pose
 
     def move_arm_joint(self, joint_angles):
@@ -130,7 +140,7 @@ class DexArmControl():
         Returns:
             int: Status code (0 for success)
         """
-        status = self.robot.set_servo_angle(
+        status = self.set_servo_angle(
             angle=joint_angles, 
             wait=True, 
             is_radian=True, 
@@ -142,27 +152,14 @@ class DexArmControl():
         return status
 
     def _ensure_correct_mode(self, desired_mode, desired_state=0):
-        """Ensure robot is in the correct mode for the operation without blocking"""
-        current_time = time.time()
-        
-        # Only perform actual mode changes when needed
-        if self.robot.mode != desired_mode or self.robot.state != desired_state:
-            # If we're switching modes, we need to make sure it happens
-            self.robot.set_mode(desired_mode)
-            self.robot.set_state(desired_state)
-            self._last_mode_check = current_time
-            return True
-            
-        # Periodically check for errors even if mode seems correct
-        if current_time - self._last_mode_check > self._mode_check_interval:
-            self._last_mode_check = current_time
-            if self.robot.has_error:
-                self.robot.clear()
-                self.robot.set_mode(desired_mode)
-                self.robot.set_state(desired_state)
-                
-        return False
-        
+        """Minimal mode checking - only changes if needed"""
+        if self.mode != desired_mode or self.state != desired_state:
+            print(f"Mode correction: current={self.mode},{self.state}, desired={desired_mode},{desired_state}")
+            self.set_mode(desired_mode)
+            self.set_state(desired_state)
+            time.sleep(0.1)
+        return True
+
     def _exceeds_movement_limit(self, target_pose):
         """
         Check if proposed movement exceeds the maximum allowed distance in a single step.
@@ -178,7 +175,7 @@ class DexArmControl():
                                  otherwise empty list
         """
         # Always refresh current position to avoid drift issues
-        status, current_pose = self.robot.get_position_aa()
+        status, current_pose = self.get_position_aa()
         if status != 0:
             # If we can't get current position, play it safe and allow the movement
             print("Warning: Couldn't get current position, allowing movement")
@@ -242,58 +239,45 @@ class DexArmControl():
             for waypoint in waypoints:
                 # Use servo mode (1) for real-time teleoperation
                 self._ensure_correct_mode(1, 0)
-                self.robot.set_servo_cartesian_aa(
+                self.set_servo_cartesian_aa(
                     waypoint, wait=True, relative=False, mvacc=5, speed=1)
         else:
             # Execute single movement as before
             self._ensure_correct_mode(1, 0)
-            self.robot.set_servo_cartesian_aa(
+            self.set_servo_cartesian_aa(
                 cartesian_pose, wait=False, relative=False, mvacc=5, speed=1)
         
     def move_arm_cartesian(self, cartesian_pos, duration=3):
-        """
-        Modified version with improved handling of pitch/yaw rotations
-        """
-        # Scale position
-        scaled_pos = copy(cartesian_pos)
-        scaled_pos[0:3] = np.array(cartesian_pos[0:3]) * XARM_SCALE_FACTOR
-        
-        # Check if movement exceeds safety limit
-        exceeds_limit, waypoints = self._exceeds_movement_limit(scaled_pos)
-        
-        if exceeds_limit:
-            # Execute each waypoint in sequence, breaking down rotations
-            for waypoint in waypoints:
-                # First move position only, keeping current orientation
-                pos_only = waypoint.copy()
-                curr_ori = self.get_arm_cartesian_coords()[3:6]
-                pos_only[3:6] = curr_ori
-                
-                self._ensure_correct_mode(1, 0)
-                self.robot.set_servo_cartesian_aa(
-                    pos_only, wait=True, relative=False, mvacc=5, speed=1, is_radian=True)
-                
-                # Then adjust orientation separately - often more stable
-                self._ensure_correct_mode(1, 0)
-                self.robot.set_servo_cartesian_aa(
-                    waypoint, wait=True, relative=False, mvacc=3, speed=0.5, is_radian=True)
-        else:
-            # Use servo mode for cartesian movement
-            self._ensure_correct_mode(1, 0)
+        """Move the arm in servo mode (Mode 1)"""
+        try:
+            # Rate limiting
+            current_time = time.time()
+            if current_time - self._last_command_time < self._command_interval:
+                return 0  # Skip command if too frequent
+            self._last_command_time = current_time
+            
+            # Scale position
             cartesian_pos[0:3] = np.array(cartesian_pos[0:3]) * XARM_SCALE_FACTOR
             
-            # For small movements, we can still break into position then orientation
-            # First move position only
-            pos_only = cartesian_pos.copy()
-            curr_ori = self.get_arm_cartesian_coords()[3:6]
-            pos_only[3:6] = curr_ori
+            # Check if we're in servo mode (mode 1)
+            # Allow both state 1 (MOVING) and state 2 (READY) as valid states
+            if self.mode != 1 or (self.state != 1 and self.state != 2):
+                print(f"Robot not in correct mode/state. Current: Mode={self.mode}, State={self.state}")
+                # Try to set correct mode and wait for READY state
+                self.set_mode_and_state(1, 0)  # Servo mode + STANDBY (→ READY)
+                time.sleep(0.2)  # Give it time to transition
             
-            self.robot.set_servo_cartesian_aa(
-                pos_only, wait=True, relative=False, mvacc=5, speed=1, is_radian=True)
+            # Execute move in servo mode
+            status = self.set_servo_cartesian_aa(
+                cartesian_pos, wait=False, relative=False, mvacc=50, speed=10, is_radian=True)
             
-            # Then adjust orientation
-            self.robot.set_servo_cartesian_aa(
-                cartesian_pos, wait=True, relative=False, mvacc=3, speed=0.5, is_radian=True)
+            if status != 0:
+                print(f"Servo cartesian command failed with status {status}")
+            
+            return status
+        except Exception as e:
+            print(f"Movement failed: {e}")
+            return -1
     
     def home_arm(self):
         """
@@ -304,10 +288,10 @@ class DexArmControl():
             home_joints = np.array(ROBOT_HOME_JS, dtype=np.float32)
             
             # Use position control mode (0) for homing
-            self._ensure_correct_mode(0, 0)
+            self.set_mode_and_state(0, 0)
             
             # Move to home position
-            status = self.robot.set_servo_angle(angle=home_joints, wait=True, 
+            status = self.set_servo_angle(angle=home_joints, wait=True, 
                                               is_radian=True, mvacc=5, speed=1)
             return status
         except Exception as e:
@@ -359,3 +343,86 @@ class DexArmControl():
 
         return np.block([[rotation, translation[:, np.newaxis]],
                         [0, 0, 0, 1]])
+
+class DexArmControl:
+    """Controller class for XArm robot using the Robot implementation"""
+    
+    def __init__(self, ip="192.168.1.197"):
+        """Initialize the XArm controller"""
+        self.robot = Robot(ip, is_radian=True, simulation_mode=False) 
+        self.robot.reset()
+        
+        # Configuration parameters
+        self._max_step_distance = 50.0  # Maximum allowed movement in mm
+        self._command_interval = 0.033  # ~30Hz
+        self._last_command_time = 0
+    
+    def _init_xarm_control(self):
+        """Initialize the XArm control by resetting it"""
+        return self.robot.reset()
+    
+    def get_arm_joint_state(self):
+        """Get the current joint state of the arm"""
+        position = self.robot.get_arm_position()
+        velocity = self.robot.get_arm_velocity()
+        torque = self.robot.get_arm_torque()
+        
+        joint_state_dict = dict(
+            joint_position = position,
+            joint_velocity = velocity,
+            joint_torque = torque,
+            timestamp = time.time()
+        )
+        return joint_state_dict
+    
+    def get_arm_position(self):
+        """Get the current joint positions"""
+        return self.robot.get_arm_position()
+    
+    def get_arm_velocity(self):
+        """Get the current joint velocities"""
+        return self.robot.get_arm_velocity()
+    
+    def get_arm_torque(self):
+        """Get the current joint torques"""
+        return self.robot.get_arm_torque()
+    
+    def get_arm_cartesian_coords(self):
+        """Get the current cartesian coordinates"""
+        return self.robot.get_arm_cartesian_coords()
+    
+    def get_cartesian_state(self):
+        """Get the current cartesian state"""
+        cartesian_state = self.robot.get_arm_cartesian_coords()
+        cartesian_dict = dict(
+            cartesian_position = np.array(cartesian_state, dtype=np.float32),
+            timestamp = time.time()
+        )
+        return cartesian_dict
+    
+    def get_arm_pose(self):
+        """Get the current arm pose as affine matrix"""
+        return self.robot.get_arm_pose()
+    
+    def move_arm_joint(self, joint_angles):
+        """Move the arm to specified joint angles"""
+        return self.robot.move_arm_joint(joint_angles)
+    
+    def move_arm_cartesian(self, cartesian_pos, duration=3):
+        """Move the arm to specified cartesian position with rate limiting"""
+        # Apply rate limiting
+        current_time = time.time()
+        if current_time - self._last_command_time < self._command_interval:
+            return 0  # Skip command if too frequent
+        self._last_command_time = current_time
+        
+        # Delegate to the robot implementation
+        return self.robot.move_arm_cartesian(cartesian_pos, duration)
+    
+    def arm_control(self, cartesian_pos):
+        """Direct arm control in cartesian space"""
+        return self.robot.arm_control(cartesian_pos)
+    
+    def home_arm(self):
+        """Move the arm to home position"""
+        return self.robot.home_arm()

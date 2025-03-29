@@ -1,4 +1,4 @@
-from beavr.controllers.xarm7_control import DexArmControl 
+from beavr.controllers.xarm7_control import DexArmControl
 from .robot import RobotWrapper
 from beavr.utils.network import ZMQKeypointSubscriber
 from beavr.utils.network import EnhancedZMQKeypointPublisher as ZMQKeypointPublisher
