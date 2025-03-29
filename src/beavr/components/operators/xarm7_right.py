@@ -412,6 +412,16 @@ class XArm7RightOperator(Operator):
             # Reposition initial values for the robot and hand, then get moving hand frame
             moving_hand_frame = self._reset_teleop()
             self.is_first_frame = False
+            
+            # Initialize CompStateFilter with the first frame
+            if self.use_filter and moving_hand_frame is not None:
+                cart = self._homo2cart(self.robot_moving_H)
+                self.comp_filter = CompStateFilter(
+                    init_state=cart,
+                    pos_ratio=0.7,  # Slightly stronger position filtering
+                    ori_ratio=0.85,  # Strong orientation filtering
+                    adaptive=True
+                )
         else:
             moving_hand_frame = self._get_hand_frame()
         
@@ -458,31 +468,14 @@ class XArm7RightOperator(Operator):
         H_RT_RH[:3, :3] = self.project_to_rotation_matrix(H_RT_RH[:3, :3])
         self.robot_moving_H = copy(H_RT_RH)
 
-        # Get cart pose and apply filters
+        # Get cart pose and apply filter
         cart = self._homo2cart(H_RT_RH)
-
-        # Position filtering (simple exponential filter)
-        if hasattr(self, 'filtered_position'):
-            self.filtered_position = self.filtered_position * 0.6 + cart[:3] * 0.4
-        else:
-            self.filtered_position = cart[:3]
         
-        # Orientation filtering (with velocity-based quaternion filter)
-        if self.quat_filter is None:
-            self.quat_filter = QuaternionFilter(cart[3:7], smoothing=0.85)
-            # Initialize with the first quaternion
-            filtered_quat = cart[3:7]
-        else:
-            # Update with new quaternion
-            filtered_quat = self.quat_filter.update(cart[3:7])
+        # Apply CompStateFilter (handles both position and orientation)
+        if self.use_filter and self.comp_filter is not None:
+            cart = self.comp_filter(cart)
         
-        # Store the filtered quaternion for debugging/logging
-        self.filtered_quaternion = filtered_quat.copy()
-
-        # Combine filtered position and orientation
-        cart = np.concatenate([self.filtered_position, filtered_quat])
-
-        # Convert to euler angles and publish
+        # Get euler angles
         position = cart[0:3]
         orientation = cart[3:7]
         roll, pitch, yaw = self.quat_to_euler_rad(orientation[0], orientation[1], orientation[2], orientation[3])
