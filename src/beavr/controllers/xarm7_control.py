@@ -26,7 +26,18 @@ class Robot(XArmAPI):
         # Add these attributes to the Robot class
         self._max_step_distance = 50.0  # Maximum allowed movement in mm
         self._last_command_time = 0     # Fix for the attribute error
-        self._command_interval = 0.033  # ~30Hz rate
+        self._command_interval = 1.0 / VR_FREQ  # Use VR_FREQ constant (50Hz = 0.02s)
+
+        # Add performance metrics
+        self._metrics = {
+            "command_times": [],       # Timestamps of commands
+            "command_latencies": [],   # Time between command generation and execution
+            "position_deltas": [],     # Change in position between commands
+            "interval_times": []       # Time between successive commands
+        }
+        self._last_position = None
+        self._metrics_print_interval = 5.0  # Print metrics every 5 seconds
+        self._last_metrics_print = time.time()
 
     def clear(self):
         self.clean_error()
@@ -248,13 +259,33 @@ class Robot(XArmAPI):
                 cartesian_pose, wait=False, relative=False, mvacc=5, speed=1)
         
     def move_arm_cartesian(self, cartesian_pos, duration=3):
-        """Move the arm in servo mode (Mode 1)"""
+        """Move the arm with performance metrics"""
         try:
-            # Rate limiting
             current_time = time.time()
+            
+            # Collect metrics for timing analysis
+            if hasattr(cartesian_pos, 'get') and cartesian_pos.get('timestamp'):
+                # Calculate command latency if timestamp is available
+                command_timestamp = cartesian_pos.get('timestamp')
+                latency = (current_time - command_timestamp) * 1000  # ms
+                self._metrics["command_latencies"].append(latency)
+                
+            # Check time since last command
+            if self._last_command_time > 0:
+                interval = current_time - self._last_command_time
+                self._metrics["interval_times"].append(interval * 1000)  # ms
+                
+            # Track position changes for jerk analysis
+            if self._last_position is not None:
+                position_delta = np.linalg.norm(np.array(cartesian_pos[0:3]) - np.array(self._last_position[0:3]))
+                self._metrics["position_deltas"].append(position_delta)
+            self._last_position = cartesian_pos.copy()
+            
+            # Rate limiting
             if current_time - self._last_command_time < self._command_interval:
                 return 0  # Skip command if too frequent
             self._last_command_time = current_time
+            self._metrics["command_times"].append(current_time)
             
             # Scale position
             cartesian_pos[0:3] = np.array(cartesian_pos[0:3]) * XARM_SCALE_FACTOR
@@ -273,6 +304,11 @@ class Robot(XArmAPI):
             
             if status != 0:
                 print(f"Servo cartesian command failed with status {status}")
+            
+            # Print metrics periodically
+            if current_time - self._last_metrics_print > self._metrics_print_interval:
+                self._print_performance_metrics()
+                self._last_metrics_print = current_time
             
             return status
         except Exception as e:
@@ -344,17 +380,64 @@ class Robot(XArmAPI):
         return np.block([[rotation, translation[:, np.newaxis]],
                         [0, 0, 0, 1]])
 
+    def _print_performance_metrics(self):
+        """Print detailed performance metrics"""
+        metrics = self._metrics
+        
+        # Keep only recent data (last 100 points)
+        for key in metrics:
+            if len(metrics[key]) > 100:
+                metrics[key] = metrics[key][-100:]
+        
+        # Initialize variables with default values
+        avg_latency = max_latency = 0
+        avg_interval = interval_jitter = 0
+        avg_delta = max_delta = 0
+            
+        # Calculate statistics only if we have data
+        if len(metrics["command_latencies"]) > 0:
+            avg_latency = sum(metrics["command_latencies"]) / len(metrics["command_latencies"])
+            max_latency = max(metrics["command_latencies"])
+        
+        if len(metrics["interval_times"]) > 1:
+            avg_interval = sum(metrics["interval_times"]) / len(metrics["interval_times"])
+            interval_jitter = np.std(metrics["interval_times"])
+        
+        if len(metrics["position_deltas"]) > 1:
+            avg_delta = sum(metrics["position_deltas"]) / len(metrics["position_deltas"])
+            max_delta = max(metrics["position_deltas"])
+        
+        print("\nPerformance Metrics:")
+        print(f"  Command Latency: {avg_latency:.2f}ms avg, {max_latency:.2f}ms max")
+        print(f"  Command Interval: {avg_interval:.2f}ms avg, {interval_jitter:.2f}ms jitter")
+        print(f"  Position Change: {avg_delta:.4f} avg, {max_delta:.4f} max")
+        
+        # Diagnostic conclusion
+        if interval_jitter > 10:
+            print("  Warning: High timing jitter detected - commands arriving inconsistently")
+        if max_latency > 50:
+            print("  Warning: High maximum latency detected - some commands delayed significantly")
+        if max_delta > 0.05:
+            print("  Warning: Large position jumps detected - may cause jerky motion")
+
 class DexArmControl:
     """Controller class for XArm robot using the Robot implementation"""
     
     def __init__(self, ip="192.168.1.197"):
-        """Initialize the XArm controller"""
+        """Initialize the XArm controller with velocity limits"""
         self.robot = Robot(ip, is_radian=True, simulation_mode=False) 
+        
+        # Set global velocity and acceleration limits
+        self.robot.set_tcp_maxacc(50)    # Lower max acceleration (mm/s²)
+        self.robot.set_joint_maxacc(10)  # Lower joint acceleration (rad/s²)
+        
+        # For orientation specifically
+        self.robot.set_tcp_jerk(100)     # Lower jerk (smooths changes in acceleration)
+        
         self.robot.reset()
         
         # Configuration parameters
-        self._max_step_distance = 50.0  # Maximum allowed movement in mm
-        self._command_interval = 0.033  # ~30Hz
+        self._command_interval = 1.0 / VR_FREQ
         self._last_command_time = 0
     
     def _init_xarm_control(self):

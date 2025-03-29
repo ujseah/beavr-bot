@@ -187,36 +187,45 @@ class XArm7Robot(RobotWrapper):
             "latency_ms": []
         }
         
+        # CRITICAL FIX: Use time-based loop rather than sleep
+        target_interval = 1.0 / self._data_frequency
+        next_frame_time = time.time()
+        
         while True:
-            recv_coords = self._cartesian_coords_subscriber.recv_keypoints(zmq.NOBLOCK)
-            if recv_coords is not None:
-                # Track command timestamp and latency
-                command_timestamp = recv_coords.get('timestamp', time.time())
-                current_time = time.time()
-                latency = (current_time - command_timestamp) * 1000  # ms
-                movement_stats["latency_ms"].append(latency)
-                movement_stats["total_commands"] += 1
+            current_time = time.time()
+            
+            # Only process at the target frequency
+            if current_time >= next_frame_time:
+                # Calculate next frame time
+                next_frame_time = current_time + target_interval
                 
-                # Process the frame
-                try:
-                    cartesian_coords = np.concatenate([
-                        recv_coords['position'],
-                        recv_coords['orientation']
-                    ])
+                recv_coords = self._cartesian_coords_subscriber.recv_keypoints(zmq.NOBLOCK)
+                if recv_coords is not None:
+                    # Track command timestamp and add current timestamp
+                    if 'timestamp' not in recv_coords:
+                        recv_coords['timestamp'] = current_time
+                        
+                    latency = (current_time - recv_coords.get('timestamp', current_time)) * 1000  # ms
+                    movement_stats["latency_ms"].append(latency)
+                    movement_stats["total_commands"] += 1
                     
-                    # Move the robot
-                    self.move_coords(cartesian_coords)
-                except Exception as e:
-                    movement_stats["rejected_commands"] += 1
-                    print(f"Command rejected: {e}")
+                    # Process the frame
+                    try:
+                        cartesian_coords = np.concatenate([
+                            recv_coords['position'],
+                            recv_coords['orientation']
+                        ])
+                        
+                        # Move the robot
+                        self.move_coords(cartesian_coords)
+                    except Exception as e:
+                        movement_stats["rejected_commands"] += 1
+                        print(f"Command rejected: {e}")
                 
-                # Print stats every 100 commands
-                if movement_stats["total_commands"] % 100 == 0:
-                    avg_latency = sum(movement_stats["latency_ms"][-100:]) / 100
-                    rejection_rate = movement_stats["rejected_commands"] / movement_stats["total_commands"] * 100
-                    print(f"Stats: Avg latency {avg_latency:.1f}ms, Rejection rate {rejection_rate:.1f}%")
-            
-            if self.check_reset():
-                self.send_robot_pose()
-            
-            time.sleep(1/self._data_frequency)
+                if self.check_reset():
+                    self.send_robot_pose()
+                
+                # Calculate sleep time to maintain consistent frequency
+                sleep_time = max(0, next_frame_time - time.time())
+                if sleep_time > 0:
+                    time.sleep(sleep_time)

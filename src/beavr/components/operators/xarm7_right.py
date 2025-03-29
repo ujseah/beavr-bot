@@ -59,51 +59,6 @@ class CompStateFilter:
         
         return np.concatenate([self.pos_state, self.ori_state])
 
-# Add a new class for quaternion-based orientation filtering
-class QuaternionFilter:
-    """Handles orientation filtering using pure quaternion operations"""
-    def __init__(self, init_quat, smoothing=0.85):
-        self.current_quat = np.array(init_quat)
-        self.smoothing = smoothing
-        self.last_update_time = time.time()
-        # Angular velocity in axis-angle format (axis * angle)
-        self.angular_velocity = np.zeros(3)
-        
-    def update(self, new_quat, timestamp=None):
-        """Apply filtering to new quaternion input"""
-        # Ensure quaternions are in the same hemisphere to avoid discontinuities
-        if np.dot(self.current_quat, new_quat) < 0:
-            new_quat = -new_quat
-            
-        # Get current time or use provided timestamp
-        now = timestamp if timestamp is not None else time.time()
-        dt = now - self.last_update_time
-        dt = min(0.1, max(0.001, dt))  # Reasonable bounds on dt
-        
-        # Convert to rotations
-        current_rotation = Rotation.from_quat(self.current_quat)
-        target_rotation = Rotation.from_quat(new_quat)
-        
-        # Find the relative rotation from current to target
-        relative_rotation = current_rotation.inv() * target_rotation
-        
-        # Get the angular velocity implied by this change
-        rotvec = relative_rotation.as_rotvec()
-        instant_velocity = rotvec / dt
-        
-        # Smooth the angular velocity using exponential filter
-        self.angular_velocity = self.smoothing * self.angular_velocity + (1 - self.smoothing) * instant_velocity
-        
-        # Apply a portion of the smoothed velocity to get new orientation
-        delta_rotation = Rotation.from_rotvec(self.angular_velocity * dt)
-        new_rotation = current_rotation * delta_rotation
-        
-        # Update state
-        self.current_quat = new_rotation.as_quat()
-        self.last_update_time = now
-        
-        return self.current_quat
-
 class XArm7RightOperator(Operator):
     def __init__(
         self,
