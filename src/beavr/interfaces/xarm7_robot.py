@@ -5,6 +5,7 @@ from beavr.utils.network import EnhancedZMQKeypointPublisher as ZMQKeypointPubli
 import numpy as np
 import time
 import zmq
+from beavr.constants import VR_FREQ  # Import VR_FREQ from constants
 
 class XArm7Robot(RobotWrapper):
     def __init__(self, host, endeff_subscribe_port, endeff_publish_port, joint_subscribe_port, 
@@ -22,7 +23,10 @@ class XArm7Robot(RobotWrapper):
         """
         self._controller = DexArmControl(ip=robot_ip)
         self._is_right_arm = is_right_arm
-        self._data_frequency = 90
+        
+        # Use VR_FREQ instead of hardcoded 90Hz
+        self._data_frequency = VR_FREQ
+        print(f"XArm7Robot initialized with command frequency: {self._data_frequency}Hz")
         
         # Subscribers
         self._cartesian_coords_subscriber = ZMQKeypointSubscriber(
@@ -175,30 +179,42 @@ class XArm7Robot(RobotWrapper):
         start_time = time.time()
         last_fps_print = start_time
         
+        # Add diagnostic counters
+        movement_stats = {
+            "total_commands": 0,
+            "rejected_commands": 0,
+            "last_fps": 0,
+            "latency_ms": []
+        }
+        
         while True:
             recv_coords = self._cartesian_coords_subscriber.recv_keypoints(zmq.NOBLOCK)
             if recv_coords is not None:
-                # Always process commands
-                frame_count += 1
+                # Track command timestamp and latency
+                command_timestamp = recv_coords.get('timestamp', time.time())
                 current_time = time.time()
-                
-                # Print FPS every 5 seconds
-                if current_time - last_fps_print >= 5.0:
-                    fps = frame_count / (current_time - last_fps_print)
-                    print(f"Average FPS over last 5 seconds: {fps:.2f}")
-                    frame_count = 0  # Reset counter
-                    last_fps_print = current_time
+                latency = (current_time - command_timestamp) * 1000  # ms
+                movement_stats["latency_ms"].append(latency)
+                movement_stats["total_commands"] += 1
                 
                 # Process the frame
-                cartesian_coords = np.concatenate([
-                    recv_coords['position'],
-                    recv_coords['orientation']
-                ])
-                self.move_coords(cartesian_coords)
+                try:
+                    cartesian_coords = np.concatenate([
+                        recv_coords['position'],
+                        recv_coords['orientation']
+                    ])
+                    
+                    # Move the robot
+                    self.move_coords(cartesian_coords)
+                except Exception as e:
+                    movement_stats["rejected_commands"] += 1
+                    print(f"Command rejected: {e}")
                 
-                # Always update cache for data collection
-                self._latest_cartesian_coords = recv_coords
-                self._latest_cartesian_state_timestamp = time.time()
+                # Print stats every 100 commands
+                if movement_stats["total_commands"] % 100 == 0:
+                    avg_latency = sum(movement_stats["latency_ms"][-100:]) / 100
+                    rejection_rate = movement_stats["rejected_commands"] / movement_stats["total_commands"] * 100
+                    print(f"Stats: Avg latency {avg_latency:.1f}ms, Rejection rate {rejection_rate:.1f}%")
             
             if self.check_reset():
                 self.send_robot_pose()

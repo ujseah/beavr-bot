@@ -1,5 +1,5 @@
 import numpy as np
-from beavr.src.robot.xarm7_right import XArm7Right
+from beavr.interfaces.xarm7_robot import XArm7Robot
 import zmq
 import time
 from threading import Thread
@@ -28,7 +28,7 @@ def main():
     joint_pub = setup_dummy_publisher(8119)    # joint_subscribe_port
     
     # Create robot instance
-    robot = XArm7Right(
+    robot = XArm7Robot(
         host="10.31.153.63",
         endeff_subscribe_port=10009,
         endeff_publish_port=10010,

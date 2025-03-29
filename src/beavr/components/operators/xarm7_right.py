@@ -16,16 +16,93 @@ from beavr.utils.logger import PoseLogger
 
 # Simple complementary filter with SLERP for orientation (same as Allegro)
 class CompStateFilter:
-    def __init__(self, init_state, comp_ratio=0.6):
+    def __init__(self, init_state, pos_ratio=0.6, ori_ratio=0.8, adaptive=True):
         self.pos_state = init_state[:3]
         self.ori_state = init_state[3:7]
-        self.comp_ratio = comp_ratio
+        self.pos_ratio = pos_ratio
+        self.ori_ratio = ori_ratio  # Stronger filtering for orientation
+        self.adaptive = adaptive
+        self.prev_pos = init_state[:3]
+        self.velocity = np.zeros(3)
+        self.prev_quat = init_state[3:7]
 
     def __call__(self, next_state):
-        self.pos_state = self.pos_state * self.comp_ratio + next_state[:3] * (1 - self.comp_ratio)
+        # Calculate velocity
+        current_pos = next_state[:3]
+        self.velocity = current_pos - self.prev_pos
+        speed = np.linalg.norm(self.velocity)
+        
+        # Adaptive filtering for position
+        actual_pos_ratio = self.pos_ratio
+        if self.adaptive:
+            # Increase filtering when movement is small (reduce jitter)
+            # Decrease filtering when movement is large (reduce lag)
+            threshold = 0.005  # Adjust based on your units
+            if speed < threshold:
+                actual_pos_ratio = min(0.95, self.pos_ratio + 0.1)  # More filtering for small movements
+            else:
+                actual_pos_ratio = max(0.7, self.pos_ratio - 0.1 * (speed/threshold))  # Less filtering for large movements
+        
+        # Apply position filtering
+        self.pos_state = self.pos_state * actual_pos_ratio + next_state[:3] * (1 - actual_pos_ratio)
+        
+        # Always use stronger filtering for orientation (less affected by adaptive)
+        # and always use actual ratio slightly higher than position
+        actual_ori_ratio = max(actual_pos_ratio, self.ori_ratio)
+        
+        # Apply orientation filtering
         ori_interp = Slerp([0, 1], Rotation.from_quat([self.ori_state, next_state[3:7]]))
-        self.ori_state = ori_interp([1 - self.comp_ratio])[0].as_quat()
+        self.ori_state = ori_interp([1 - actual_ori_ratio])[0].as_quat()
+        
+        self.prev_pos = current_pos
+        self.prev_quat = next_state[3:7]
+        
         return np.concatenate([self.pos_state, self.ori_state])
+
+# Add a new class for quaternion-based orientation filtering
+class QuaternionFilter:
+    """Handles orientation filtering using pure quaternion operations"""
+    def __init__(self, init_quat, smoothing=0.85):
+        self.current_quat = np.array(init_quat)
+        self.smoothing = smoothing
+        self.last_update_time = time.time()
+        # Angular velocity in axis-angle format (axis * angle)
+        self.angular_velocity = np.zeros(3)
+        
+    def update(self, new_quat, timestamp=None):
+        """Apply filtering to new quaternion input"""
+        # Ensure quaternions are in the same hemisphere to avoid discontinuities
+        if np.dot(self.current_quat, new_quat) < 0:
+            new_quat = -new_quat
+            
+        # Get current time or use provided timestamp
+        now = timestamp if timestamp is not None else time.time()
+        dt = now - self.last_update_time
+        dt = min(0.1, max(0.001, dt))  # Reasonable bounds on dt
+        
+        # Convert to rotations
+        current_rotation = Rotation.from_quat(self.current_quat)
+        target_rotation = Rotation.from_quat(new_quat)
+        
+        # Find the relative rotation from current to target
+        relative_rotation = current_rotation.inv() * target_rotation
+        
+        # Get the angular velocity implied by this change
+        rotvec = relative_rotation.as_rotvec()
+        instant_velocity = rotvec / dt
+        
+        # Smooth the angular velocity using exponential filter
+        self.angular_velocity = self.smoothing * self.angular_velocity + (1 - self.smoothing) * instant_velocity
+        
+        # Apply a portion of the smoothed velocity to get new orientation
+        delta_rotation = Rotation.from_rotvec(self.angular_velocity * dt)
+        new_rotation = current_rotation * delta_rotation
+        
+        # Update state
+        self.current_quat = new_rotation.as_quat()
+        self.last_update_time = now
+        
+        return self.current_quat
 
 class XArm7RightOperator(Operator):
     def __init__(
@@ -105,11 +182,21 @@ class XArm7RightOperator(Operator):
         # Filter setup
         self.use_filter = use_filter
         self.comp_filter = None
+        self.quat_filter = None
 
         # Moving average setup
         self.moving_average_queue = []
         self.moving_average_limit = moving_average_limit
         self.hand_frames = []
+
+        # Separate moving average limits for position and orientation
+        self.orientation_average_limit = min(10, moving_average_limit * 2)  # Use more samples for orientation
+        self.orientation_queue = []  # Separate queue for orientation samples
+        
+        # Track previous orientations for stability detection
+        self.prev_orientation = None
+        self.last_sent_orientation = None
+        self.ori_update_counter = 0
 
         self._stream_oculus = stream_oculus
         self.stream_configs = stream_configs
@@ -148,14 +235,26 @@ class XArm7RightOperator(Operator):
     # Frame / Matrix utilities
     # ------------------------------
     def _get_hand_frame(self):
-        for _ in range(10):
-            data = self._arm_transformed_keypoint_subscriber.recv_keypoints(flags=zmq.NOBLOCK)
-            print(data)
-            if data is not None:
-                break
+        """Get the hand frame with efficient caching strategy."""
+        # Try to get new data (just once to avoid latency)
+        data = self._arm_transformed_keypoint_subscriber.recv_keypoints(flags=zmq.NOBLOCK)
+        
         if data is None:
+            # If no new data, use cached frame immediately
+            if hasattr(self, 'last_valid_hand_frame') and self.last_valid_hand_frame is not None:
+                return self.last_valid_hand_frame
             return None
-        return np.asanyarray(data).reshape(4, 3)  # shape (4,3)
+        
+        # Convert to correct shape
+        try:
+            frame_data = np.asanyarray(data).reshape(4, 3)  # shape (4,3)
+            self.last_valid_hand_frame = frame_data  # Save this valid frame
+            return frame_data
+        except Exception as e:
+            print(f"Error processing hand frame data: {e}")
+            if hasattr(self, 'last_valid_hand_frame') and self.last_valid_hand_frame is not None:
+                return self.last_valid_hand_frame
+            return None
 
     def _turn_frame_to_homo_mat(self, frame):
         """Convert 4x3 frame to a 4x4 homogeneous transform."""
@@ -213,7 +312,7 @@ class XArm7RightOperator(Operator):
         """
         rot = Rotation.from_quat([qx, qy, qz, qw])
         # Use uppercase 'XYZ' for extrinsic rotations around fixed axes
-        euler_rad = rot.as_euler('XYZ')  # Get Euler angles in radians
+        euler_rad = rot.as_euler('XYZ')  # Get Euler angles in radians, extrinsic rotation due to global ref frame in VR tracking
         return euler_rad
 
     def _get_resolution_scale_mode(self):
@@ -277,6 +376,22 @@ class XArm7RightOperator(Operator):
         if finger_coords is not None:
             return np.array(finger_coords).reshape(-1, 3)
         return None
+
+    def _fix_quaternion_flips(self, quats):
+        """Fix potential quaternion flips by ensuring all are in same hemisphere"""
+        if len(quats) <= 1:
+            return quats
+        
+        fixed = [quats[0]]  # First quaternion as reference
+        for q in quats[1:]:
+            # Calculate dot product with the previous quaternion
+            dot = np.sum(fixed[-1] * q)
+            # If negative, we're in the opposite hemisphere, so flip
+            if dot < 0:
+                fixed.append(-q)
+            else:
+                fixed.append(q)
+        return np.array(fixed)
 
     def _apply_retargeted_angles(self):
         """Apply retargeted angles from hand motion to robot."""
@@ -346,35 +461,26 @@ class XArm7RightOperator(Operator):
         # Get cart pose and apply filters
         cart = self._homo2cart(H_RT_RH)
 
-        # Apply complementary filter if enabled (stronger smoothing)
-        if self.use_filter:
-            if self.comp_filter is None:
-                self.comp_filter = CompStateFilter(cart, comp_ratio=0.8)  # Increased ratio for more smoothing
-            else:
-                cart = self.comp_filter(cart)
-        
-        # Apply moving average for additional smoothing
-        self.moving_average_queue.append(cart)
-        if len(self.moving_average_queue) > self.moving_average_limit:
-            self.moving_average_queue.pop(0)
-        
-        # Average positions
-        positions = np.mean([q[:3] for q in self.moving_average_queue], axis=0)
-        
-        # For orientation, use SLERP between multiple quaternions for smoother interpolation
-        if len(self.moving_average_queue) > 2:
-            quats = np.array([q[3:] for q in self.moving_average_queue])
-            # Create timestamps for interpolation (equally spaced)
-            times = np.linspace(0, 1, len(quats))
-            # Create Slerp object with all quaternions
-            rot_slerp = Slerp(times, Rotation.from_quat(quats))
-            # Get the middle point
-            orientation = rot_slerp([0.5])[0].as_quat()
+        # Position filtering (simple exponential filter)
+        if hasattr(self, 'filtered_position'):
+            self.filtered_position = self.filtered_position * 0.6 + cart[:3] * 0.4
         else:
-            orientation = cart[3:7]
+            self.filtered_position = cart[:3]
         
-        # Combine smoothed position and orientation
-        cart = np.concatenate([positions, orientation])
+        # Orientation filtering (with velocity-based quaternion filter)
+        if self.quat_filter is None:
+            self.quat_filter = QuaternionFilter(cart[3:7], smoothing=0.85)
+            # Initialize with the first quaternion
+            filtered_quat = cart[3:7]
+        else:
+            # Update with new quaternion
+            filtered_quat = self.quat_filter.update(cart[3:7])
+        
+        # Store the filtered quaternion for debugging/logging
+        self.filtered_quaternion = filtered_quat.copy()
+
+        # Combine filtered position and orientation
+        cart = np.concatenate([self.filtered_position, filtered_quat])
 
         # Convert to euler angles and publish
         position = cart[0:3]
@@ -399,6 +505,15 @@ class XArm7RightOperator(Operator):
                 )
             except Exception as e:
                 print(f"Error logging frame: {e}")
+
+        if time.time() % 5 < 0.2:  # Print every 5 seconds
+            euler = self.quat_to_euler_rad(cart[3], cart[4], cart[5], cart[6])
+            print(f"\nDiagnostics:")
+            print(f"  Hand frame determinant: {np.linalg.det(self.hand_moving_H[:3,:3]):.4f}")
+            print(f"  Robot frame determinant: {np.linalg.det(self.robot_moving_H[:3,:3]):.4f}")
+            print(f"  Euler angles (deg): Roll={np.degrees(euler[0]):.1f}, Pitch={np.degrees(euler[1]):.1f}, Yaw={np.degrees(euler[2]):.1f}")
+            if hasattr(self, '_calibrated') and self._calibrated:
+                print(f"  Applied offsets (deg): Roll={np.degrees(self.orientation_offset[0]):.1f}, Pitch={np.degrees(self.orientation_offset[1]):.1f}, Yaw={np.degrees(self.orientation_offset[2]):.1f}")
     
     def moving_average(self, action, queue, limit):
         """Apply moving average filter to action."""

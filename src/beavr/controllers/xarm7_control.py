@@ -165,20 +165,24 @@ class DexArmControl():
         
     def _exceeds_movement_limit(self, target_pose):
         """
-        Check if proposed movement exceeds the maximum allowed distance in a single step
+        Check if proposed movement exceeds the maximum allowed distance in a single step.
+        If it does, split it into smaller movements.
         
         Args:
             target_pose: Target cartesian pose [x, y, z, roll, pitch, yaw]
             
         Returns:
-            bool: True if movement exceeds limit, False otherwise
+            tuple: (exceeds_limit, waypoints)
+                exceeds_limit (bool): True if movement exceeds limit
+                waypoints (list): List of intermediate waypoints if exceeds_limit is True, 
+                                 otherwise empty list
         """
         # Always refresh current position to avoid drift issues
         status, current_pose = self.robot.get_position_aa()
         if status != 0:
             # If we can't get current position, play it safe and allow the movement
             print("Warning: Couldn't get current position, allowing movement")
-            return False
+            return False, []
             
         # Use actual robot position as reference, not last commanded position
         current_position = np.array(current_pose[0:3])
@@ -189,39 +193,107 @@ class DexArmControl():
         
         # Check if distance exceeds limit
         if distance > self._max_step_distance:
-            print(f"\033[91mWarning: Movement rejected - distance {distance:.2f}mm exceeds {self._max_step_distance}mm limit\033[0m")
-            return True
+            # Generate intermediate waypoints
+            waypoints = self._split_large_movement(current_pose, target_pose)
+            print(f"\033[93mMovement distance {distance:.2f}mm exceeds {self._max_step_distance}mm limit. "
+                  f"Split into {len(waypoints)} segments.\033[0m")
+            return True, waypoints
             
-        return False
+        return False, []
         
+    def _split_large_movement(self, current_pose, target_pose):
+        """
+        Split large movements into smaller segments that stay within movement limits
+        
+        Args:
+            current_pose: Current cartesian pose [x, y, z, roll, pitch, yaw]
+            target_pose: Target cartesian pose [x, y, z, roll, pitch, yaw]
+            
+        Returns:
+            list: List of intermediate waypoints
+        """
+        distance = np.linalg.norm(np.array(target_pose[0:3]) - np.array(current_pose[0:3]))
+        segments = max(2, int(np.ceil(distance / (self._max_step_distance * 0.8))))
+        waypoints = []
+        
+        current_pos = np.array(current_pose[0:3])
+        target_pos = np.array(target_pose[0:3])
+        
+        current_ori = np.array(current_pose[3:6])
+        target_ori = np.array(target_pose[3:6])
+        
+        for i in range(1, segments + 1):
+            t = i / segments
+            # Linear interpolation for position
+            pos = current_pos * (1-t) + target_pos * t
+            # Linear interpolation for orientation (simple approach)
+            ori = current_ori * (1-t) + target_ori * t
+            
+            waypoints.append(np.concatenate([pos, ori]).tolist())
+        
+        return waypoints
+
     def arm_control(self, cartesian_pose):
         # Check if movement exceeds safety limit
-        if self._exceeds_movement_limit(cartesian_pose):
-            return  # Skip this movement
-            
-        # Use servo mode (1) for real-time teleoperation
-        self._ensure_correct_mode(1, 0)
-        self.robot.set_servo_cartesian_aa(
-                    cartesian_pose, wait=False, relative=False, mvacc=5, speed=1)
+        exceeds_limit, waypoints = self._exceeds_movement_limit(cartesian_pose)
+        
+        if exceeds_limit:
+            # Execute each waypoint in sequence
+            for waypoint in waypoints:
+                # Use servo mode (1) for real-time teleoperation
+                self._ensure_correct_mode(1, 0)
+                self.robot.set_servo_cartesian_aa(
+                    waypoint, wait=True, relative=False, mvacc=5, speed=1)
+        else:
+            # Execute single movement as before
+            self._ensure_correct_mode(1, 0)
+            self.robot.set_servo_cartesian_aa(
+                cartesian_pose, wait=False, relative=False, mvacc=5, speed=1)
         
     def move_arm_cartesian(self, cartesian_pos, duration=3):
         """
-            Input: cartesian_pos: list of [x, y, z] (mm), [roll, pitch, yaw] (radians)
-            Output: None
+        Modified version with improved handling of pitch/yaw rotations
         """
-        # Scale position before checking movement limit (so we compare in same units)
+        # Scale position
         scaled_pos = copy(cartesian_pos)
         scaled_pos[0:3] = np.array(cartesian_pos[0:3]) * XARM_SCALE_FACTOR
         
         # Check if movement exceeds safety limit
-        if self._exceeds_movement_limit(scaled_pos):
-            return  # Skip this movement
+        exceeds_limit, waypoints = self._exceeds_movement_limit(scaled_pos)
+        
+        if exceeds_limit:
+            # Execute each waypoint in sequence, breaking down rotations
+            for waypoint in waypoints:
+                # First move position only, keeping current orientation
+                pos_only = waypoint.copy()
+                curr_ori = self.get_arm_cartesian_coords()[3:6]
+                pos_only[3:6] = curr_ori
+                
+                self._ensure_correct_mode(1, 0)
+                self.robot.set_servo_cartesian_aa(
+                    pos_only, wait=True, relative=False, mvacc=5, speed=1, is_radian=True)
+                
+                # Then adjust orientation separately - often more stable
+                self._ensure_correct_mode(1, 0)
+                self.robot.set_servo_cartesian_aa(
+                    waypoint, wait=True, relative=False, mvacc=3, speed=0.5, is_radian=True)
+        else:
+            # Use servo mode for cartesian movement
+            self._ensure_correct_mode(1, 0)
+            cartesian_pos[0:3] = np.array(cartesian_pos[0:3]) * XARM_SCALE_FACTOR
             
-        # Use servo mode (1) for cartesian movement
-        self._ensure_correct_mode(1, 0)
-        cartesian_pos[0:3] = np.array(cartesian_pos[0:3]) * XARM_SCALE_FACTOR
-        self.robot.set_servo_cartesian_aa(
-                    cartesian_pos, wait=True, relative=False, mvacc=5, speed=1, is_radian=True)
+            # For small movements, we can still break into position then orientation
+            # First move position only
+            pos_only = cartesian_pos.copy()
+            curr_ori = self.get_arm_cartesian_coords()[3:6]
+            pos_only[3:6] = curr_ori
+            
+            self.robot.set_servo_cartesian_aa(
+                pos_only, wait=True, relative=False, mvacc=5, speed=1, is_radian=True)
+            
+            # Then adjust orientation
+            self.robot.set_servo_cartesian_aa(
+                cartesian_pos, wait=True, relative=False, mvacc=3, speed=0.5, is_radian=True)
     
     def home_arm(self):
         """
