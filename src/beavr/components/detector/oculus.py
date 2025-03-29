@@ -10,6 +10,9 @@ class OculusVRHandDetector(Component):
         self.raw_keypoint_socket = create_pull_socket(host, oculus_port)
         self.button_keypoint_socket = create_pull_socket(host, button_port)
         self.teleop_reset_socket = create_pull_socket(host, teleop_reset_port)
+        
+        # Store the oculus_port for topic detection
+        self.oculus_port = oculus_port
 
         # ONE publisher for ALL data - this is the key change
         self.unified_publisher = ZMQKeypointPublisher(
@@ -40,6 +43,10 @@ class OculusVRHandDetector(Component):
 
     # Function to Stream the Keypoints
     def stream(self):
+        # Determine if we're handling left hand based on the port
+        hand_side = 'left' if str(self.oculus_port) == '8110' else 'right'
+        print(f"VR detector identified as {hand_side} hand")
+        
         while True:
             try:
                 self.timer.start_loop()
@@ -69,7 +76,7 @@ class OculusVRHandDetector(Component):
                 # 1. Hand keypoints
                 self.unified_publisher.pub_keypoints(
                     keypoint_array=keypoint_dict['keypoints'], 
-                    topic_name='right'
+                    topic_name=hand_side  # Use the detected hand side
                 )
                 
                 # 2. Button feedback

@@ -77,13 +77,6 @@ class XArm7RightOperator(Operator):
         # Basic initialization
         self.notify_component_start('xarm7 right_operator')
         self._host, self._port = host, transformed_keypoints_port
-
-        # Add finger coordinate subscriber (like Allegro)
-        self._hand_transformed_keypoint_subscriber = ZMQKeypointSubscriber(
-            host = self._host,
-            port = self._port,
-            topic = 'transformed_hand_coords'
-        )
         
         self._arm_transformed_keypoint_subscriber = ZMQKeypointSubscriber(
             host=host,
@@ -175,13 +168,13 @@ class XArm7RightOperator(Operator):
         return self._robot
 
     @property
-    def transformed_hand_keypoint_subscriber(self):
-        """Required by Operator base class."""
-        return self._hand_transformed_keypoint_subscriber
-
-    @property
     def transformed_arm_keypoint_subscriber(self):
         return self._arm_transformed_keypoint_subscriber
+
+    @property
+    def transformed_hand_keypoint_subscriber(self):
+        """Required property from the Operator abstract class, returning None"""
+        return None
 
     def return_real(self):
         return self.real
@@ -193,6 +186,8 @@ class XArm7RightOperator(Operator):
         """Get the hand frame with efficient caching strategy."""
         # Try to get new data (just once to avoid latency)
         data = self._arm_transformed_keypoint_subscriber.recv_keypoints(flags=zmq.NOBLOCK)
+
+        print(data)
         
         if data is None:
             # If no new data, use cached frame immediately
@@ -324,14 +319,6 @@ class XArm7RightOperator(Operator):
     # ------------------------------
     # Main teleop: transforms
     # ------------------------------
-
-    def _get_finger_coords(self):
-        """Get transformed finger coordinates."""
-        finger_coords = self._arm_transformed_keypoint_subscriber.recv_keypoints()
-        if finger_coords is not None:
-            return np.array(finger_coords).reshape(-1, 3)
-        return None
-
     def _fix_quaternion_flips(self, quats):
         """Fix potential quaternion flips by ensuring all are in same hemisphere"""
         if len(quats) <= 1:
@@ -454,14 +441,14 @@ class XArm7RightOperator(Operator):
             except Exception as e:
                 print(f"Error logging frame: {e}")
 
-        if time.time() % 5 < 0.2:  # Print every 5 seconds
-            euler = self.quat_to_euler_rad(cart[3], cart[4], cart[5], cart[6])
-            print(f"\nDiagnostics:")
-            print(f"  Hand frame determinant: {np.linalg.det(self.hand_moving_H[:3,:3]):.4f}")
-            print(f"  Robot frame determinant: {np.linalg.det(self.robot_moving_H[:3,:3]):.4f}")
-            print(f"  Euler angles (deg): Roll={np.degrees(euler[0]):.1f}, Pitch={np.degrees(euler[1]):.1f}, Yaw={np.degrees(euler[2]):.1f}")
-            if hasattr(self, '_calibrated') and self._calibrated:
-                print(f"  Applied offsets (deg): Roll={np.degrees(self.orientation_offset[0]):.1f}, Pitch={np.degrees(self.orientation_offset[1]):.1f}, Yaw={np.degrees(self.orientation_offset[2]):.1f}")
+        # if time.time() % 5 < 0.2:  # Print every 5 seconds
+        #     euler = self.quat_to_euler_rad(cart[3], cart[4], cart[5], cart[6])
+        #     print(f"\nDiagnostics:")
+        #     print(f"  Hand frame determinant: {np.linalg.det(self.hand_moving_H[:3,:3]):.4f}")
+        #     print(f"  Robot frame determinant: {np.linalg.det(self.robot_moving_H[:3,:3]):.4f}")
+        #     print(f"  Euler angles (deg): Roll={np.degrees(euler[0]):.1f}, Pitch={np.degrees(euler[1]):.1f}, Yaw={np.degrees(euler[2]):.1f}")
+        #     if hasattr(self, '_calibrated') and self._calibrated:
+        #         print(f"  Applied offsets (deg): Roll={np.degrees(self.orientation_offset[0]):.1f}, Pitch={np.degrees(self.orientation_offset[1]):.1f}, Yaw={np.degrees(self.orientation_offset[2]):.1f}")
     
     def moving_average(self, action, queue, limit):
         """Apply moving average filter to action."""

@@ -1,6 +1,6 @@
 host_address: '10.29.155.27'
 
-left_xarm_ip: '192.168.86.237'
+left_xarm_ip: '192.168.1.237'
 right_xarm_ip: '192.168.1.197'
 
 # Consolidated ports - one publisher per process
@@ -13,6 +13,9 @@ robot_command_port: 8091       # Robot commands
 oculus_receiver_port: 8087     # Raw data from Oculus
 resolution_button_port: 8095   # Button input
 teleop_reset_port: 8100        # Reset signal input
+
+# Left hand specific ports from APK
+left_hand_receiver_port: 8110  # Raw data from left hand
 
 # Other ports (unchanged)
 cam_port_offset: 10005
@@ -41,5 +44,6 @@ teleop_reset_publish_port: 8102
 # New ports we added
 unified_data_port: 8088     # All data from oculus.py 
 keypoint_transform_port: 8092  # Transformed keypoints
+left_keypoint_transform_port: 8093
 
 
