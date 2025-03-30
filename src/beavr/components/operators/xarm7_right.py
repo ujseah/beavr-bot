@@ -187,8 +187,6 @@ class XArm7RightOperator(Operator):
         # Try to get new data (just once to avoid latency)
         data = self._arm_transformed_keypoint_subscriber.recv_keypoints(flags=zmq.NOBLOCK)
 
-        print(data)
-        
         if data is None:
             # If no new data, use cached frame immediately
             if hasattr(self, 'last_valid_hand_frame') and self.last_valid_hand_frame is not None:
@@ -383,8 +381,8 @@ class XArm7RightOperator(Operator):
 
         # These transformation matrices define the mapping between coordinate systems
         # Adjust these if your coordinate systems aren't aligning correctly
-        H_R_V = np.array([[ 0,  0,  -1,  0],
-                          [ 0,  1,  0,  0],
+        H_R_V = np.array([[ 0,  0,  1,  0],
+                          [ 0,  -1,  0,  0],
                           [ -1, 0,  0,  0],
                           [ 0,  0,  0,  1]])
 

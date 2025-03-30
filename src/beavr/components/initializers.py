@@ -10,6 +10,7 @@ from multiprocessing import Process
 from beavr.constants import *
 from beavr.utils.registry import GlobalRegistry
 import time
+from omegaconf import ListConfig # Import ListConfig for type checking
 
 
 class ProcessInstantiator(ABC):
@@ -181,6 +182,33 @@ class TeleOperator(ProcessInstantiator):
             self.processes.append(process)
 
 
+# Helper function to be the target of the recorder process
+# This makes error handling within the specific recorder process easier
+def _start_robot_recorder_component(
+    host: str,
+    port: int,
+    topic: str,
+    record_key: str,
+    storage_path: str,
+    robot_name: str):
+    """Instantiates and runs RobotInformationRecord in a separate process."""
+    try:
+        print(f"Starting RobotInformationRecord process for {robot_name} - Key: '{record_key}', Topic: '{topic}', Port: {port}")
+        component = RobotInformationRecord(
+            host=host,
+            port=port,
+            topic=topic,
+            record_key=record_key,
+            storage_path=storage_path,
+            robot_name=robot_name # Used for filename/logging within recorder
+        )
+        component.stream()
+    except Exception as e:
+        print(f"FATAL ERROR in RobotInformationRecord process for {robot_name}-{record_key} (Topic: {topic}): {e}")
+        # Consider more robust logging here
+        raise # Re-raise the exception so the process terminates clearly
+
+
 # Data Collector Class
 class Collector(ProcessInstantiator):
     """
@@ -327,17 +355,110 @@ class Collector(ProcessInstantiator):
         component.stream()
 
     #Function to start the robot recorders
-    def _start_robot_component(
-        self, 
-        robot_configs, 
-        recorder_function_key):
-        component = RobotInformationRecord(
-            robot_configs = robot_configs,
-            recorder_function_key = recorder_function_key,
-            storage_path = self._storage_path
-        )
+    def _init_robot_recorders(self):
+        """
+        Initializes RobotInformationRecord processes based on configuration
+        found within each robot's definition in `configs.robot.robots`.
 
-        component.stream()
+        Expects each robot config block to have:
+        - state_publish_port: The port the robot publishes its state dict on.
+        - recorder_config:
+            - robot_identifier: A name for recorder filenames/logs.
+            - recorded_data: A list of keys to record from the state dict.
+        - Information to derive the ZMQ topic (e.g., '_target_', 'is_right_arm').
+        """
+        # Safety checks for config structure
+        if not hasattr(self.configs, 'robot') or not hasattr(self.configs.robot, 'robots'):
+            print("Warning: 'configs.robot.robots' not found in configuration. Skipping robot recorder initialization.")
+            return
+        if not isinstance(self.configs.robot.robots, (list, ListConfig)):
+             print("Warning: 'configs.robot.robots' is not a list. Skipping robot recorder initialization.")
+             return
+        if not hasattr(self, '_storage_path') or not self._storage_path:
+            print("FATAL ERROR: Collector._storage_path is not set! Cannot initialize robot recorders.")
+            return
+
+        host_address = getattr(self.configs, 'host_address', 'localhost') # Get host address safely
+
+        print("Initializing Robot Recorders...")
+        # Iterate through each robot defined in the configuration
+        for robot_index, robot_config in enumerate(self.configs.robot.robots):
+            try:
+                # --- 1. Extract Configuration ---
+                if not hasattr(robot_config, 'state_publish_port'):
+                    print(f"  ERROR: Robot config at index {robot_index} missing 'state_publish_port'. Skipping.")
+                    continue
+                state_publish_port = robot_config.state_publish_port
+
+                if not hasattr(robot_config, 'recorder_config'):
+                    print(f"  ERROR: Robot config for port {state_publish_port} missing 'recorder_config'. Skipping.")
+                    continue
+                recorder_cfg = robot_config.recorder_config
+
+                if not hasattr(recorder_cfg, 'robot_identifier'):
+                    print(f"  ERROR: Robot config for port {state_publish_port} missing 'recorder_config.robot_identifier'. Skipping.")
+                    continue
+                robot_identifier = recorder_cfg.robot_identifier # For filenames
+
+                if not hasattr(recorder_cfg, 'recorded_data'):
+                    print(f"  ERROR: Robot config for '{robot_identifier}' missing 'recorder_config.recorded_data'. Skipping.")
+                    continue
+                recorded_data_keys = recorder_cfg.recorded_data
+                if not isinstance(recorded_data_keys, (list, ListConfig)):
+                    print(f"  ERROR: 'recorded_data' for robot '{robot_identifier}' is not a list. Skipping.")
+                    continue
+
+                # --- 2. Determine Expected ZMQ Topic ---
+                # This logic needs to match how the robot interface determines its topic.
+                expected_zmq_topic = None
+                target_class = getattr(robot_config, '_target_', '')
+                if target_class.endswith("XArm7Robot"):
+                    is_right = getattr(robot_config, 'is_right_arm', None)
+                    if is_right is True:
+                        expected_zmq_topic = "right_xarm7"
+                    elif is_right is False:
+                        expected_zmq_topic = "left_xarm7"
+                    else:
+                        print(f"  ERROR: XArm7Robot config for '{robot_identifier}' missing or invalid 'is_right_arm'. Cannot determine topic.")
+                        continue # Skip this robot
+                # Add elif blocks here for other robot types and their topic logic
+                # elif target_class.endswith("LeapHandRobot"):
+                #     expected_zmq_topic = getattr(recorder_cfg, 'expected_zmq_topic', None) # Example: Read explicit topic
+                else:
+                    print(f"  Warning: Unknown robot type '{target_class}' for '{robot_identifier}'. Cannot determine ZMQ topic automatically.")
+                    # Optionally try reading an explicit 'expected_zmq_topic' from recorder_cfg
+                    expected_zmq_topic = getattr(recorder_cfg, 'expected_zmq_topic', None)
+                    if not expected_zmq_topic:
+                        print(f"  ERROR: Could not determine ZMQ topic for '{robot_identifier}'. Skipping recorders.")
+                        continue # Skip this robot
+
+                # --- 3. Create Recorder Processes ---
+                print(f"  Configuring recorders for robot: '{robot_identifier}' (Topic: '{expected_zmq_topic}', Port: {state_publish_port})")
+                for key in recorded_data_keys:
+                    if not isinstance(key, str) or not key:
+                        print(f"    Warning: Invalid record key '{key}' found for '{robot_identifier}'. Skipping.")
+                        continue
+
+                    print(f"    - Creating recorder process for key: '{key}'")
+                    process = Process(
+                        target=_start_robot_recorder_component, # Use the helper function
+                        args=(
+                            host_address,          # host
+                            state_publish_port,    # port
+                            expected_zmq_topic,    # topic
+                            key,                   # record_key
+                            self._storage_path,    # storage_path
+                            robot_identifier       # robot_name (for recorder's internal use)
+                        )
+                    )
+                    self.processes.append(process)
+
+            except AttributeError as e:
+                print(f"  ERROR: Configuration access error for robot at index {robot_index}: {e}. Skipping.")
+                continue
+            except Exception as e:
+                print(f"  ERROR: Unexpected error processing robot config for '{robot_identifier}' (Index {robot_index}): {e}. Skipping.")
+                continue
 
     #Function to start the sim recorders
     def _start_sim_component(self,port_configs, recorder_function_key):
@@ -347,16 +468,6 @@ class Collector(ProcessInstantiator):
                    storage_path=self._storage_path
         )
         component.stream()
-
-    #Function to start the robot recorders
-    def _init_robot_recorders(self):
-        # Use robots directly since they manage their own controllers
-        for idx, robot_configs in enumerate(self.configs.robot.robots):
-            for key in self.configs.robot.recorded_data[idx]:
-                self.processes.append(Process(
-                    target = self._start_robot_component,
-                    args = (robot_configs, key, )
-                ))
 
 
     

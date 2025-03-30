@@ -35,6 +35,7 @@ OCULUS_VIEW_LIMITS = {
 }
 
 VR_FREQ = 50
+RECORDER_FREQ = 30
 
 # XELA Sensor parameters
 XELA_FPS = 100

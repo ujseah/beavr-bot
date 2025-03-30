@@ -8,25 +8,38 @@ import zmq
 from beavr.constants import VR_FREQ  # Import VR_FREQ from constants
 
 class XArm7Robot(RobotWrapper):
-    def __init__(self, host, endeff_subscribe_port, endeff_publish_port, joint_subscribe_port, 
-                 reset_subscribe_port, robot_ip, is_right_arm=True):
+    def __init__(self, host, endeff_subscribe_port, joint_subscribe_port,
+                 reset_subscribe_port, robot_ip, is_right_arm=True,
+                 # Port for publishing general data (e.g., end effector pose for viz)
+                 endeff_publish_port: int = 10009, # Default, check config
+                 # Port specifically for publishing the state dictionary for recording
+                 state_publish_port: int = 10010, # Default, check config
+                 **kwargs): # Allow extra hydra args
         """
         Args:
-            controller: Robot controller instance (DexArmControl)
             host: Network host address
-            endeff_subscribe_port: Port for end effector subscription
-            endeff_publish_port: Port for end effector publishing
-            joint_subscribe_port: Port for joint state subscription
+            endeff_subscribe_port: Port for end effector command subscription
+            joint_subscribe_port: Port for joint command subscription (if used)
             reset_subscribe_port: Port for reset subscription
             robot_ip: IP address of the XArm robot
             is_right_arm: Whether this is the right arm (True) or left arm (False)
+            endeff_publish_port: Port for publishing general end-effector data.
+            state_publish_port: Port for publishing the full state dictionary for recording.
         """
+        # Ensure required ports are present
+        if not endeff_publish_port:
+             raise ValueError("XArm7Robot requires an 'endeff_publish_port'")
+        if not state_publish_port:
+             raise ValueError("XArm7Robot requires a 'state_publish_port'")
+
         self._controller = DexArmControl(ip=robot_ip)
         self._is_right_arm = is_right_arm
         
         # Use VR_FREQ instead of hardcoded 90Hz
         self._data_frequency = VR_FREQ
-        print(f"XArm7Robot initialized with command frequency: {self._data_frequency}Hz")
+        print(f"XArm7Robot '{self.name}' initialized with command frequency: {self._data_frequency}Hz")
+        print(f"  Publishing general data on tcp://{host}:{endeff_publish_port}")
+        print(f"  Publishing state dictionary on tcp://{host}:{state_publish_port} with topic '{self.name}'")
         
         # Subscribers
         self._cartesian_coords_subscriber = ZMQKeypointSubscriber(
@@ -47,10 +60,16 @@ class XArm7Robot(RobotWrapper):
             topic = 'reset'
         )
 
-        # ONE unified publisher for all messages
-        self._unified_publisher = ZMQKeypointPublisher(
-            host = host, 
+        # Publisher for general data (using endeff_publish_port)
+        self._general_publisher = ZMQKeypointPublisher(
+            host = host,
             port = endeff_publish_port
+        )
+
+        # Publisher specifically for the state dictionary (using state_publish_port)
+        self._state_publisher = ZMQKeypointPublisher(
+            host = host,
+            port = state_publish_port
         )
 
         # Add caches for received messages
@@ -61,6 +80,10 @@ class XArm7Robot(RobotWrapper):
         
         # Recording control
         self._is_recording_enabled = False
+
+        # Add cache for the last valid commanded cartesian position received
+        self._latest_commanded_cartesian_position = None
+        self._latest_commanded_cartesian_timestamp = 0.0
 
     @property
     def recorder_functions(self):
@@ -142,12 +165,50 @@ class XArm7Robot(RobotWrapper):
         return joint_state_dict
     
     def get_cartesian_commanded_position(self):
-        cartesian_state = self._cartesian_coords_subscriber.recv_keypoints()
-        cartesian_state_dict= dict(
-            commanded_cartesian_position = np.array(cartesian_state, dtype=np.float32),
-            timestamp = time.time()
-        )
-        return cartesian_state_dict
+        """
+        Attempts to receive the latest cartesian command via ZMQ (non-blocking).
+        Parses the expected dictionary format {'position': [...], 'orientation': [...]}.
+        Returns a dictionary containing the last successfully received and parsed command,
+        or None if no valid command has been received yet.
+        """
+        # Try to receive a new command without blocking
+        command_msg = self._cartesian_coords_subscriber.recv_keypoints(flags=zmq.NOBLOCK)
+        received_new_command = False
+
+        if command_msg is not None:
+            # Check if the received message is a dictionary with expected keys
+            if isinstance(command_msg, dict) and 'position' in command_msg and 'orientation' in command_msg:
+                try:
+                    # Extract and combine position and orientation
+                    position = command_msg['position']
+                    orientation = command_msg['orientation']
+                    # Ensure they are numpy arrays before concatenating
+                    combined_coords = np.concatenate([
+                        np.asarray(position, dtype=np.float32),
+                        np.asarray(orientation, dtype=np.float32)
+                    ])
+
+                    # Update the cache with the new valid command
+                    self._latest_commanded_cartesian_position = combined_coords
+                    # Use the timestamp from the message if available, otherwise use current time
+                    self._latest_commanded_cartesian_timestamp = command_msg.get('timestamp', time.time())
+                    received_new_command = True
+                except (TypeError, ValueError) as e:
+                    # Handle potential errors during conversion or concatenation
+                    print(f"Warning: Error processing received cartesian command: {e}. Data: {command_msg}")
+            else:
+                print(f"Warning: Received unexpected command format: {command_msg}")
+
+        # Return the latest valid command from the cache
+        if self._latest_commanded_cartesian_position is not None:
+            command_state_dict = dict(
+                commanded_cartesian_position=self._latest_commanded_cartesian_position, # Already a numpy array
+                timestamp=self._latest_commanded_cartesian_timestamp
+            )
+            return command_state_dict
+        else:
+            # Return None if no valid command has ever been received
+            return None
 
     def get_robot_actual_cartesian_position(self):
         cartesian_state=self.get_cartesian_position()
@@ -163,7 +224,7 @@ class XArm7Robot(RobotWrapper):
     
     def send_robot_pose(self):
         cartesian_state = self._controller.get_arm_pose()
-        self._unified_publisher.pub_keypoints(cartesian_state, "endeff_homo")
+        self._general_publisher.pub_keypoints(cartesian_state, "endeff_homo")
 
     def check_reset(self):
         reset_bool = self._reset_subscriber.recv_keypoints(flags=zmq.NOBLOCK)
@@ -218,6 +279,7 @@ class XArm7Robot(RobotWrapper):
                         
                         # Move the robot
                         self.move_coords(cartesian_coords)
+                        self.publish_current_state()
                     except Exception as e:
                         movement_stats["rejected_commands"] += 1
                         print(f"Command rejected: {e}")
@@ -229,3 +291,39 @@ class XArm7Robot(RobotWrapper):
                 sleep_time = max(0, next_frame_time - time.time())
                 if sleep_time > 0:
                     time.sleep(sleep_time)
+
+    def publish_current_state(self):
+        """
+        Gathers all state data defined in recorder_functions
+        and publishes it as a single dictionary via ZMQ using self.name as topic
+        on the state_publish_port.
+        """
+        current_state_dict = {}
+        publish_time = time.time()
+
+        for key, getter_function in self.recorder_functions.items():
+            try:
+                state_data = getter_function()
+                if state_data is not None:
+                    current_state_dict[key] = state_data
+            except Exception as e:
+                print(f"Warning: Failed to get state for '{key}' on robot '{self.name}': {e}")
+                current_state_dict[key] = None
+
+        current_state_dict['timestamp'] = publish_time
+
+        # Publish the state dictionary using the dedicated state publisher and self.name topic
+        try:
+            self._state_publisher.pub_keypoints(current_state_dict, self.name)
+        except Exception as e:
+            print(f"Error publishing state dictionary for robot '{self.name}': {e}")
+
+    def __del__(self):
+        # Clean up ZMQ sockets
+        print(f"Closing ZMQ sockets for {self.name}")
+        if hasattr(self, '_cartesian_coords_subscriber'): self._cartesian_coords_subscriber.stop()
+        if hasattr(self, '_joint_state_subscriber'): self._joint_state_subscriber.stop()
+        if hasattr(self, '_reset_subscriber'): self._reset_subscriber.stop()
+        # Close both publishers
+        if hasattr(self, '_general_publisher'): self._general_publisher.stop()
+        if hasattr(self, '_state_publisher'): self._state_publisher.stop()
