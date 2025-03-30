@@ -60,20 +60,41 @@ class RobotInformationRecord(Recorder):
         self.record_start_time = time.time()
         received_count = 0
         last_print_time = time.time()
+        log_interval = 100 # Log type/shape every 100 messages per key
+        log_counter = 0
 
         try:
             while True:
-                # Receive data with a small timeout to prevent blocking indefinitely
-                # Adjust timeout_ms as needed (e.g., 100ms)
-                state_dict = self.subscriber.recv_keypoints(flags=zmq.NOBLOCK, timeout_ms=100)
+                # MODIFIED: Call recv_keypoints without timeout_ms
+                # Use NOBLOCK flag to prevent waiting indefinitely
+                try:
+                    state_dict = self.subscriber.recv_keypoints(flags=zmq.NOBLOCK)
+                except zmq.Again:
+                    # No message received, sleep briefly and continue
+                    time.sleep(0.001) # Sleep 1ms to yield CPU
+                    state_dict = None
+                    # Continue to the next iteration of the while loop
+                    # to check for KeyboardInterrupt or print stats
+                    # continue # Optional: uncomment if you only want to process when a message arrives
 
                 if state_dict is not None:
                     received_count += 1
                     # Extract the specific data point using the record_key
                     if self.record_key in state_dict:
                         data_to_store = state_dict[self.record_key]
-                        # Also grab the timestamp from the dictionary
                         timestamp = state_dict.get('timestamp', time.time()) # Fallback timestamp
+
+                        # --- START: Added Logging ---
+                        log_counter += 1
+                        if log_counter % log_interval == 1:
+                            data_type = type(data_to_store)
+                            shape_info = "N/A"
+                            dtype_info = "N/A"
+                            if isinstance(data_to_store, np.ndarray):
+                                shape_info = data_to_store.shape
+                                dtype_info = data_to_store.dtype
+                            print(f"[{self.robot_name} - {self.record_key}] Data sample type: {data_type}, Shape: {shape_info}, Dtype: {dtype_info}")
+                        # --- END: Added Logging ---
 
                         # Add the extracted data and timestamp to the buffer
                         self.buffer.append({'data': data_to_store, 'timestamp': timestamp})
@@ -96,9 +117,7 @@ class RobotInformationRecord(Recorder):
                     print(f"[{self.robot_name} - {self.record_key}] Received {received_count} messages in {elapsed:.2f}s ({rate:.1f}/s). Buffer size: {len(self.buffer)}")
                     last_print_time = current_time
 
-                # Optional: Small sleep if using NOBLOCK to prevent high CPU usage if no messages arrive
-                if state_dict is None:
-                    time.sleep(0.001) # Sleep 1ms
+                # Removed the separate sleep here as it's handled in the zmq.Again block
 
         except KeyboardInterrupt:
             print(f"[{self.robot_name} - {self.record_key}] KeyboardInterrupt received. Saving remaining buffer...")
