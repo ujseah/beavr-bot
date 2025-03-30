@@ -6,6 +6,7 @@ from beavr.utils.timer import FrequencyTimer
 from beavr.utils.network import ZMQCameraPublisher, ZMQCompressedImageTransmitter
 from beavr.constants import *
 import time
+import cv2
 
 class RealsenseCamera(Component):
     def __init__(self, stream_configs, cam_serial_num, cam_id, cam_configs, stream_oculus = False):
@@ -126,15 +127,18 @@ class RealsenseCamera(Component):
                 color_image = rotate_image(color_image, self.cam_configs.rotation_angle)
                 depth_image = rotate_image(depth_image, self.cam_configs.rotation_angle)
 
-                # Publishing the rgb images
+                # Use existing pub_rgb_image method which already has JPEG compression
                 self.rgb_publisher.pub_rgb_image(color_image, timestamp)
+
                 # TODO - move the oculus publisher to a separate process - this cycle works at 40 FPS
                 if self._stream_oculus:
-                    self.rgb_viz_publisher.send_image(rescale_image(color_image, 2)) # 640 * 360
+                    # Already using compression in viz_publisher
+                    self.rgb_viz_publisher.send_image(rescale_image(color_image, 2))
 
-                # Publishing the depth images
+                # Use existing pub_depth_image method which already has blosc compression
                 self.depth_publisher.pub_depth_image(depth_image, timestamp)
-                self.depth_publisher.pub_intrinsics(self.intrinsics_matrix) # Publishing inrinsics along with the depth publisher
+                
+                self.depth_publisher.pub_intrinsics(self.intrinsics_matrix)
 
                 self.timer.end_loop()
             except KeyboardInterrupt:
