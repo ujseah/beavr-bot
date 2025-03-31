@@ -143,94 +143,243 @@ class RobotInformationRecord(Recorder):
         # Data containers are handled by the buffer list now
 
     def _save_buffer(self):
-        """Saves the current contents of the buffer to the HDF5 file."""
+        """Saves the current contents of the buffer to the HDF5 file,
+        handling dictionary payloads by saving them into groups."""
         if not self.buffer:
-            print(f"[{self.robot_name} - {self.record_key}] Buffer is empty. Nothing to save.")
+            # print(f"[{self.robot_name} - {self.record_key}] Buffer is empty. Nothing to save.") # Less verbose
             return
 
-        num_to_save = len(self.buffer)
-        print(f"[{self.robot_name} - {self.record_key}] Saving {num_to_save} data points from buffer...")
+        num_to_save_initially = len(self.buffer)
+        print(f"[{self.robot_name} - {self.record_key}] Processing {num_to_save_initially} data points from buffer for saving...")
 
-        # Aggregate data from buffer
-        aggregated_data = {
-            'data': [],
-            'timestamps': []
-        }
+        # --- Data Aggregation Logic ---
+        aggregated_data = {} # Dict to store lists for each sub-key (e.g., 'joint_position', 'timestamp')
+        valid_items_processed = 0
+
         for item in self.buffer:
-            aggregated_data['data'].append(item['data'])
-            aggregated_data['timestamps'].append(item['timestamp'])
+            data_payload = item['data']
+            # Use the timestamp stored alongside the data in the buffer item
+            timestamp = item['timestamp']
 
-        # Convert lists to NumPy arrays
+            if isinstance(data_payload, dict):
+                # Record the main timestamp for this dictionary payload
+                if 'timestamps' not in aggregated_data:
+                    aggregated_data['timestamps'] = []
+                aggregated_data['timestamps'].append(timestamp)
+
+                # Iterate through keys within the data payload dictionary
+                for sub_key, sub_data in data_payload.items():
+                    if sub_key == 'timestamp': # Avoid duplicating timestamp if present in payload
+                        continue
+                    # Ensure sub_data is numpy array for consistency if possible
+                    if isinstance(sub_data, (list, tuple)):
+                         try:
+                              sub_data = np.array(sub_data, dtype=np.float32)
+                         except ValueError:
+                              print(f"  Warning: Could not convert list/tuple to np.float32 for sub_key '{sub_key}'. Skipping this sub_key for this item.")
+                              continue # Skip this sub_key for this item
+                    elif not isinstance(sub_data, np.ndarray) and sub_data is not None:
+                         # Try converting other non-None types
+                         try:
+                              sub_data = np.array([sub_data], dtype=np.float32) # Wrap scalar in array
+                         except (TypeError, ValueError):
+                              print(f"  Warning: Could not convert scalar to np.float32 for sub_key '{sub_key}'. Skipping this sub_key for this item.")
+                              continue # Skip this sub_key for this item
+
+
+                    if sub_key not in aggregated_data:
+                        aggregated_data[sub_key] = []
+
+                    # Only append if sub_data is a numpy array now
+                    if isinstance(sub_data, np.ndarray):
+                         aggregated_data[sub_key].append(sub_data)
+                    elif sub_data is None:
+                         # Handle None: Append a placeholder? Or ensure alignment later?
+                         # For now, let's append None and handle during stacking
+                         aggregated_data[sub_key].append(None)
+                    # else: skip other types
+
+                valid_items_processed += 1
+
+            elif isinstance(data_payload, np.ndarray):
+                # Handle case where data is already a numpy array (simpler data types)
+                # Save it under a default 'data' key within the group
+                if 'data' not in aggregated_data:
+                    aggregated_data['data'] = []
+                if 'timestamps' not in aggregated_data:
+                    aggregated_data['timestamps'] = []
+                aggregated_data['data'].append(data_payload)
+                aggregated_data['timestamps'].append(timestamp)
+                valid_items_processed += 1
+
+            # Add handling for other simple scalar types if needed, saving under 'data' key
+            elif isinstance(data_payload, (int, float, bool, np.number)):
+                 if 'data' not in aggregated_data:
+                     aggregated_data['data'] = []
+                 if 'timestamps' not in aggregated_data:
+                     aggregated_data['timestamps'] = []
+                 aggregated_data['data'].append(np.array([data_payload], dtype=np.float32)) # Store as numpy array
+                 aggregated_data['timestamps'].append(timestamp)
+                 valid_items_processed += 1
+            elif data_payload is None:
+                # Option: Skip None payloads entirely if they provide no info
+                print(f"  Skipping None payload for timestamp {timestamp}")
+                continue
+            else:
+                print(f"  Warning: Unsupported data payload type: {type(data_payload)}. Skipping.")
+                continue
+
+        if valid_items_processed == 0:
+             print(f"[{self.robot_name} - {self.record_key}] No valid data processed from buffer. Nothing to save.")
+             self.buffer = [] # Clear buffer even if nothing saved
+             return
+
+        # --- NumPy Conversion ---
         final_datasets = {}
-        try:
-            # Convert timestamps first
-            final_datasets['timestamps'] = np.array(aggregated_data['timestamps'], dtype=np.float64)
+        skipped_keys = []
+        num_records_to_save = 0
 
-            # Attempt to stack the main data; handle potential heterogeneity
-            try:
-                # Check if all elements are numpy arrays and stackable
-                if all(isinstance(x, np.ndarray) for x in aggregated_data['data']):
-                     # Filter out None before stacking if necessary (though ideally shouldn't happen here)
-                     valid_data = [x for x in aggregated_data['data'] if x is not None]
-                     if valid_data:
-                          final_datasets[self.record_key] = np.stack(valid_data)
-                     else:
-                          final_datasets[self.record_key] = np.array([]) # Empty array
-                # Check if all elements are simple numerics
-                elif all(isinstance(x, (int, float, bool, np.number)) for x in aggregated_data['data']):
-                     final_datasets[self.record_key] = np.array(aggregated_data['data'], dtype=np.float32) # Default float32
+        if 'timestamps' in aggregated_data:
+             num_records_to_save = len(aggregated_data['timestamps'])
+             try:
+                  final_datasets['timestamps'] = np.array(aggregated_data['timestamps'], dtype=np.float64)
+             except Exception as e:
+                  print(f"  ERROR converting timestamps: {e}. Aborting save.")
+                  self.buffer = []
+                  return
+             del aggregated_data['timestamps'] # Processed timestamps
+        else:
+             print(f"  ERROR: No timestamps were aggregated. Aborting save.")
+             self.buffer = []
+             return
+
+
+        for key, data_list in aggregated_data.items():
+            if len(data_list) != num_records_to_save:
+                 print(f"  Warning: Mismatched record count for key '{key}' ({len(data_list)} vs {num_records_to_save} timestamps). Skipping this key.")
+                 skipped_keys.append(key)
+                 continue
+
+            # Handle potential None values before stacking (e.g., replace with NaN or zeros)
+            processed_list = []
+            has_none = False
+            first_valid_item = next((item for item in data_list if item is not None), None)
+
+            if first_valid_item is None:
+                 print(f"  Warning: All data for key '{key}' is None. Skipping.")
+                 skipped_keys.append(key)
+                 continue
+
+            # Determine placeholder based on the first valid item's dtype and shape
+            placeholder = None
+            if isinstance(first_valid_item, np.ndarray):
+                 placeholder = np.full(first_valid_item.shape, np.nan, dtype=first_valid_item.dtype)
+                 # Check if dtype supports NaN, otherwise use zero
+                 if not np.issubdtype(placeholder.dtype, np.floating):
+                      placeholder = np.zeros(first_valid_item.shape, dtype=first_valid_item.dtype)
+
+
+            for item in data_list:
+                if item is None:
+                    if placeholder is not None:
+                         processed_list.append(placeholder)
+                         has_none = True
+                    else:
+                         # Should not happen if first_valid_item was found, but as safety:
+                         print(f"  Error: Cannot create placeholder for None in key '{key}'. Skipping key.")
+                         processed_list = None # Mark for skipping
+                         break
+                elif isinstance(item, np.ndarray):
+                     processed_list.append(item)
                 else:
-                     # Fallback to object dtype for lists, dicts, or mixed types
-                     print(f"  Warning: Data for key '{self.record_key}' seems complex or mixed. Saving as object dtype.")
-                     final_datasets[self.record_key] = np.array(aggregated_data['data'], dtype=object)
+                     # This case should ideally not be reached due to earlier checks
+                     print(f"  Warning: Unexpected non-array item '{item}' for key '{key}' during processing. Skipping key.")
+                     processed_list = None
+                     break
+
+            if processed_list is None:
+                 skipped_keys.append(key)
+                 continue
+
+            if has_none:
+                 print(f"  Note: Replaced None values with placeholders for key '{key}'.")
+
+            # Now, attempt to stack the processed list
+            try:
+                # Check shapes before stacking
+                first_shape = processed_list[0].shape
+                if all(x.shape == first_shape for x in processed_list):
+                    final_datasets[key] = np.stack(processed_list)
+                else:
+                    print(f"  ERROR: Inconsistent shapes for key '{key}' after processing Nones. Cannot stack. Skipping key.")
+                    skipped_keys.append(key)
             except ValueError as ve:
-                 print(f"  Warning: Stacking/conversion failed for key '{self.record_key}'. Using object dtype. Error: {ve}")
-                 final_datasets[self.record_key] = np.array(aggregated_data['data'], dtype=object)
+                 print(f"  ERROR: Stacking failed for key '{key}'. Error: {ve}. Skipping key.")
+                 skipped_keys.append(key)
+            except Exception as e:
+                print(f"[{self.robot_name} - {self.record_key}] FAILED during numpy conversion for key '{key}': {e}. Skipping key.")
+                skipped_keys.append(key)
 
-        except Exception as e:
-            print(f"[{self.robot_name} - {self.record_key}] FAILED during numpy conversion: {e}. Data lost for this save cycle.")
-            return # Abort saving if conversion fails
-
-        # Writing to HDF5 file (use 'a'ppend mode or handle file existence)
-        # Using 'w'rite mode here effectively overwrites the file each time _save_buffer is called.
-        # If you want to append, you'll need more complex HDF5 handling (checking dataset existence, resizing).
-        # For simplicity now, let's assume we overwrite on KeyboardInterrupt/end, but this means intermediate saves are lost.
-        # A better approach might be to write to uniquely named files per save cycle or use append mode carefully.
-        # Let's stick with 'w' for now, implying final save is the important one.
-        # Consider changing to 'a' if incremental saving is critical.
-        save_mode = 'w' # Overwrite mode for simplicity in this example
+        # --- HDF5 Writing ---
+        save_mode = 'a' # Use append mode
         try:
             with h5py.File(self._recorder_file_name, save_mode) as file:
-                print(f"[{self.robot_name} - {self.record_key}] Writing {len(final_datasets)} datasets to {self._recorder_file_name} (mode: {save_mode})")
+                print(f"[{self.robot_name} - {self.record_key}] Appending {len(final_datasets)} data arrays ({num_records_to_save} records) to group '{self.record_key}' in {self._recorder_file_name}")
+
+                # Create a group for this record_key if it doesn't exist
+                group = file.require_group(self.record_key)
+
+                # Get current total before appending
+                total_datapoints_in_file = group.attrs.get('total_datapoints_recorded', 0)
 
                 for key, array_data in final_datasets.items():
-                    if array_data is not None and array_data.size > 0 :
-                        # Use the record_key for the main data dataset name
-                        dataset_name = key if key == 'timestamps' else self.record_key
-                        print(f"  - Writing dataset: '{dataset_name}' with shape {array_data.shape} and dtype {array_data.dtype}")
-                        # Delete existing dataset if in append mode and it exists, before creating new one
-                        # if save_mode == 'a' and dataset_name in file:
-                        #     del file[dataset_name]
-                        file.create_dataset(dataset_name, data=array_data, compression="gzip", compression_opts=6)
+                    if array_data.size > 0:
+                        dataset_name = key # Use the sub-key as the dataset name
+
+                        # Check if dataset exists for appending
+                        if dataset_name in group:
+                            dset = group[dataset_name]
+                            # Check compatibility (dtype, shape except first dim)
+                            if dset.dtype == array_data.dtype and dset.shape[1:] == array_data.shape[1:]:
+                                 print(f"  - Appending {array_data.shape[0]} records to dataset: '{self.record_key}/{dataset_name}' (New shape: {(dset.shape[0] + array_data.shape[0],) + dset.shape[1:]})")
+                                 dset.resize((dset.shape[0] + array_data.shape[0]), axis=0)
+                                 dset[-array_data.shape[0]:] = array_data
+                            else:
+                                 print(f"  ERROR: Cannot append to dataset '{self.record_key}/{dataset_name}'. Incompatible dtype or shape. Existing: {dset.dtype}, {dset.shape}. New: {array_data.dtype}, {array_data.shape}. Skipping.")
+                                 continue # Skip incompatible dataset
+                        else:
+                            # Create new dataset (resizable)
+                            # Object dtype check - should be prevented by earlier logic, but double-check
+                            if array_data.dtype == object:
+                                 print(f"  ERROR: Cannot save object dtype array '{self.record_key}/{dataset_name}' to HDF5. Skipping.")
+                                 continue # Skip this dataset
+
+                            print(f"  - Creating dataset: '{self.record_key}/{dataset_name}' with shape {array_data.shape} and dtype {array_data.dtype}")
+                            maxshape = (None,) + array_data.shape[1:] # Make it resizable along the first axis
+                            group.create_dataset(dataset_name, data=array_data, compression="gzip", compression_opts=6, chunks=True, maxshape=maxshape)
                     else:
-                         print(f"  - Skipping empty dataset: {key}")
+                         print(f"  - Skipping empty dataset: {self.record_key}/{key}")
 
-                # Add metadata (consider updating vs overwriting in append mode)
-                self.num_datapoints += num_to_save # Update total count
-                file.attrs['total_datapoints_recorded'] = self.num_datapoints
-                file.attrs['datapoints_in_last_save'] = num_to_save
-                file.attrs['last_update_timestamp'] = time.time()
-                file.attrs['recorded_key'] = self.record_key
-                file.attrs['robot_name'] = self.robot_name
-                file.attrs['zmq_topic'] = self._zmq_topic
-                if hasattr(self, 'record_start_time'): file.attrs['record_start_time'] = self.record_start_time
-                if hasattr(self, 'record_end_time'): file.attrs['record_end_time'] = self.record_end_time
+                # Update metadata in the group attributes
+                self.num_datapoints += num_records_to_save # Update total count for this recorder instance
+                group.attrs['total_datapoints_recorded'] = total_datapoints_in_file + num_records_to_save
+                group.attrs['datapoints_in_last_save'] = num_records_to_save
+                group.attrs['last_update_timestamp'] = time.time()
+                # Add other relevant metadata if needed
+                group.attrs['original_record_key'] = self.record_key # Keep track of the top-level key
+                group.attrs['robot_name'] = self.robot_name
+                group.attrs['zmq_topic'] = self._zmq_topic
+                if hasattr(self, 'record_start_time'): group.attrs['record_start_time'] = self.record_start_time
+                if hasattr(self, 'record_end_time'): group.attrs['record_end_time'] = self.record_end_time
 
 
-            print(f"[{self.robot_name} - {self.record_key}] Successfully saved buffer to {self._recorder_file_name}")
+            print(f"[{self.robot_name} - {self.record_key}] Successfully appended buffer to {self._recorder_file_name}")
         except Exception as e:
              print(f"[{self.robot_name} - {self.record_key}] FAILED to write HDF5 file {self._recorder_file_name}: {e}")
              # Consider how to handle this - maybe retry? For now, data is lost.
+        finally:
+             # Clear buffer regardless of success or failure to prevent reprocessing
+             self.buffer = []
 
     def __del__(self):
         # Ensure ZMQ subscriber is stopped on deletion
