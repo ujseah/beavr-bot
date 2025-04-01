@@ -1,5 +1,5 @@
 from copy import deepcopy as copy
-from beavr.utils.network import ZMQKeypointSubscriber, ZMQKeypointPublisher
+from beavr.utils.network import ZMQKeypointSubscriber, EnhancedZMQKeypointPublisher as ZMQKeypointPublisher
 from .operator import Operator
 from beavr.utils.timer import FrequencyTimer
 from beavr.constants import *
@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 import threading
 import numpy as np
 from beavr.utils.logger import HandLogger
-from .utils.leap_solver import LeapHandIKSolver
+from beavr.components.operators.solvers.leap_solver import LeapHandIKSolver
 import queue
 
 class LeapHandOperator(Operator):

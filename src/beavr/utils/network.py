@@ -5,6 +5,15 @@ import numpy as np
 import pickle
 import blosc as bl
 import threading
+import time
+
+# Global ZMQ context (one per process)
+_GLOBAL_ZMQ_CONTEXT = zmq.Context()
+
+def get_global_context():
+    """Get the global ZMQ context (shared across all sockets)"""
+    global _GLOBAL_ZMQ_CONTEXT
+    return _GLOBAL_ZMQ_CONTEXT
 
 # ZMQ Sockets
 def create_push_socket(host, port):
@@ -55,7 +64,7 @@ class ZMQKeypointPublisher(object):
         self.socket.close()
         self.context.term()
 
-class ZMQKeypointSubscriber(threading.Thread):
+class ZMQKeypointSubscriber:
     def __init__(self, host, port, topic):
         self._host, self._port, self._topic = host, port, topic
         self._init_subscriber()
@@ -252,3 +261,101 @@ class ZMQButtonFeedbackSubscriber(threading.Thread):
         print('Closing the subscriber socket in {}:{}.'.format(self._host, self._port))
         self.socket.close()
         self.context.term()
+# Improved Pub/Sub classes with shared context
+class ZMQPublisherManager:
+    """Centralized management of ZMQ publishers"""
+    _instance = None
+    _publishers = {}  # (host, port) -> publisher
+    
+    @classmethod
+    def get_instance(cls):
+        if cls._instance is None:
+            cls._instance = ZMQPublisherManager()
+        return cls._instance
+    
+    def get_publisher(self, host, port):
+        """Get or create a publisher for the given host and port"""
+        key = (host, port)
+        if key not in self._publishers:
+            self._publishers[key] = self._create_publisher(host, port)
+        return self._publishers[key]
+    
+    def _create_publisher(self, host, port):
+        """Create a new PUB socket"""
+        socket = get_global_context().socket(zmq.PUB)
+        socket.bind(f'tcp://{host}:{port}')
+        print(f"Created new PUB socket at {host}:{port}")
+        return socket
+    
+    def publish(self, host, port, topic, data):
+        """Publish data to a topic using the appropriate publisher"""
+        publisher = self.get_publisher(host, port)
+        buffer = pickle.dumps(data, protocol=-1)
+        publisher.send(bytes(f'{topic} ', 'utf-8') + buffer)
+    
+    def close_all(self):
+        """Close all publishers"""
+        for key, publisher in self._publishers.items():
+            print(f"Closing publisher socket at {key[0]}:{key[1]}")
+            publisher.close()
+        self._publishers.clear()
+
+# Legacy-compatible wrapper classes
+class EnhancedZMQKeypointPublisher(ZMQKeypointPublisher):
+    """Enhanced version that uses the centralized publisher manager"""
+    def __init__(self, host, port):
+        self._host, self._port = host, port
+        self._manager = ZMQPublisherManager.get_instance()
+        # Don't call super().__init__ to avoid creating a new socket
+        
+    def pub_keypoints(self, keypoint_array, topic_name):
+        """Process the keypoints into a byte stream and publish them"""
+        self._manager.publish(self._host, self._port, topic_name, keypoint_array)
+        
+    def stop(self):
+        # Individual publishers don't need to be stopped
+        print('Publisher reference released.')
+
+# Direct ZMQ subscriber replacement for EnhancedZMQKeypointSubscriber
+class ZMQKeyPointSubscriber:
+    """Direct ZMQ subscriber for keypoints without complex management"""
+    def __init__(self, host, port, topic):
+        self._host, self._port, self._topic = host, port, topic
+        self._init_subscriber()
+        
+        # Topic chars to remove for compatibility with old code
+        self.strip_value = bytes("{} ".format(self._topic), 'utf-8')
+        
+    def _init_subscriber(self):
+        self.context = get_global_context()
+        self.socket = self.context.socket(zmq.SUB)
+        self.socket.setsockopt(zmq.CONFLATE, 1)
+        self.socket.connect(f'tcp://{self._host}:{self._port}')
+        self.socket.setsockopt_string(zmq.SUBSCRIBE, self._topic)
+        
+    def recv_keypoints(self, flags=None):
+        """Get keypoints with optional non-blocking behavior"""
+        try:
+            if flags is None:
+                raw_data = self.socket.recv()
+            else:
+                raw_data = self.socket.recv(flags)
+                
+            raw_array = raw_data.lstrip(self.strip_value)
+            return pickle.loads(raw_array)
+        except zmq.Again:
+            return None
+        
+    def stop(self):
+        """Close the subscriber socket"""
+        print(f'Closing the subscriber socket in {self._host}:{self._port}.')
+        self.socket.close()
+
+# For backward compatibility - used by existing code
+EnhancedZMQKeypointSubscriber = ZMQKeyPointSubscriber
+
+# Function to clean up all ZMQ resources (call on program exit)
+def cleanup_zmq_resources():
+    """Clean up all ZMQ resources"""
+    ZMQPublisherManager.get_instance().close_all()
+    _GLOBAL_ZMQ_CONTEXT.term()

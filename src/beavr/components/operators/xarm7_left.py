@@ -4,11 +4,10 @@ from typing import Dict, Any, Optional
 # Import the base class
 from .xarm_base import XArmOperator
 
-# Define the transformation matrices specific to the RIGHT arm
-# These map points/vectors from the source frame (Robot base R, Hand Tracking T)
-# to the common VR base frame (V).
+# Define the transformation matrices specific to the LEFT arm
+# !!! IMPORTANT: Replace these placeholder matrices with the correct ones for your left arm setup !!!
 # H_R_V: Transformation from Robot base frame to VR base frame
-H_R_V_RIGHT = np.array([
+H_R_V_LEFT = np.array([
     [ 0,  0,  1,  0],
     [ 0, -1,  0,  0],
     [-1,  0,  0,  0],
@@ -16,17 +15,18 @@ H_R_V_RIGHT = np.array([
 ])
 
 # H_T_V: Transformation from Hand Tracking base frame to VR base frame
-H_T_V_RIGHT = np.array([
-    [ 0, -1,  0,  0],
-    [ 0,  0, -1,  0],
+H_T_V_LEFT = np.array([
+    [ 0,  1,  0,  0],
+    [ 0,  0,  1,  0],
     [-1,  0,  0,  0],
     [ 0,  0,  0,  1]
 ])
 
-class XArm7RightOperator(XArmOperator):
+
+class XArm7LeftOperator(XArmOperator):
     """
-    Operator for controlling the RIGHT XArm7 robot arm via teleoperation.
-    Inherits common logic from XArmOperator and provides right-arm specific
+    Operator for controlling the LEFT XArm7 robot arm via teleoperation.
+    Inherits common logic from XArmOperator and provides left-arm specific
     transformation matrices.
     """
     def __init__(
@@ -44,7 +44,7 @@ class XArm7RightOperator(XArmOperator):
         logging_config: Optional[Dict[str, Any]] = None,
     ):
         """
-        Initializes the XArm7RightOperator.
+        Initializes the XArm7LeftOperator.
 
         Args:
             host: Network host address for ZMQ communication.
@@ -59,9 +59,9 @@ class XArm7RightOperator(XArmOperator):
             teleoperation_reset_port: Optional port for teleoperation reset/pause messages.
             logging_config: Optional configuration dictionary for pose logging.
         """
-        # Call the base class constructor with right-arm specific parameters
+        # Call the base class constructor with left-arm specific parameters
         super().__init__(
-            operator_name='xarm7_right_operator', # Specific name for this instance
+            operator_name='xarm7_left_operator', # Specific name for this instance
             host=host,
             transformed_keypoints_port=transformed_keypoints_port,
             stream_configs=stream_configs,
@@ -69,10 +69,14 @@ class XArm7RightOperator(XArmOperator):
             endeff_publish_port=endeff_publish_port,
             endeff_subscribe_port=endeff_subscribe_port,
             moving_average_limit=moving_average_limit,
-            h_r_v=H_R_V_RIGHT, # Pass the right arm's H_R_V
-            h_t_v=H_T_V_RIGHT, # Pass the right arm's H_T_V
+            h_r_v=H_R_V_LEFT, # Pass the left arm's H_R_V
+            h_t_v=H_T_V_LEFT, # Pass the left arm's H_T_V
             use_filter=use_filter,
             arm_resolution_port=arm_resolution_port,
             teleoperation_reset_port=teleoperation_reset_port,
             logging_config=logging_config,
         )
+
+    # No need to redefine methods like _apply_retargeted_angles, run, etc.
+    # They are inherited from XArmOperator.
+    # Add any left-arm specific overrides or methods here if needed in the future.
