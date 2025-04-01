@@ -13,6 +13,7 @@ class OculusVRHandDetector(Component):
         
         # Store the oculus_port for topic detection
         self.oculus_port = oculus_port
+        self.host = host
 
         # ONE publisher for ALL data - this is the key change
         self.unified_publisher = ZMQKeypointPublisher(

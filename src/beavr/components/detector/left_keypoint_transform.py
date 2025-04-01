@@ -39,10 +39,8 @@ class TransformLeftHandPositionCoords(Component):
         if data is None:
             return None, None
             
-        print(data[0])
         if data[0] == HandMode.ABSOLUTE:
             data_type = 'absolute'
-            print(f"Received absolute hand coords: {data[1:]}")
         else:
             data_type = 'relative'
 
@@ -190,7 +188,6 @@ class TransformLeftHandPositionCoords(Component):
                 
                 # Publish the transformed hand frame
                 if data_type == 'absolute':
-                    print(f"Publishing transformed hand frame: {self.averaged_hand_frame}")
                     self.transformed_keypoint_publisher.pub_keypoints(self.averaged_hand_frame, 'transformed_hand_frame')
                 
                 # End the timer

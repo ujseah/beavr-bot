@@ -42,7 +42,7 @@ robots:
 # Then the operator that uses the robot - match exactly with right arm config
 operators:
   - 
-    _target_: beavr.components.operators.xarm7_right.XArm7RightOperator
+    _target_: beavr.components.operators.xarm7_left.XArm7LeftOperator
     host: ${host_address}
     transformed_keypoints_port: ${left_keypoint_transform_port}
     stream_configs:
