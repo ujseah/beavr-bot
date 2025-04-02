@@ -60,8 +60,3 @@ operators:
       log_dir: "logs"
       log_poses: True
       log_prefix: "xarm"
-
-recorded_data:
-  - 
-    - joint_states
-    - cartesian_states
