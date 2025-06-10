@@ -94,11 +94,17 @@ class Robot(XArmAPI):
         return home_affine
 
     def get_arm_position(self):
-        code,joint_state = self.get_servo_angle()
+        code, joint_state = self.get_servo_angle()
         if code != 0:
-            raise RuntimeError(f"Failed to get joint states, error code: {code}")
-        joint_state = np.array(joint_state[1], dtype=np.float32)
-        return joint_state
+            print('\033[93m' + f"Warning: Failed to get joint states, error code: {code}" + '\033[0m')
+            return None
+        
+        # The return value 'joint_state' should be the array of 7 joint angles
+        if isinstance(joint_state, (list, tuple, np.ndarray)) and len(joint_state) == 7:
+            return np.array(joint_state, dtype=np.float32)
+        else:
+            print('\033[93m' + f"Warning: Unexpected joint state format from get_servo_angle(): {joint_state}" + '\033[0m')
+            return None
 
     def get_arm_velocity(self):
         """
@@ -407,18 +413,18 @@ class Robot(XArmAPI):
             avg_delta = sum(metrics["position_deltas"]) / len(metrics["position_deltas"])
             max_delta = max(metrics["position_deltas"])
         
-        print("\nPerformance Metrics:")
-        print(f"  Command Latency: {avg_latency:.2f}ms avg, {max_latency:.2f}ms max")
-        print(f"  Command Interval: {avg_interval:.2f}ms avg, {interval_jitter:.2f}ms jitter")
-        print(f"  Position Change: {avg_delta:.4f} avg, {max_delta:.4f} max")
+        # print("\nPerformance Metrics:")
+        # print(f"  Command Latency: {avg_latency:.2f}ms avg, {max_latency:.2f}ms max")
+        # print(f"  Command Interval: {avg_interval:.2f}ms avg, {interval_jitter:.2f}ms jitter")
+        # print(f"  Position Change: {avg_delta:.4f} avg, {max_delta:.4f} max")
         
         # Diagnostic conclusion
-        if interval_jitter > 10:
-            print("  Warning: High timing jitter detected - commands arriving inconsistently")
-        if max_latency > 50:
-            print("  Warning: High maximum latency detected - some commands delayed significantly")
-        if max_delta > 0.05:
-            print("  Warning: Large position jumps detected - may cause jerky motion")
+        # if interval_jitter > 10:
+        #     print("  Warning: High timing jitter detected - commands arriving inconsistently")
+        # if max_latency > 50:
+        #     print("  Warning: High maximum latency detected - some commands delayed significantly")
+        # if max_delta > 0.05:
+        #     print("  Warning: Large position jumps detected - may cause jerky motion")
 
 class DexArmControl:
     """Controller class for XArm robot using the Robot implementation"""

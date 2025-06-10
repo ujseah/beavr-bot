@@ -1,8 +1,8 @@
 import hydra
 from beavr.components import TeleOperator
 
-@hydra.main(version_base = '1.2', config_path = 'configs', config_name = 'teleop')
-def main(configs):
+def run_teleop(configs):
+    """Run the teleoperation system with given configs"""
     teleop = TeleOperator(configs)
     processes = teleop.get_processes()
 
@@ -11,6 +11,10 @@ def main(configs):
 
     for process in processes:
         process.join()
+
+@hydra.main(version_base = '1.2', config_path = 'configs', config_name = 'teleop')
+def main(configs):
+    run_teleop(configs)
 
 if __name__ == '__main__':
     main()

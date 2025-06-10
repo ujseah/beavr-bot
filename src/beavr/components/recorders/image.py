@@ -4,7 +4,7 @@ import time
 import h5py
 import numpy as np
 from .recorder import Recorder
-from beavr.constants import VR_FREQ,CAM_FPS,DEPTH_RECORD_FPS,IMAGE_RECORD_RESOLUTION,CAM_FPS_SIM,IMAGE_RECORD_RESOLUTION_SIM
+from beavr.constants import CAM_FPS,DEPTH_RECORD_FPS,IMAGE_RECORD_RESOLUTION,CAM_FPS_SIM,IMAGE_RECORD_RESOLUTION_SIM
 from beavr.utils.files import store_pickle_data
 from beavr.utils.network import ZMQCameraSubscriber
 from beavr.utils.timer import FrequencyTimer

@@ -19,13 +19,14 @@ transforms:
     moving_average_limit: 1
 
 # Visualizers used to visualize the keypoints stream
-visualizers:
-  -
-    _target_: beavr.components.visualizers.visualizer_2d.Hand2DVisualizer
-    host: ${host_address}
-    transformed_keypoint_port: ${keypoint_transform_port}
-    oculus_feedback_port: ${oculus_graph_port}
-    display_plot: ${visualize_right_2d}
+# visualizers:
+#   -
+#     _target_: beavr.components.visualizers.visualizer_2d.Hand2DVisualizer
+#     host: ${host_address}
+#     transformed_keypoint_port: ${keypoint_transform_port}
+#     oculus_feedback_port: ${oculus_graph_port}
+#     display_plot: ${visualize_right_2d}
+visualizers: []
 
 # Then define the robots
 robots:
@@ -38,6 +39,7 @@ robots:
     joint_subscribe_port: 10029
     reset_subscribe_port: 10009
     robot_ip: ${right_xarm_ip}
+    simulation_mode: true
     
   # LEAP hand robot with standard network.yaml ports
   -
