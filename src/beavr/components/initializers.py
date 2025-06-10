@@ -55,39 +55,6 @@ class RealsenseCameras(ProcessInstantiator):
                 args = (cam_idx, )
             ))
 
-class FishEyeCameras(ProcessInstantiator):
-    """
-    Returns all the fish eye camera processes. Start the list of processes to start
-    the camera stream.
-    """
-    def __init__(self, configs):
-        super().__init__(configs)
-        # Creating all the camera processes
-        self._init_camera_processes()
-
-    def _start_component(self, cam_idx):
-        print('cam_idx: {}, stream_oculus: {}'.format(cam_idx, True if self.configs.oculus_cam == cam_idx else False))
-        component = FishEyeCamera(
-            cam_index=self.configs.fisheye_cam_numbers[cam_idx],
-            stream_configs = dict(
-                host = self.configs.host_address,
-                port = self.configs.fish_eye_cam_port_offset+ cam_idx,
-                set_port_offset = self.configs.fish_eye_cam_port_offset 
-            ),
-            
-            stream_oculus = True if self.configs.stream_oculus and self.configs.oculus_cam == cam_idx else False,
-            
-        )
-        component.stream()
-
-    def _init_camera_processes(self):
-        for cam_idx in range(len(self.configs.fisheye_cam_numbers)):
-            self.processes.append(Process(
-                target = self._start_component,
-                args = (cam_idx, )
-            ))
-
-
 class TeleOperator(ProcessInstantiator):
     """
     Returns all the teleoperation processes. Start the list of processes 
