@@ -676,18 +676,19 @@ class LeKiwiRobotConfig(RobotConfig):
     mock: bool = False
 
 
-@RobotConfig.register_subclass("beavr_adapter")
+@RobotConfig.register_subclass("xarm7_right_adapter")
 @dataclass
 class BeavrRobotAdapterConfig(RobotConfig):
-    """Configuration for the BeavrRobotAdapter that uses ZMQ streams."""
+    """Configuration for the BeavrRobotAdapter that listens to robot state via ZMQ.
+    Subscribes to the complete state dictionary published by XArm7Robot.publish_current_state()
+    which includes joint states, cartesian states, and commanded positions."""
 
-    # ZMQ Robot State Publisher Info
-    robot_state_host: str = "localhost"
-    robot_state_port: int = 5555
-    robot_state_topic: str = "xarm_state_topic"  # Example, align with your publisher
+    # ZMQ State Dictionary Subscription (from XArm7Robot.publish_current_state)
+    robot_state_host: str = "10.31.152.148"
+    robot_state_port: int = 10011
+    robot_state_topic: str = "right_xarm7"  # Standard for right arm
 
-    # By default, use local OpenCV cameras.
-    # This can be overridden in a YAML config file to use ZMQCameraConfig if needed.
+    # Optional camera configuration if needed
     cameras: dict[str, CameraConfig] = field(
         default_factory=lambda: {
             "front": OpenCVCameraConfig(
@@ -699,27 +700,4 @@ class BeavrRobotAdapterConfig(RobotConfig):
         }
     )
 
-    # Data extraction keys for the ZMQ message structure (from BeavrRobotAdapter)
-    actual_state_input_key: str = "joint_states"
-    actual_state_payload_key: str = "joint_position"
-    command_input_key: str = "commanded_cartesian_state"
-    command_payload_key: str = "commanded_cartesian_position"
-    use_cartesian_action: bool = False
-    input_angles_are_degrees: bool = True
-    xarm_controller: object = None  # Allow passing an existing controller
-    mock: bool = False  # Overall mock flag for the adapter
-
-    def __post_init__(self):
-        # Example: If using cartesian action, ensure command keys are appropriate
-        if self.use_cartesian_action and self.command_input_key == "commanded_joint_state":
-            # If user sets use_cartesian_action=True but doesn't change default command keys,
-            # update them to typical cartesian command keys.
-            self.command_input_key = "commanded_cartesian_state"
-            self.command_payload_key = "commanded_cartesian_position"
-            # A warning could also be issued here if xarm_ip is not set when use_cartesian_action is True.
-
-        if self.mock:
-            # If specific mock behaviors for ZMQ streams are needed, they could be handled here
-            # or within the BeavrRobotAdapter based on this global mock flag.
-            # For now, this flag can be checked by the adapter during its setup.
-            pass
+    mock: bool = False  # Mock flag for testing

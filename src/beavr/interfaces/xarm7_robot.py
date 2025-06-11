@@ -6,6 +6,7 @@ import numpy as np
 import time
 import zmq
 from beavr.constants import VR_FREQ  # Import VR_FREQ from constants
+import logging
 
 class XArm7Robot(RobotWrapper):
     def __init__(self, host, endeff_subscribe_port, joint_subscribe_port,
@@ -88,10 +89,11 @@ class XArm7Robot(RobotWrapper):
     @property
     def recorder_functions(self):
         return {
-            'joint_states': self.get_robot_actual_joint_position,
+            'joint_states': self.get_joint_state,
             'operator_cartesian_states': self.get_cartesian_state_from_operator,
             'xarm_cartesian_states': self.get_robot_actual_cartesian_position,
-            'commanded_cartesian_state': self.get_cartesian_commanded_position
+            'commanded_cartesian_state': self.get_cartesian_commanded_position,
+            'joint_angles_rad': self.get_joint_position, # These are the robot's joint angles in radians
         }
 
     @property
@@ -104,12 +106,12 @@ class XArm7Robot(RobotWrapper):
 
     # State information functions
     def get_joint_state(self):
-        return self._controller.get_arm_joint_state()
+        return self._controller.get_arm_states()
     
-    def get_joint_velocity(self):
+    def get_arm_velocity(self):
         return self._controller.get_arm_velocity()
 
-    def get_joint_torque(self):
+    def get_arm_torque(self):
         return self._controller.get_arm_torque()
 
     def get_cartesian_state(self):
@@ -306,17 +308,21 @@ class XArm7Robot(RobotWrapper):
                 state_data = getter_function()
                 if state_data is not None:
                     current_state_dict[key] = state_data
+                    logging.debug(f"Got state for '{key}': {state_data}")
             except Exception as e:
-                print(f"Warning: Failed to get state for '{key}' on robot '{self.name}': {e}")
+                logging.error(f"Failed to get state for '{key}' on robot '{self.name}': {e}")
                 current_state_dict[key] = None
 
         current_state_dict['timestamp'] = publish_time
+
+        # Log the complete state dictionary
+        logging.debug(f"Publishing state dictionary for robot '{self.name}': {current_state_dict}")
 
         # Publish the state dictionary using the dedicated state publisher and self.name topic
         try:
             self._state_publisher.pub_keypoints(current_state_dict, self.name)
         except Exception as e:
-            print(f"Error publishing state dictionary for robot '{self.name}': {e}")
+            logging.error(f"Error publishing state dictionary for robot '{self.name}': {e}")
 
     def __del__(self):
         # Clean up ZMQ sockets

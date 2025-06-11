@@ -83,21 +83,11 @@ def make_robot_from_config(config: RobotConfig, xarm_controller=None):
     elif isinstance(config, BeavrRobotAdapterConfig):
         from beavr.common.robot_devices.robots.beavr_robot_adapter import BeavrRobotAdapter
         
-        # Use provided controller or the one from config
-        controller = xarm_controller or config.xarm_controller
-        
         return BeavrRobotAdapter(
             robot_state_host=config.robot_state_host,
             robot_state_port=config.robot_state_port,
             robot_state_topic=config.robot_state_topic,
-            actual_state_input_key=config.actual_state_input_key,
-            actual_state_payload_key=config.actual_state_payload_key,
-            command_input_key=config.command_input_key,
-            command_payload_key=config.command_payload_key,
-            use_cartesian_action=config.use_cartesian_action,
-            input_angles_are_degrees=config.input_angles_are_degrees,
             cameras=config.cameras,
-            xarm_controller=controller
         )
     else:
         from beavr.common.robot_devices.robots.stretch import StretchRobot

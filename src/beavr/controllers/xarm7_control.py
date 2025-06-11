@@ -94,11 +94,11 @@ class Robot(XArmAPI):
         return home_affine
 
     def get_arm_position(self):
-        code, joint_state = self.get_servo_angle()
+        code, joint_state = self.get_servo_angle(is_radian=True, is_real=True)
         if code != 0:
             print('\033[93m' + f"Warning: Failed to get joint states, error code: {code}" + '\033[0m')
             return None
-        
+
         # The return value 'joint_state' should be the array of 7 joint angles
         if isinstance(joint_state, (list, tuple, np.ndarray)) and len(joint_state) == 7:
             return np.array(joint_state, dtype=np.float32)
@@ -450,7 +450,7 @@ class DexArmControl:
         """Initialize the XArm control by resetting it"""
         return self.robot.reset()
     
-    def get_arm_joint_state(self):
+    def get_arm_states(self):
         """Get the current joint state of the arm"""
         position = self.robot.get_arm_position()
         velocity = self.robot.get_arm_velocity()

@@ -50,6 +50,7 @@ robots:
         - joint_states
         - xarm_cartesian_states # Make sure this matches the key in the robot's published dict
         - commanded_cartesian_state # Make sure this matches the key in the robot's published dict
+        - joint_angles_rad
         # Add other keys published by XArm7Robot.publish_current_state here
 
 operators:
