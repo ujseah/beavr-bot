@@ -12,7 +12,27 @@ import zmq
 from beavr.utils.registry import GlobalRegistry
 
 class LeapHandRobot(RobotWrapper):
-    def __init__(self, host, joint_angle_subscribe_port, joint_angle_publish_port, reset_subscribe_port, simulation_mode=False):
+    def __init__(self, host, joint_angle_subscribe_port, joint_angle_publish_port, reset_subscribe_port, 
+                 state_publish_port=10008, simulation_mode=False, **kwargs):
+        """Initialize the robot adapter for data acquisition.
+        
+        Args:
+            host: Network host address
+            joint_angle_subscribe_port: Port for joint angle command subscription
+            joint_angle_publish_port: Port for publishing joint angles
+            reset_subscribe_port: Port for reset subscription
+            state_publish_port: Port for publishing the full state dictionary for recording
+            simulation_mode: Whether to run in simulation mode
+            **kwargs: Additional configuration parameters from Hydra
+        """
+        # Ensure required ports are present
+        if not state_publish_port:
+            raise ValueError("LeapHandRobot requires a 'state_publish_port'")
+
+        # Store recorder config if provided
+        self.recorder_config = kwargs.get('recorder_config', {})
+        self.robot_identifier = self.recorder_config.get('robot_identifier', self.name)
+        
         if simulation_mode:
             self._controller = None  # Skip hardware initialization in sim mode
         else:
@@ -24,6 +44,9 @@ class LeapHandRobot(RobotWrapper):
         self._movement_thread = threading.Thread(target=self._execute_movement_loop, daemon=True)
         self._movement_thread.start()
 
+        print(f"LeapHandRobot '{self.name}' initialized with command frequency: {self._data_frequency}Hz")
+        print(f"  Publishing state dictionary on tcp://{host}:{state_publish_port} with topic '{self.name}'")
+
         self._joint_angle_subscriber = ZMQKeypointSubscriber(
             host = host,
             port = joint_angle_subscribe_port,
@@ -33,6 +56,12 @@ class LeapHandRobot(RobotWrapper):
         self._joint_angle_publisher = ZMQKeypointPublisher(
             host = host,
             port = joint_angle_publish_port
+        )
+
+        # State publisher for comprehensive data recording
+        self._state_publisher = ZMQKeypointPublisher(
+            host = host,
+            port = state_publish_port
         )
 
         self._reset_subscriber = ZMQKeypointSubscriber(
@@ -62,8 +91,9 @@ class LeapHandRobot(RobotWrapper):
         """Define available recording functions for the robot"""
         return {
             'joint_states': self.get_joint_state, 
-            'commanded_joint_states': self.get_commanded_joint_state,
-            'transformed_keypoints': self.get_transformed_keypoints
+            'commanded_joint_states': self.get_commanded_joint_position,
+            'transformed_keypoints': self.get_transformed_keypoints,
+            'joint_angles_rad': self.get_joint_position,
         }
 
     @property
@@ -87,23 +117,14 @@ class LeapHandRobot(RobotWrapper):
 
     # State information functions
     def get_joint_state(self):
-        """Get joint state data, handle sim mode"""
-        if self._controller is None:  # In sim mode
-            return {
-                'position': np.zeros(16),  # Or whatever default shape you need
-                'timestamp': time.time()
-            }
-        return self._controller.get_joint_state()
+        """Get current joint state"""
+        return {
+            'position': np.array(self._state, dtype=np.float32),
+            'timestamp': time.time()
+        }
 
     def get_commanded_joint_state(self):
-        """Get the last commanded joint state"""
-        if not self._is_recording_enabled or self._latest_commanded_angles is None:
-            return None
-            
-        return {
-            'position': self._latest_commanded_angles,
-            'timestamp': self._latest_commanded_angles_timestamp
-        }
+        return self._state
 
     def get_joint_position(self):
         return self._controller.get_hand_position()
@@ -115,7 +136,13 @@ class LeapHandRobot(RobotWrapper):
         return self._controller.get_hand_torque()
 
     def get_commanded_joint_position(self):
-        return self._controller.get_commanded_hand_joint_position()
+        """Get current commanded action"""
+        if self._action is None:
+            return self.get_joint_state()
+        return {
+            'position': np.array(self._action, dtype=np.float32),
+            'timestamp': time.time()
+        }
 
     # Movement functions
     def home(self):
@@ -181,6 +208,7 @@ class LeapHandRobot(RobotWrapper):
             try:
                 # Get joint angles with non-blocking receive
                 joint_angles = self._joint_angle_subscriber.recv_keypoints(zmq.NOBLOCK)
+                self._action = joint_angles
                 
                 if joint_angles is not None:
                     frame_count += 1
@@ -189,7 +217,7 @@ class LeapHandRobot(RobotWrapper):
                     # Print FPS every 5 seconds
                     if current_time - last_fps_print >= 5.0:
                         fps = frame_count / (current_time - last_fps_print)
-                        print(f"Average FPS over last 5 seconds: {fps:.2f}")
+                        # print(f"Average FPS over last 5 seconds: {fps:.2f}")
                         frame_count = 0
                         last_fps_print = current_time
                     
@@ -204,10 +232,14 @@ class LeapHandRobot(RobotWrapper):
                 
                 # Publish current state regardless of recording state
                 self._joint_angle_publisher.pub_keypoints(self.get_joint_position(), 'joint_angles')
+                self._state = self.get_joint_position()
+                
+                # Publish comprehensive state data for recording
+                self.publish_current_state()
                 
                 # Check for reset signal
                 if self.check_reset():
-                    print(f"Reset signal received for {self.name}")
+                    # print(f"Reset signal received for {self.name}")
                     # Automatically start recording
                     self.start_recording()
                 
@@ -234,3 +266,36 @@ class LeapHandRobot(RobotWrapper):
             return None
             
         return operator.get_latest_transformed_keypoints()
+
+    def publish_current_state(self):
+        """
+        Gathers all state data defined in recorder_functions
+        and publishes it as a single dictionary via ZMQ using self.name as topic
+        """
+        current_state_dict = {}
+        publish_time = time.time()
+
+        for key, getter_function in self.recorder_functions.items():
+            try:
+                state_data = getter_function()
+                if state_data is not None:
+                    current_state_dict[key] = state_data
+            except Exception as e:
+                print(f"Failed to get state for '{key}' on robot '{self.name}': {e}")
+                current_state_dict[key] = None
+
+        current_state_dict['timestamp'] = publish_time
+
+        # Publish the state dictionary using self.name as topic
+        try:
+            self._state_publisher.pub_keypoints(current_state_dict, self.name)
+        except Exception as e:
+            print(f"Error publishing state dictionary for robot '{self.name}': {e}")
+
+    def __del__(self):
+        # Clean up ZMQ sockets
+        print(f"Closing ZMQ sockets for {self.name}")
+        if hasattr(self, '_joint_angle_subscriber'): self._joint_angle_subscriber.stop()
+        if hasattr(self, '_joint_angle_publisher'): self._joint_angle_publisher.stop()
+        if hasattr(self, '_state_publisher'): self._state_publisher.stop()
+        if hasattr(self, '_reset_subscriber'): self._reset_subscriber.stop()

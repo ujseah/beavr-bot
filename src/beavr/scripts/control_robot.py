@@ -171,7 +171,6 @@ from beavr.common.robot_devices.robots.utils import Robot, make_robot_from_confi
 from beavr.common.robot_devices.utils import busy_wait, safe_disconnect
 from beavr.common.utils.utils import init_logging, log_say
 from beavr.configs import parser
-from beavr.controllers.xarm7_control import DexArmControl
 
 
 ########################################################################################
@@ -227,11 +226,10 @@ def start_teleop_process(wait_for_exit=False):
 
     logging.info(f"Starting teleoperation process from: {teleop_script_path}")
     try:
-        # Start process without problematic preexec_fn
         _teleop_process = subprocess.Popen([
             sys.executable,
             teleop_script_path,
-            "robot=xarm7_right"
+            "robot=leap_xarm_right"
         ])
         
         # Give the teleop system a moment to initialize all ZMQ publishers
@@ -401,20 +399,16 @@ def control_robot(cfg: ControlPipelineConfig):
     init_logging()
     logging.info(pformat(asdict(cfg)))
 
-    # Create a single XArm controller instance first
-    xarm_controller = DexArmControl(ip="192.168.1.197")  # Use your robot's IP
-    logging.info("Created XArm controller instance")
-
     # Start the teleoperation process first if needed.
     # This is crucial because it sets up ZMQ publishers that the robot adapter will need to connect to.
     if isinstance(cfg.control, (RecordControlConfig, TeleoperateControlConfig)):
         start_teleop_process()
         # Give the teleop system a moment to initialize all ZMQ publishers and for the robot to settle.
         logging.info("Waiting 10s for teleoperation system to initialize before robot connection...")
-        time.sleep(10)
+        time.sleep(15)
 
     # Pass the controller to the robot adapter
-    robot = make_robot_from_config(cfg.robot, xarm_controller=xarm_controller)
+    robot = make_robot_from_config(cfg.robot)
 
     try:
         if not robot.is_connected:

@@ -19,14 +19,13 @@ transforms:
     moving_average_limit: 1
 
 # Visualizers used to visualize the keypoints stream
-# visualizers:
-#   -
-#     _target_: beavr.components.visualizers.visualizer_2d.Hand2DVisualizer
-#     host: ${host_address}
-#     transformed_keypoint_port: ${keypoint_transform_port}
-#     oculus_feedback_port: ${oculus_graph_port}
-#     display_plot: ${visualize_right_2d}
-visualizers: []
+visualizers:
+  -
+    _target_: beavr.components.visualizers.visualizer_2d.Hand2DVisualizer
+    host: ${host_address}
+    transformed_keypoint_port: ${keypoint_transform_port}
+    oculus_feedback_port: ${oculus_graph_port}
+    display_plot: ${visualize_right_2d}
 
 # Then define the robots
 robots:
@@ -39,8 +38,18 @@ robots:
     joint_subscribe_port: 10029
     reset_subscribe_port: 10009
     robot_ip: ${right_xarm_ip}
-    simulation_mode: true
-    
+    simulation_mode: false
+    # For recording data
+    state_publish_port: 10011
+    # Parameters for recording
+    recorder_config:
+      robot_identifier: "right_xarm7"
+      recorded_data:
+        - joint_states
+        - xarm_cartesian_states
+        - commanded_cartesian_state
+        - joint_angles_rad
+
   # LEAP hand robot with standard network.yaml ports
   -
     _target_: beavr.interfaces.leap_robot.LeapHandRobot
@@ -49,6 +58,14 @@ robots:
     joint_angle_publish_port: ${joint_publisher_port}
     reset_subscribe_port: ${teleop_reset_publish_port}
     simulation_mode: false
+    # For recording data
+    state_publish_port: 10012
+    recorder_config:
+      robot_identifier: "leap"
+      recorded_data:
+        - joint_states
+        - commanded_joint_states
+        - joint_angles_rad
 
 # Then the operators
 operators:

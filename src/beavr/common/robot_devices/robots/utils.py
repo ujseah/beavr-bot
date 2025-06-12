@@ -17,12 +17,12 @@ from typing import Protocol
 
 from beavr.common.robot_devices.robots.configs import (
     AlohaRobotConfig,
-    BeavrRobotAdapterConfig,
     KochBimanualRobotConfig,
     KochRobotConfig,
     LeKiwiRobotConfig,
     ManipulatorRobotConfig,
     MossRobotConfig,
+    MultiRobotAdapterConfig,
     RobotConfig,
     So100RobotConfig,
     So101RobotConfig,
@@ -67,27 +67,26 @@ def make_robot_config(robot_type: str, **kwargs) -> RobotConfig:
         return StretchRobotConfig(**kwargs)
     elif robot_type == "lekiwi":
         return LeKiwiRobotConfig(**kwargs)
-    elif robot_type == "beavr_adapter":
-        return BeavrRobotAdapterConfig(**kwargs)
+    elif robot_type == "multi_robot_adapter":
+        return MultiRobotAdapterConfig(**kwargs)
     else:
         raise ValueError(f"Robot type '{robot_type}' is not available.")
 
 
-def make_robot_from_config(config: RobotConfig, xarm_controller=None):
+def make_robot_from_config(config: RobotConfig):
     if isinstance(config, ManipulatorRobotConfig):
         from beavr.common.robot_devices.robots.manipulator import ManipulatorRobot
         return ManipulatorRobot(config)
     elif isinstance(config, LeKiwiRobotConfig):
         from beavr.common.robot_devices.robots.mobile_manipulator import MobileManipulator
         return MobileManipulator(config)
-    elif isinstance(config, BeavrRobotAdapterConfig):
-        from beavr.common.robot_devices.robots.beavr_robot_adapter import BeavrRobotAdapter
-        
-        return BeavrRobotAdapter(
-            robot_state_host=config.robot_state_host,
-            robot_state_port=config.robot_state_port,
-            robot_state_topic=config.robot_state_topic,
+    elif isinstance(config, MultiRobotAdapterConfig):
+        from beavr.common.robot_devices.robots.beavr_robot_adapter import MultiRobotAdapter
+
+        return MultiRobotAdapter(
+            robot_configs=config.robot_configs,
             cameras=config.cameras,
+            robot_type=config.robot_type,
         )
     else:
         from beavr.common.robot_devices.robots.stretch import StretchRobot

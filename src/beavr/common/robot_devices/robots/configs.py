@@ -701,3 +701,110 @@ class BeavrRobotAdapterConfig(RobotConfig):
     )
 
     mock: bool = False  # Mock flag for testing
+
+@RobotConfig.register_subclass("multi_robot_adapter")
+@dataclass
+class MultiRobotAdapterConfig(RobotConfig):
+    """General robot adapter configuration that can handle any combination of robots.
+    Just add robot configs - no need to create new adapter classes!"""
+    
+    # List of robot configurations
+    robot_configs: list[dict] = field(default_factory=list)
+    
+    # Camera configuration
+    cameras: dict[str, CameraConfig] = field(
+        default_factory=lambda: {
+            "front": OpenCVCameraConfig(
+                camera_index=4,
+                fps=30,
+                width=640,
+                height=480,
+            ),
+        }
+    )
+    
+    # Overall robot type identifier  
+    robot_type: str = "multi_robot"
+    
+    mock: bool = False
+    
+    def __post_init__(self):
+        """Set up default robot configurations if none provided."""
+        if not self.robot_configs:
+            # Default to XArm7 + Leap combo for backward compatibility
+            self.robot_configs = [
+                {
+                    "name": "right_xarm7",
+                    "host": "10.31.152.148",
+                    "state_port": 10011,
+                    "state_topic": "right_xarm7",
+                    "robot_type": "arm",
+                    "observation_key": "state",
+                    "action_key": "action", 
+                    "joint_count": 7,
+                    "joint_state_path": ["joint_states", "joint_position"],
+                    "command_state_path": ["commanded_cartesian_state", "commanded_cartesian_position"]
+                },
+                {
+                    "name": "leap",
+                    "host": "10.31.152.148", 
+                    "state_port": 10012,
+                    "state_topic": "leap",
+                    "robot_type": "hand",
+                    "observation_key": "hand_state",
+                    "action_key": "hand_action",
+                    "joint_count": 16,
+                    "joint_state_path": ["joint_states", "position"],
+                    "command_state_path": ["commanded_joint_states", "position"]
+                }
+            ]
+
+
+@RobotConfig.register_subclass("xarm7_only_adapter")
+@dataclass  
+class XArm7OnlyAdapterConfig(MultiRobotAdapterConfig):
+    """XArm7 arm only configuration - demonstrates single robot setup."""
+    
+    robot_type: str = "xarm7_only"
+    
+    def __post_init__(self):
+        """Configure for XArm7 only."""
+        self.robot_configs = [
+            {
+                "name": "right_xarm7",
+                "host": "10.31.152.148",
+                "state_port": 10011,
+                "state_topic": "right_xarm7", 
+                "robot_type": "arm",
+                "observation_key": "state",
+                "action_key": "action",
+                "joint_count": 7,
+                "joint_state_path": ["joint_states", "joint_position"],
+                "command_state_path": ["commanded_cartesian_state", "commanded_cartesian_position"]
+            }
+        ]
+
+
+@RobotConfig.register_subclass("leap_only_adapter")
+@dataclass
+class LeapOnlyAdapterConfig(MultiRobotAdapterConfig):
+    """Leap hand only configuration - demonstrates single robot setup."""
+    
+    robot_type: str = "leap_only"
+    
+    def __post_init__(self):
+        """Configure for Leap hand only."""
+        self.robot_configs = [
+            {
+                "name": "leap",
+                "host": "10.31.152.148",
+                "state_port": 10012, 
+                "state_topic": "leap",
+                "robot_type": "hand",
+                "observation_key": "hand_state",
+                "action_key": "hand_action",
+                "joint_count": 16,
+                "joint_state_path": ["joint_states", "position"],
+                "command_state_path": ["commanded_joint_states", "position"]
+            }
+        ]
