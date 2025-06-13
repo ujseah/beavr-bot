@@ -75,29 +75,49 @@ class MultiRobotAdapter(Robot):
         self.logs = {}
 
     def _build_features(self) -> dict:
-        """Build the features dictionary dynamically based on robot configurations."""
+        """Build the features dictionary dynamically based on robot configurations.
+        
+        The features are organized such that:
+        - All arm joint states come first in the observation array
+        - All hand joint states follow the arm states in the observation array
+        - All arm actions (6D cartesian) come first in the action array
+        - All hand actions follow the arm actions in the action array
+        """
         features = {}
         
-        # Add robot-specific features
-        for config in self.robot_configs:
-            obs_key = f"observation.{config['observation_key']}"
-            action_key = config["action_key"]
-            joint_count = config["joint_count"]
-            
-            # Observation feature
-            features[obs_key] = {
-                "shape": (joint_count,),
-                "dtype": "float32",
-                "names": [f"{config['name']}_joint_{i}" for i in range(joint_count)],
-            }
-            
-            # Action feature
-            features[action_key] = {
-                "shape": (joint_count if config["robot_type"] == "hand" else 6,),  # 6D for arm (cartesian), joint_count for hand
-                "dtype": "float32", 
-                "names": (["x", "y", "z", "roll", "pitch", "yaw"] if config["robot_type"] == "arm" 
-                         else [f"{config['name']}_cmd_{i}" for i in range(joint_count)]),
-            }
+        # Sort configs to ensure arms come before hands
+        arm_configs = [c for c in self.robot_configs if c["robot_type"] == "arm"]
+        hand_configs = [c for c in self.robot_configs if c["robot_type"] == "hand"]
+        sorted_configs = arm_configs + hand_configs
+        
+        # Calculate total dimensions
+        total_obs_dim = sum(c["joint_count"] for c in sorted_configs)
+        total_action_dim = sum(6 if c["robot_type"] == "arm" else c["joint_count"] for c in sorted_configs)
+        
+        # Build combined observation feature
+        obs_names = []
+        for config in sorted_configs:
+            obs_names.extend([f"{config['name']}_joint_{i}" for i in range(config["joint_count"])])
+        
+        features["observation.state"] = {
+            "shape": (total_obs_dim,),
+            "dtype": "float32",
+            "names": obs_names,
+        }
+        
+        # Build combined action feature
+        action_names = []
+        for config in sorted_configs:
+            if config["robot_type"] == "arm":
+                action_names.extend([f"{config['name']}_{dim}" for dim in ["x", "y", "z", "roll", "pitch", "yaw"]])
+            else:
+                action_names.extend([f"{config['name']}_cmd_{i}" for i in range(config["joint_count"])])
+        
+        features["action"] = {
+            "shape": (total_action_dim,),
+            "dtype": "float32",
+            "names": action_names,
+        }
         
         # Add camera features
         for name, camera in self.cameras.items():
@@ -108,6 +128,9 @@ class MultiRobotAdapter(Robot):
                     "names": ["height", "width", "channels"],
                     "info": None
                 }
+        
+        # Store the configs order for consistent array building
+        self._sorted_configs = sorted_configs
         
         return features
 
@@ -219,15 +242,23 @@ class MultiRobotAdapter(Robot):
         return None, 0.0
 
     def capture_observation(self) -> Frame:
-        """Capture current state from all robots and cameras."""
+        """Capture current state from all robots and cameras.
+        
+        Returns a Frame with:
+        - A single combined observation array containing all robot states
+        - Camera images if available
+        """
         if not self._is_connected:
             raise RuntimeError("Robot is not connected")
 
         robot_states = self._fetch_robot_states()
         observation = {}
 
-        # Process each robot's state
-        for config in self.robot_configs:
+        # Build combined state array
+        combined_state = []
+        
+        # Process each robot's state in the sorted order (arms first, then hands)
+        for config in self._sorted_configs:
             name = config["name"]
             robot_data = robot_states.get(name)
             
@@ -238,9 +269,11 @@ class MultiRobotAdapter(Robot):
                         joint_data = np.array(joint_data, dtype=np.float32)
                     if joint_data.ndim == 0:
                         joint_data = joint_data.reshape(1)
-                    
-                    obs_key = f"observation.{config['observation_key']}"
-                    observation[obs_key] = joint_data
+                    combined_state.extend(joint_data)
+
+        # Convert to numpy array and store
+        if combined_state:
+            observation["observation.state"] = np.array(combined_state, dtype=np.float32)
 
         # Add camera images
         for name in self.cameras:
@@ -251,21 +284,28 @@ class MultiRobotAdapter(Robot):
         return Frame(observation)
 
     def teleop_step(self, record_data=False) -> tuple[Frame | None, dict | None]:
-        """Acquire one frame of teleoperation data from all robots."""
+        """Acquire one frame of teleoperation data from all robots.
+        
+        Returns:
+        - Frame with combined observation array
+        - Dictionary with combined action array
+        """
         if not record_data:
             return None, None
 
         # Get observation frame
         observation_frame = self.capture_observation()
 
-        # Get actions from cached commands or current state if no commands
-        action_dict = {}
-        for config in self.robot_configs:
+        # Build combined action array
+        combined_action = []
+        
+        # Process each robot's action in the sorted order (arms first, then hands)
+        for config in self._sorted_configs:
             name = config["name"]
             command_cache = self.robot_command_caches.get(name)
             
             if command_cache is not None:
-                action_dict[config["action_key"]] = command_cache
+                combined_action.extend(command_cache)
             else:
                 # If no command cache, use current state as action
                 robot_data = self.robot_state_caches.get(name)
@@ -276,7 +316,9 @@ class MultiRobotAdapter(Robot):
                             joint_data = np.array(joint_data, dtype=np.float32)
                         if joint_data.ndim == 0:
                             joint_data = joint_data.reshape(1)
-                        action_dict[config["action_key"]] = joint_data
+                        combined_action.extend(joint_data)
+
+        action_dict = {"action": np.array(combined_action, dtype=np.float32)} if combined_action else None
 
         if observation_frame is not None:
             return observation_frame, action_dict

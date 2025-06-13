@@ -675,33 +675,6 @@ class LeKiwiRobotConfig(RobotConfig):
 
     mock: bool = False
 
-
-@RobotConfig.register_subclass("xarm7_right_adapter")
-@dataclass
-class BeavrRobotAdapterConfig(RobotConfig):
-    """Configuration for the BeavrRobotAdapter that listens to robot state via ZMQ.
-    Subscribes to the complete state dictionary published by XArm7Robot.publish_current_state()
-    which includes joint states, cartesian states, and commanded positions."""
-
-    # ZMQ State Dictionary Subscription (from XArm7Robot.publish_current_state)
-    robot_state_host: str = "10.31.152.148"
-    robot_state_port: int = 10011
-    robot_state_topic: str = "right_xarm7"  # Standard for right arm
-
-    # Optional camera configuration if needed
-    cameras: dict[str, CameraConfig] = field(
-        default_factory=lambda: {
-            "front": OpenCVCameraConfig(
-                camera_index=4,
-                fps=30,
-                width=640,
-                height=480,
-            ),
-        }
-    )
-
-    mock: bool = False  # Mock flag for testing
-
 @RobotConfig.register_subclass("multi_robot_adapter")
 @dataclass
 class MultiRobotAdapterConfig(RobotConfig):
@@ -716,6 +689,12 @@ class MultiRobotAdapterConfig(RobotConfig):
         default_factory=lambda: {
             "front": OpenCVCameraConfig(
                 camera_index=4,
+                fps=30,
+                width=640,
+                height=480,
+            ),
+            "overhead": OpenCVCameraConfig(
+                camera_index=10,
                 fps=30,
                 width=640,
                 height=480,
@@ -739,8 +718,8 @@ class MultiRobotAdapterConfig(RobotConfig):
                     "state_port": 10011,
                     "state_topic": "right_xarm7",
                     "robot_type": "arm",
-                    "observation_key": "state",
-                    "action_key": "action", 
+                    "observation_key": "arm_state",
+                    "action_key": "arm_action", 
                     "joint_count": 7,
                     "joint_state_path": ["joint_states", "joint_position"],
                     "command_state_path": ["commanded_cartesian_state", "commanded_cartesian_position"]
@@ -776,8 +755,8 @@ class XArm7OnlyAdapterConfig(MultiRobotAdapterConfig):
                 "state_port": 10011,
                 "state_topic": "right_xarm7", 
                 "robot_type": "arm",
-                "observation_key": "state",
-                "action_key": "action",
+                "observation_key": "arm_state",
+                "action_key": "arm_action",
                 "joint_count": 7,
                 "joint_state_path": ["joint_states", "joint_position"],
                 "command_state_path": ["commanded_cartesian_state", "commanded_cartesian_position"]
