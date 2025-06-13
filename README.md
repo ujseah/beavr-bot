@@ -84,7 +84,14 @@ For detailed documentation, please refer to the following guides in the `docs` d
 
 If you use BeaVR in your research, please cite our work:
 
-[Add citation information here]
+```
+@article{lorem-ipsum,
+    title   = {dolor}, 
+    author  = {sit},
+    year    = {amet,},
+    url     = {consectetur}, 
+}
+```
 
 ## License
 
