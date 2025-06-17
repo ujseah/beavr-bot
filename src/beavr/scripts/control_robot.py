@@ -404,8 +404,8 @@ def control_robot(cfg: ControlPipelineConfig):
     if isinstance(cfg.control, (RecordControlConfig, TeleoperateControlConfig)):
         start_teleop_process()
         # Give the teleop system a moment to initialize all ZMQ publishers and for the robot to settle.
-        logging.info("Waiting 10s for teleoperation system to initialize before robot connection...")
-        time.sleep(15)
+        logging.info("Waiting 5s for teleoperation system to initialize before robot connection...")
+        time.sleep(5)
 
     # Pass the controller to the robot adapter
     robot = make_robot_from_config(cfg.robot)

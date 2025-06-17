@@ -112,3 +112,9 @@ ROBOT_HOME_POSE_AA = [206.0, -0.0, 475, 3.142, 0.0, 0.0]
 ROBOT_HOME_JS = [0.0, -0.4363323129985824, -0.017453292519943295,
                  0.4537856055185257, 0.0, 0.8726646259971648, 0.0]
 
+# -----------------------------------------------------------------------------
+# LEAP hand solver scaling factors (used by LeapHandIKSolver)
+# -----------------------------------------------------------------------------
+
+LEAP_FINGER_SCALE_FACTOR = 1.8               # default scaling for non-thumb fingertips
+LEAP_THUMB_SCALE_FACTOR = 1.7         # separate scaling for thumb positions

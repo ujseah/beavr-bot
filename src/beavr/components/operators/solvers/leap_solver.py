@@ -10,6 +10,8 @@ import numpy as np
 import os
 import time
 
+from beavr.constants import LEAP_FINGER_SCALE_FACTOR, LEAP_THUMB_SCALE_FACTOR
+
 class LeapHandIKSolver:
     """
     Minimal Inverse Kinematics solver for the LEAP hand using PyBullet.
@@ -67,8 +69,8 @@ class LeapHandIKSolver:
         # Combine both sets of indices
         self.all_indices = self.fingertip_indices + self.tip_head_indices
         
-        # Scale factor for transformations
-        self.scale_factor = 1.4
+        # Scale factor for transformations (moved to constants)
+        self.scale_factor = LEAP_FINGER_SCALE_FACTOR
         
         # Store last calculated joint angles to use as seed for next calculation
         self.last_joint_angles = None
@@ -109,10 +111,8 @@ class LeapHandIKSolver:
         ]
 
         # Use different scale for thumb if needed
-        scale_factor = self.scale_factor
-        if is_thumb:
-            scale_factor = 1.3  # Use different scale for thumb
-            
+        scale_factor = LEAP_THUMB_SCALE_FACTOR if is_thumb else self.scale_factor
+        
         # Rotate 90° around z-axis and scale
         pos_transformed = [
             pos_reflected[1] * scale_factor,           # y becomes x (scaled)
