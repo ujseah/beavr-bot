@@ -1,14 +1,12 @@
 #import rospy
 import numpy as np
 import time
-from copy import deepcopy as copy
 from xarm import XArmAPI
 from enum import Enum
 import math
 
-from beavr.constants import XARM_SCALE_FACTOR
+from beavr.constants import VR_FREQ, XARM_SCALE_FACTOR, ROBOT_HOME_JS
 from scipy.spatial.transform import Rotation as R
-from beavr.constants import *
 
 class RobotControlMode(Enum):
     CARTESIAN_CONTROL = 0
@@ -293,8 +291,6 @@ class Robot(XArmAPI):
             self._last_command_time = current_time
             self._metrics["command_times"].append(current_time)
             
-            # Scale position
-            cartesian_pos[0:3] = np.array(cartesian_pos[0:3]) * XARM_SCALE_FACTOR
             
             # Check if we're in servo mode (mode 1)
             # Allow both state 1 (MOVING) and state 2 (READY) as valid states

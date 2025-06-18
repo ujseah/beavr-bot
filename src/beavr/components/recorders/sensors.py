@@ -1,7 +1,7 @@
 import os
 import time
 import h5py
-import hydra
+from beavr.utils.instantiator import instantiate_from_target
 import numpy as np
 from .recorder import Recorder
 from beavr.utils.timer import FrequencyTimer
@@ -15,7 +15,7 @@ class XelaSensorRecorder(Recorder):
     ):
 
         # Initialize the sensor controllers
-        self.sensor = hydra.utils.instantiate(controller_configs)
+        self.sensor = instantiate_from_target(controller_configs)
 
         # Timer 
         self.timer = FrequencyTimer(XELA_FPS)

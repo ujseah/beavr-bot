@@ -17,10 +17,10 @@ import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from lerobot.common import envs, policies  # noqa: F401
-from lerobot.configs import parser
-from lerobot.configs.default import EvalConfig
-from lerobot.configs.policies import PreTrainedConfig
+from beavr.common import envs, policies  # noqa: F401
+from beavr.configs import parser
+from beavr.configs.default import EvalConfig
+from beavr.configs.policies import PreTrainedConfig
 
 
 @dataclass

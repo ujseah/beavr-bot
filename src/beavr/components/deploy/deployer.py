@@ -1,4 +1,3 @@
-import hydra
 import numpy as np
 import pickle
 
@@ -8,6 +7,7 @@ from beavr.components import Component
 from beavr.utils.network import create_response_socket
 from beavr.utils.timer import FrequencyTimer
 from beavr.constants import DEPLOY_FREQ, VR_FREQ
+from beavr.utils.instantiator import instantiate_from_target
 
 class DeployServer(Component):
     def __init__(self, configs):
@@ -28,13 +28,13 @@ class DeployServer(Component):
         self.timer = FrequencyTimer(DEPLOY_FREQ)
 
     def _init_robot_subscribers(self):
-        robot_controllers = hydra.utils.instantiate(self.configs.robot.controllers)
+        robot_controllers = instantiate_from_target(self.configs.robot.controllers)
         self._robots = dict()
         for robot in robot_controllers:
             self._robots[robot.name] = robot
 
     def _init_sensor_subscribers(self):
-        xela_controllers = hydra.utils.instantiate(self.configs.robot.xela_controllers)
+        xela_controllers = instantiate_from_target(self.configs.robot.xela_controllers)
         self._sensors = dict()
         self._sensors['xela'] = xela_controllers[0] # There is only 1 controller
 

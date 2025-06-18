@@ -33,9 +33,9 @@ robots:
   - 
     _target_: beavr.interfaces.xarm7_robot.XArm7Robot
     host: ${host_address}
-    endeff_publish_port: 10010
-    endeff_subscribe_port: 10009
-    joint_subscribe_port: 10029
+    endeff_publish_port: 10010 # Commands the robot to move to a goal position in cartesian space
+    endeff_subscribe_port: 10009 # Port for subscribing to end-effector state in cartesian space
+    joint_subscribe_port: 10029 # Port for subscribing to joint state in joint space
     reset_subscribe_port: 10009
     robot_ip: ${right_xarm_ip}
     simulation_mode: false

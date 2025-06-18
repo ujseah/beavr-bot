@@ -1,5 +1,5 @@
 import os.path as path
-
+import numpy as np
 # VR detector 
 # Arm movement
 WRIST_HOME_STATE = {
@@ -118,3 +118,4 @@ ROBOT_HOME_JS = [0.0, -0.4363323129985824, -0.017453292519943295,
 
 LEAP_FINGER_SCALE_FACTOR = 1.8               # default scaling for non-thumb fingertips
 LEAP_THUMB_SCALE_FACTOR = 1.7         # separate scaling for thumb positions
+LEAP_HOME_JS = np.zeros(16)

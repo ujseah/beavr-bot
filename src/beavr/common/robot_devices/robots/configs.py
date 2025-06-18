@@ -722,7 +722,10 @@ class MultiRobotAdapterConfig(RobotConfig):
                     "action_key": "arm_action", 
                     "joint_count": 7,
                     "joint_state_path": ["joint_states", "joint_position"],
-                    "command_state_path": ["commanded_cartesian_state", "commanded_cartesian_position"]
+                    "command_state_path": ["commanded_cartesian_state", "commanded_cartesian_position"],
+                    # Port and topic information for action publishing (use 10009, see comment above)
+                    "endeff_publish_port": 10009,
+                    "command_topic": "endeff_coords",
                 },
                 {
                     "name": "leap",
@@ -734,7 +737,10 @@ class MultiRobotAdapterConfig(RobotConfig):
                     "action_key": "hand_action",
                     "joint_count": 16,
                     "joint_state_path": ["joint_states", "position"],
-                    "command_state_path": ["commanded_joint_states", "position"]
+                    "command_state_path": ["commanded_joint_states", "position"],
+                    # Publish joint commands on the port the Leap hand operator expects (8120).
+                    "joint_angle_publish_port": 8120,
+                    "command_topic": "joint_angles",
                 }
             ]
 
@@ -759,7 +765,10 @@ class XArm7OnlyAdapterConfig(MultiRobotAdapterConfig):
                 "action_key": "arm_action",
                 "joint_count": 7,
                 "joint_state_path": ["joint_states", "joint_position"],
-                "command_state_path": ["commanded_cartesian_state", "commanded_cartesian_position"]
+                "command_state_path": ["commanded_cartesian_state", "commanded_cartesian_position"],
+                # Port and topic information for action publishing (use 10009, see comment above)
+                "endeff_publish_port": 10009,
+                "command_topic": "endeff_coords",
             }
         ]
 
@@ -784,6 +793,9 @@ class LeapOnlyAdapterConfig(MultiRobotAdapterConfig):
                 "action_key": "hand_action",
                 "joint_count": 16,
                 "joint_state_path": ["joint_states", "position"],
-                "command_state_path": ["commanded_joint_states", "position"]
+                "command_state_path": ["commanded_joint_states", "position"],
+                # Publish joint commands on the port the Leap hand operator expects (8120).
+                "joint_angle_publish_port": 8120,
+                "command_topic": "joint_angles",
             }
         ]

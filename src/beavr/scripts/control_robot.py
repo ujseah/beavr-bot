@@ -19,29 +19,22 @@ and record an evaluation dataset, and to recalibrate your robot if needed.
 
 Examples of usage:
 
-- Recalibrate your robot:
-```bash
-python lerobot/scripts/control_robot.py \
-    --robot.type=so100 \
-    --control.type=calibrate
-```
-
 - Unlimited teleoperation at highest frequency (~200 Hz is expected), to exit with CTRL+C:
 ```bash
-python lerobot/scripts/control_robot.py \
+python beavr/scripts/control_robot.py \
     --robot.type=so100 \
     --robot.cameras='{}' \
     --control.type=teleoperate
 
 # Add the cameras from the robot definition to visualize them:
-python lerobot/scripts/control_robot.py \
+python beavr/scripts/control_robot.py \
     --robot.type=so100 \
     --control.type=teleoperate
 ```
 
 - Unlimited teleoperation at a limited frequency of 30 Hz, to simulate data recording frequency:
 ```bash
-python lerobot/scripts/control_robot.py \
+python beavr/scripts/control_robot.py \
     --robot.type=so100 \
     --control.type=teleoperate \
     --control.fps=30
@@ -49,7 +42,7 @@ python lerobot/scripts/control_robot.py \
 
 - Record one episode in order to test replay:
 ```bash
-python lerobot/scripts/control_robot.py \
+python beavr/scripts/control_robot.py \
     --robot.type=so100 \
     --control.type=record \
     --control.fps=30 \
@@ -61,14 +54,14 @@ python lerobot/scripts/control_robot.py \
 
 - Visualize dataset:
 ```bash
-python lerobot/scripts/visualize_dataset.py \
+python beavr/scripts/visualize_dataset.py \
     --repo-id $USER/koch_test \
     --episode-index 0
 ```
 
 - Replay this test episode:
 ```bash
-python lerobot/scripts/control_robot.py replay \
+python beavr/scripts/control_robot.py replay \
     --robot.type=so100 \
     --control.type=replay \
     --control.fps=30 \
@@ -79,7 +72,7 @@ python lerobot/scripts/control_robot.py replay \
 - Record a full dataset in order to train a policy, with 2 seconds of warmup,
 30 seconds of recording for each episode, and 10 seconds to reset the environment in between episodes:
 ```bash
-python lerobot/scripts/control_robot.py record \
+python beavr/scripts/control_robot.py record \
     --robot.type=so100 \
     --control.type=record \
     --control.fps 30 \
@@ -92,7 +85,7 @@ python lerobot/scripts/control_robot.py record \
 
 - For remote controlled robots like LeKiwi, run this script on the robot edge device (e.g. RaspBerryPi):
 ```bash
-python lerobot/scripts/control_robot.py \
+python beavr/scripts/control_robot.py \
   --robot.type=lekiwi \
   --control.type=remote_robot
 ```
@@ -108,7 +101,7 @@ This might require a sudo permission to allow your terminal to monitor keyboard 
 
 - Train on this dataset with the ACT policy:
 ```bash
-python lerobot/scripts/train.py \
+python beavr/scripts/train.py \
   --dataset.repo_id=${HF_USER}/koch_pick_place_lego \
   --policy.type=act \
   --output_dir=outputs/train/act_koch_pick_place_lego \
@@ -119,7 +112,7 @@ python lerobot/scripts/train.py \
 
 - Run the pretrained policy on the robot:
 ```bash
-python lerobot/scripts/control_robot.py \
+python beavr/scripts/control_robot.py \
     --robot.type=so100 \
     --control.type=record \
     --control.fps=30 \
@@ -135,18 +128,10 @@ python lerobot/scripts/control_robot.py \
 """
 
 import logging
-import os
 import time
-import sys
-import signal
-import atexit
+import multiprocessing  # Needed for process types
 from dataclasses import asdict
 from pprint import pformat
-import subprocess
-
-# Add project root to Python path
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
-sys.path.insert(0, project_root)
 
 # from safetensors.torch import load_file, save_file
 from beavr.common.datasets.lerobot_dataset import LeRobotDataset
@@ -177,90 +162,114 @@ from beavr.configs import parser
 # Control modes
 ########################################################################################
 
-_teleop_process = None
+_teleop_processes: list[multiprocessing.Process] | None = None  # Populated at runtime
 
-def cleanup_processes():
-    """Clean up any running processes when the script exits."""
-    global _teleop_process
-    if _teleop_process:
-        logging.info("Cleaning up teleop process...")
+def start_teleop_process(
+    *,
+    robot_name: str | None = None,
+    operate: bool | None = None,
+    wait_for_exit: bool = False,
+):
+    """Launch the teleoperation helper stack (detector/cameras/robot interface).
+
+    Parameters
+    ----------
+    robot_name : str | None
+        Identifier of the robot combo to load (e.g. ``leap_xarm_right``).
+        If *None*, we will attempt to read `--teleop_robot_name` from the CLI
+        (via ``beavr.configs.parser``).  If that is also missing the function
+        falls back to the historical default "leap_xarm_right".
+
+    operate : bool | None
+        Whether to start the *Operator* processes that listen to the VR
+        detector and forward the commands to the robots.  Setting this to
+        ``False`` is crucial when a *policy* publishes the commands itself
+        through `robot.send_action()` – running both simultaneously causes
+        PUB/SUB conflicts.  When *None*, the value will be automatically
+        derived: it is set to ``False`` whenever a policy is supplied on the
+        CLI (detected via the presence of `--control.policy.` arguments);
+        otherwise the default is ``True``.
+    """
+
+    global _teleop_processes
+    if _teleop_processes is not None:
+        logging.info("Teleoperation already running – skipping launch.")
+        return
+
+    # Lazy imports to avoid the heavy dependency cost when teleop is not needed.
+    from beavr.teleop import TeleopConfig  # pylint: disable=import-error
+    from beavr.components import TeleOperator
+
+    # ------------------------------------------------------------------
+    # Resolve *robot_name*
+    # ------------------------------------------------------------------
+    if robot_name is None:
+        # Try CLI override --teleop_robot_name=...
+        robot_name = parser.parse_arg("teleop_robot_name")
+
+    if robot_name is None:
+        # Fallback for legacy flag --teleop.robot_name=...
+        robot_name = parser.parse_arg("teleop.robot_name")
+
+    if robot_name is None:
+        # Ultimate fallback – keep previous hard-coded default so existing
+        # scripts continue to run.
+        robot_name = "leap_xarm_right"
+
+    # ------------------------------------------------------------------
+    # Resolve *operate*
+    # ------------------------------------------------------------------
+    if operate is None:
+        # CLI override (explicit)
+        operate_cli = parser.parse_arg("teleop_operate")
+        if operate_cli is not None:
+            operate = operate_cli.lower() not in {"0", "false", "no", "off"}
+
+    if operate is None:
+        # Implicit heuristic – disable operator when a policy is provided
+        has_policy_path = parser.get_path_arg("control.policy") is not None
+        has_policy_type = parser.get_type_arg("control.policy") is not None
+        operate = not (has_policy_path or has_policy_type)
+
+    logging.info(
+        "Starting teleoperation helper with robot_name='%s', operate=%s",
+        robot_name,
+        operate,
+    )
+
+    # Build the configuration for the selected robot combo.
+    teleop_cfg = TeleopConfig(operate=operate, robot_name=robot_name)
+
+    logging.info("Instantiating TeleOperator (Draccus version)…")
+    teleop = TeleOperator(teleop_cfg)
+    _teleop_processes = teleop.get_processes()
+
+    # Start all sub-processes.
+    for p in _teleop_processes:
+        p.start()
+
+    # Give PUB sockets a moment to come up before the main thread proceeds.
+    time.sleep(1)
+
+    if wait_for_exit:
         try:
-            # Try graceful termination first
-            _teleop_process.terminate()
-            # Wait up to 3 seconds for process to terminate
-            for _ in range(30):
-                if _teleop_process.poll() is not None:
-                    break
-                time.sleep(0.1)
-            # If process hasn't terminated, force kill it
-            if _teleop_process.poll() is None:
-                logging.warning("Teleop process didn't terminate gracefully, force killing...")
-                _teleop_process.kill()
-                _teleop_process.wait()
-        except Exception as e:
-            logging.error(f"Error cleaning up teleop process: {e}")
-        _teleop_process = None
-
-def signal_handler(signum, frame):
-    """Handle termination signals by cleaning up processes."""
-    logging.info(f"Received signal {signum}, cleaning up...")
-    cleanup_processes()
-    sys.exit(0)
-
-# Register cleanup functions
-atexit.register(cleanup_processes)
-signal.signal(signal.SIGINT, signal_handler)
-signal.signal(signal.SIGTERM, signal_handler)
-
-def start_teleop_process(wait_for_exit=False):
-    """Start teleop.py as a subprocess."""
-    global _teleop_process
-    if _teleop_process and _teleop_process.poll() is None:
-        logging.info("Teleop process is already running.")
-        return
-
-    teleop_script_path = os.path.join(project_root, "teleop.py")
-    if not os.path.exists(teleop_script_path):
-        logging.error(f"Teleoperation script not found at '{teleop_script_path}'. Cannot start teleop.")
-        return
-
-    logging.info(f"Starting teleoperation process from: {teleop_script_path}")
-    try:
-        _teleop_process = subprocess.Popen([
-            sys.executable,
-            teleop_script_path,
-            "robot=leap_xarm_right"
-        ])
-        
-        # Give the teleop system a moment to initialize all ZMQ publishers
-        logging.info("Waiting 1s for teleoperation system to initialize...")
-        time.sleep(1)
-
-        if wait_for_exit:
-            try:
-                _teleop_process.wait()
-            except KeyboardInterrupt:
-                logging.info("Teleoperation interrupted by user.")
-            finally:
-                stop_teleop_process()
-            
-    except Exception as e:
-        logging.error(f"Failed to start teleoperation process: {e}")
-        _teleop_process = None
+            for p in _teleop_processes:
+                p.join()
+        except KeyboardInterrupt:
+            logging.info("Teleoperation interrupted by user.")
+        finally:
+            stop_teleop_process()
 
 def stop_teleop_process():
-    """Stop the teleoperation subprocess if it's running."""
-    global _teleop_process
-    if _teleop_process and _teleop_process.poll() is None:
-        logging.info("Stopping teleoperation process...")
-        _teleop_process.terminate()
-        try:
-            _teleop_process.wait(timeout=2)
-        except subprocess.TimeoutExpired:
-            logging.warning("Teleop process did not terminate gracefully, killing it.")
-            _teleop_process.kill()
-            _teleop_process.wait()
-    _teleop_process = None
+    """Terminate the TeleOperator's child processes if they are active."""
+    global _teleop_processes
+    if _teleop_processes:
+        logging.info("Stopping teleoperation processes…")
+        for p in _teleop_processes:
+            if p.is_alive():
+                p.terminate()
+                p.join(timeout=2)
+        _teleop_processes = None
 
 @safe_disconnect
 def teleoperate():
@@ -399,12 +408,17 @@ def control_robot(cfg: ControlPipelineConfig):
     init_logging()
     logging.info(pformat(asdict(cfg)))
 
-    # Start the teleoperation process first if needed.
-    # This is crucial because it sets up ZMQ publishers that the robot adapter will need to connect to.
-    if isinstance(cfg.control, (RecordControlConfig, TeleoperateControlConfig)):
-        start_teleop_process()
-        # Give the teleop system a moment to initialize all ZMQ publishers and for the robot to settle.
-        logging.info("Waiting 5s for teleoperation system to initialize before robot connection...")
+    # Determine whether the teleoperation helper needs to run.
+    start_teleop = isinstance(cfg.control, (TeleoperateControlConfig, RecordControlConfig))
+
+    if start_teleop:
+        start_teleop_process(
+            robot_name=getattr(cfg.teleop, "robot_name", None),
+            operate=getattr(cfg.teleop, "operate", None),
+        )
+        logging.info(
+            "Waiting 5s for teleoperation system to initialize before robot connection..."
+        )
         time.sleep(5)
 
     # Pass the controller to the robot adapter
@@ -416,10 +430,11 @@ def control_robot(cfg: ControlPipelineConfig):
 
         if isinstance(cfg.control, TeleoperateControlConfig):
             # The teleop process was already started, just wait for it to complete.
-            global _teleop_process
-            if _teleop_process:
+            global _teleop_processes
+            if _teleop_processes:
                 logging.info("Waiting for teleoperation process to complete...")
-                _teleop_process.wait()
+                for p in _teleop_processes:
+                    p.join()
 
         elif isinstance(cfg.control, RecordControlConfig):
             record(robot, cfg.control)

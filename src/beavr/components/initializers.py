@@ -1,5 +1,4 @@
 import os
-import hydra
 from abc import ABC
 from .recorders.image import RGBImageRecorder, DepthImageRecorder, FishEyeImageRecorder
 from .recorders.robot_state import RobotInformationRecord
@@ -9,8 +8,8 @@ from .sensors import *
 from multiprocessing import Process
 from beavr.constants import *
 from beavr.utils.registry import GlobalRegistry
-import time
 from omegaconf import ListConfig # Import ListConfig for type checking
+from beavr.utils.instantiator import instantiate_from_target
 
 
 class ProcessInstantiator(ABC):
@@ -114,7 +113,7 @@ class TeleOperator(ProcessInstantiator):
     # Function to start the components
     def _start_component(self, configs):    
         try:
-            component = hydra.utils.instantiate(configs)
+            component = instantiate_from_target(configs)
             component.stream()
         except Exception as e:
             print(f"Error starting component: {e}")
@@ -171,9 +170,9 @@ class TeleOperator(ProcessInstantiator):
     
     def _init_robot_interface(self):
         for robot_config in self.configs.robot.robots:
-            # Don't instantiate here, only in the process
-            robot_name = robot_config['_target_'].split('.')[-1].lower()
-            
+            # Derive a human-readable robot name from the dataclass type.
+            # Instantiate the robot config in a separate process.
+            # This is where the ``build()`` method is called.
             # Create the process first
             process = Process(
                 target = self._start_component,
@@ -411,7 +410,9 @@ class Collector(ProcessInstantiator):
                 # --- 2. Determine Expected ZMQ Topic ---
                 # This logic needs to match how the robot interface determines its topic.
                 expected_zmq_topic = None
-                target_class = getattr(robot_config, '_target_', '')
+                # Determine robot type from the dataclass class name.
+                target_class = robot_config.__class__.__name__
+
                 if target_class.endswith("XArm7Robot"):
                     is_right = getattr(robot_config, 'is_right_arm', None)
                     if is_right is True:

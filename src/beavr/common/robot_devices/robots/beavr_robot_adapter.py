@@ -2,12 +2,20 @@ import time
 import logging
 import numpy as np
 import zmq
+import torch
+from concurrent.futures import ThreadPoolExecutor
 
-from beavr.utils.network import ZMQKeypointSubscriber
+from beavr.constants import LEAP_HOME_JS, ROBOT_HOME_JS
 from beavr.common.robot_devices.robots.utils import Robot
 from beavr.common.datasets.utils import Frame
 from beavr.common.robot_devices.cameras.configs import CameraConfig, OpenCVCameraConfig
 from beavr.common.robot_devices.cameras.opencv import OpenCVCamera
+
+# Network helpers
+from beavr.utils.network import (
+    ZMQKeypointSubscriber,
+    EnhancedZMQKeypointPublisher as ZMQKeypointPublisher,
+)
 
 
 class MultiRobotAdapter(Robot):
@@ -31,7 +39,6 @@ class MultiRobotAdapter(Robot):
                 - state_port: Port for state subscription
                 - state_topic: Topic for state messages
                 - robot_type: Type of robot ("arm" or "hand")
-                - observation_key: Key for observation data (e.g., "state", "hand_state")
                 - action_key: Key for action data (e.g., "action", "hand_action")
                 - joint_count: Number of joints for this robot
                 - joint_state_path: Path to joint states in message (e.g., ["joint_states", "joint_position"])
@@ -73,6 +80,57 @@ class MultiRobotAdapter(Robot):
         self._leader_arms = {}
         self._follower_arms = {}
         self.logs = {}
+
+        # ------------------------------------------------------------------
+        # Initialise a ZMQ publisher for sending commands to each robot.
+        # The port/topic naming follows the conventions used across the
+        # code-base (see configs/leap_xarm_right.yaml):
+        #   • Arm robots listen for Cartesian targets on  <endeff_publish_port>
+        #     with topic "endeff_coords" (x, y, z, roll, pitch, yaw)
+        #   • Hand robots listen for joint targets on <joint_angle_publish_port>
+        #     with topic "joint_angles"
+        # For maximum flexibility we inspect the config for these keys. If a
+        # suitable publish port is missing we fall back to a generic
+        # "command_pub_port" (user provided) and topic "action".
+        # ------------------------------------------------------------------
+        self.command_publishers: dict[str, dict] = {}
+        for cfg in robot_configs:
+            r_name = cfg["name"]
+            r_type = cfg.get("robot_type", "arm")
+
+            # Resolve port & topic based on robot type and config keys
+            if r_type == "arm":
+                pub_port = cfg.get("endeff_publish_port") or cfg.get("command_pub_port")
+                topic = cfg.get("command_topic", "endeff_coords")
+            else:  # hand or other
+                pub_port = cfg.get("joint_angle_publish_port") or cfg.get("command_pub_port")
+                topic = cfg.get("command_topic", "joint_angles")
+
+            # If no port is provided, we cannot create a publisher – warn user.
+            if pub_port is None:
+                logging.warning(
+                    f"No command publish port found in config for robot '{r_name}'. "
+                    "This robot will be ignored in send_action()."
+                )
+                continue
+
+            try:
+                publisher = ZMQKeypointPublisher(host=cfg["host"], port=pub_port)
+                self.command_publishers[r_name] = dict(
+                    publisher=publisher,
+                    topic=topic,
+                    robot_type=r_type,
+                    port=pub_port,
+                )
+            except Exception as e:
+                logging.error(
+                    f"Failed to create command publisher for robot '{r_name}' at {cfg['host']}:{pub_port}: {e}"
+                )
+
+        # Thread pool for asynchronous publishing
+        # We keep a small pool (<= #robots) so that PUB sends never block the
+        # policy/control loop. Threads are daemonised by default.
+        self._publish_pool = ThreadPoolExecutor(max_workers=max(4, len(self.command_publishers)))
 
     def _build_features(self) -> dict:
         """Build the features dictionary dynamically based on robot configurations.
@@ -270,16 +328,24 @@ class MultiRobotAdapter(Robot):
                     if joint_data.ndim == 0:
                         joint_data = joint_data.reshape(1)
                     combined_state.extend(joint_data)
+                    continue  # processed this robot
+            # If we reach here we did not manage to append any data for this robot.
+            if config["robot_type"] == "arm":
+                combined_state.extend(np.array(ROBOT_HOME_JS, dtype=np.float32))
+            elif config["robot_type"] == "hand":
+                combined_state.extend(np.array(LEAP_HOME_JS, dtype=np.float32))
 
-        # Convert to numpy array and store
+        # Convert to torch tensor and store
         if combined_state:
-            observation["observation.state"] = np.array(combined_state, dtype=np.float32)
+            observation["observation.state"] = torch.from_numpy(
+                np.array(combined_state, dtype=np.float32)
+            )
 
         # Add camera images
         for name in self.cameras:
             image, _ = self._fetch_image(name)
             if image is not None:
-                observation[f"observation.images.{name}"] = image
+                observation[f"observation.images.{name}"] = torch.from_numpy(image)
 
         return Frame(observation)
 
@@ -330,6 +396,105 @@ class MultiRobotAdapter(Robot):
         pass
 
     def send_action(self, action):
-        """This adapter doesn't send actions directly."""
-        logging.warning("MultiRobotAdapter does not support sending actions directly")
-        return action
+        """Publish a **concatenated** action vector to the corresponding robots.
+
+        The input `action` is assumed to follow the ordering defined in
+        `self._sorted_configs` (all arm actions first, then hand actions).
+
+        • Arm action (6-DoF): `[x, y, z, roll, pitch, yaw]` will be mapped to a
+          dictionary `{"position": [...], "orientation": [...], "timestamp": t}`
+          and published on topic ``endeff_coords``.
+        • Hand action (`n` joints): raw joint position array will be published
+          on topic ``joint_angles``.
+
+        Parameters
+        ----------
+        action : array-like | torch.Tensor
+            The concatenated action vector.
+
+        Returns
+        -------
+        torch.Tensor
+            The exact action that has been sent (after possible type/shape
+            conversions).
+        """
+        # Defensive copy & type normalisation --------------------------------
+        if isinstance(action, torch.Tensor):
+            action_np = action.detach().cpu().flatten().numpy()
+        else:
+            action_np = np.asarray(action, dtype=np.float32).flatten()
+
+        expected_dim = self.features["action"]["shape"][0]
+        if action_np.size != expected_dim:
+            raise ValueError(
+                f"Action dim mismatch. Expected {expected_dim} values but got {action_np.size}."
+            )
+
+        # Slice and publish ---------------------------------------------------
+        sent_segments = []
+        cursor = 0
+
+        for cfg in self._sorted_configs:
+            name = cfg["name"]
+            r_type = cfg["robot_type"]
+            dim = 6 if r_type == "arm" else cfg["joint_count"]
+
+            segment = action_np[cursor : cursor + dim]
+            cursor += dim
+
+            pub_info = self.command_publishers.get(name)
+            if pub_info is None:
+                logging.debug(f"No publisher configured for robot '{name}'. Skipping action publish.")
+                sent_segments.append(segment)
+                continue
+
+            # Ensure numpy array dtype float32
+            segment_np = np.asarray(segment, dtype=np.float32)
+
+            # Build the payload according to robot type ------------------
+            if r_type == "arm":
+                pos = segment_np[:3]
+                ori = segment_np[3:]
+                payload = {
+                    "position": pos.tolist(),
+                    "orientation": ori.tolist(),
+                    "timestamp": time.time(),
+                }
+            elif r_type == "hand":
+                payload = segment_np
+            else:
+                logging.error(f"Unsupported robot type: {r_type}")
+                sent_segments.append(segment_np)
+                continue
+
+            # Submit non-blocking publish --------------------------------
+            self._publish_pool.submit(self._publish_async, pub_info, cfg, payload)
+
+            sent_segments.append(segment_np)
+
+        # Concatenate the segments back into a single tensor for return
+        return torch.from_numpy(np.concatenate(sent_segments).astype(np.float32))
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _publish_async(pub_info: dict, cfg: dict, payload):
+        """Publish *payload* on the publisher contained in *pub_info*.
+
+        This is executed in the background thread pool so that network I/O
+        (and occasional DNS/network stalls) never block the policy loop.
+        """
+        try:
+            pub_info["publisher"].pub_keypoints(payload, pub_info["topic"])
+        except Exception as e:
+            logging.error(
+                f"Async publish error for robot '{cfg['name']}' on tcp://{cfg['host']}:{pub_info['port']}: {e}"
+            )
+
+    # ------------------------------------------------------------------
+    def __del__(self):
+        # Shutdown thread-pool gracefully
+        if hasattr(self, "_publish_pool"):
+            self._publish_pool.shutdown(wait=False)
+        # existing cleanup continues automatically

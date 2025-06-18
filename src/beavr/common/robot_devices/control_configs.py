@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import draccus
@@ -123,10 +123,29 @@ class RemoteRobotConfig(ControlConfig):
     viewer_port: str | None = None
 
 
+# ------------------------------------------------------------------
+# Teleoperation overrides
+# ------------------------------------------------------------------
+
+
+@dataclass
+class TeleopOverrides:
+    """Overrides forwarded to the Teleop helper stack.
+
+    The dotted CLI style is supported automatically.  Example:
+
+    ``--teleop.robot_name=leap_xarm_right  --teleop.operate=false``
+    """
+
+    robot_name: str | None = None
+    operate: bool | None = None
+
+
 @dataclass
 class ControlPipelineConfig:
     robot: RobotConfig
     control: ControlConfig
+    teleop: TeleopOverrides = field(default_factory=TeleopOverrides)
 
     @classmethod
     def __get_path_fields__(cls) -> list[str]:

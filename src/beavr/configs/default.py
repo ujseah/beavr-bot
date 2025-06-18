@@ -16,11 +16,11 @@
 
 from dataclasses import dataclass, field
 
-from lerobot.common import (
+from beavr.common import (
     policies,  # noqa: F401
 )
-from lerobot.common.datasets.transforms import ImageTransformsConfig
-from lerobot.common.datasets.video_utils import get_safe_default_codec
+from beavr.common.datasets.transforms import ImageTransformsConfig
+from beavr.common.datasets.video_utils import get_safe_default_codec
 
 
 @dataclass
