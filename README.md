@@ -20,7 +20,7 @@
   <a href="our-github-page">
     <img src="https://images.icon-icons.com/3685/PNG/512/github_logo_icon_229278.png" alt="arXiv" width="14" style="vertical-align:middle;"/> Project Page
   </a> |
-  <a href="https://github.com/ArcLab-MIT/BeaVR/tree/main/docs">
+  <a href="https://github.com/ARCLab-MIT/BeaVR-app">
     <img src="https://images.icon-icons.com/3053/PNG/512/unity_hub_macos_bigsur_icon_189587.png" alt="arXiv" width="16" style="vertical-align:middle;"/> VR App
   </a>
 </p>
@@ -87,11 +87,18 @@ For detailed documentation, please refer to the following guides in the `docs` d
 - [Policy Learning](docs/policy_learning.md)
 - [Adding Your Own Robot](docs/add_your_own_robot.md)
 
+## Additional Features
+
+### Apple Vision Pro Support
+BeaVR only requires cartesian positions from VR headsets in the standard y-up right-hand coordinate frame used by VR systems.
+Apple Vision Pro users can connect through the third-party Improbable AI's [Tracking Streamer App](https://github.com/Improbable-AI/VisionProTeleop) that provides independent hand pose tracking.
+This app should seamlessly integrate with BeaVR as an alternative VR endpoint. Although, it has not been developed or tested for this purpose.
+
 ## Citation
 
 If you use BeaVR in your research, please cite our work:
 
-```
+```bibtex
 @article{lorem-ipsum,
     title   = {dolor}, 
     author  = {sit},
@@ -104,23 +111,23 @@ If you use BeaVR in your research, please cite our work:
 
 [Add license information here]
 
+
 ## Contributing
 
 We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for more details.
 
-## Acknowledgments
-
-[Add acknowledgments here]
-
-## Additional Features
-
-### Apple Vision Pro Support
-For users who prefer Apple Vision Pro optics, we provide a drop-in VisionProTeleop module that enables marker-less arm-pose tracking. This module integrates seamlessly with BeaVR as an alternative VR endpoint.
-
-
-We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for more details.
 
 ## Acknowledgments
 
-[Add acknowledgments here]
+<p align="center">
+  <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/15/USAF_logo.svg/1200px-USAF_logo.svg.png" alt="USAF Logo" width="60"/>
+</p>
+
+<p align="justify">
+This work was sponsored by the Department of the Air Force Artificial Intelligence Accelerator and was accomplished under Cooperative Agreement Number FA8750-19-2-1000. The views and conclusions contained in this document are those of the authors and should not be interpreted as representing the official policies, either expressed or implied, of the Department of the Air Force or the U.S. Government. The U.S. Government is authorized to reproduce and distribute reprints for Government purposes notwithstanding any copyright notation herein.
+</p>
+
+<p align="center">
+<sub><sup>© 2025 Massachusetts Institute of Technology</sup></sub>
+</p>
 
