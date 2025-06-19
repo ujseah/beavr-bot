@@ -47,14 +47,14 @@ Key features:
 ## Quick Start
 
 ### Prerequisites
-- Python 3.10+
+- Linux system or containeraized environment (see [Docker folder](docker))
 - NVIDIA GPU with CUDA support (recommended)
 - Meta Quest 3 VR headset
 - Conda package manager
 
 ### Installation
 
-#### Conda Environment (Recommended for Development)
+#### Conda Environment (Recommended)
 
 For development and running the full system with all dependencies (including PyTorch and simulation tools), we recommend using Conda:
 
@@ -85,7 +85,7 @@ For detailed documentation, please refer to the following guides in the `docs` d
 - [Simulation Environment](docs/simulation.md)
 - [Teleoperation Data Collection](docs/teleop_data_collect.md)
 - [Policy Learning](docs/policy_learning.md)
-- [Adding Your Own Robot](docs/add_your_own_robot.md)S
+- [Adding Your Own Robot](docs/add_your_own_robot.md)
 
 ## Citation
 
