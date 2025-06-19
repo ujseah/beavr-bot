@@ -15,10 +15,14 @@
 <p align="center">
   <br>
   <a href="our-arxiv-link">
-    <img src="https://info.arxiv.org/brand/logos.html" alt="arXiv" width="24" style="vertical-align:middle;"/> Paper
+    <img src="https://yuxiaoba.github.io/assets/images/badges/Arxiv.png" alt="arXiv" width="14" style="vertical-align:middle;"/> Paper
   </a> |
-  <a href="https://github.com/ArcLab-MIT/BeaVR">Project Page</a> |
-  <a href="https://github.com/ArcLab-MIT/BeaVR/tree/main/docs">Documentation</a>
+  <a href="our-github-page">
+    <img src="https://images.icon-icons.com/3685/PNG/512/github_logo_icon_229278.png" alt="arXiv" width="14" style="vertical-align:middle;"/> Project Page
+  </a> |
+  <a href="https://github.com/ArcLab-MIT/BeaVR/tree/main/docs">
+    <img src="https://images.icon-icons.com/3053/PNG/512/unity_hub_macos_bigsur_icon_189587.png" alt="arXiv" width="16" style="vertical-align:middle;"/> VR App
+  </a>
 </p>
 
 ---
@@ -56,16 +60,19 @@ For development and running the full system with all dependencies (including PyT
 
 ```bash
 conda env create -f environment.yml
+conda activate beavr
 ```
 
-After installing all the prerequisites, install this pipeline as a package:
+After installing all the prerequisites, install BeaVR as a package:
 ```bash
 pip install -e .
 ```
 
 Verify the installation:
 ```bash
-python -c "import beavr"
+python -c "import sys; 
+try: import beavr; print('BeaVR successfully installed!') 
+except ImportError: print('An error occurred'); sys.exit(1)"
 ```
 
 ## Documentation
