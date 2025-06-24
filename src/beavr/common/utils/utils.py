@@ -111,7 +111,10 @@ def init_logging():
     def custom_format(record):
         dt = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         fnameline = f"{record.pathname}:{record.lineno}"
-        message = f"{record.levelname} {dt} {fnameline[-15:]:>15} {record.msg}"
+        # Use record.getMessage() so that any %(..) style interpolation with *args
+        # passed to the logging call is actually performed before we format the
+        # final string.
+        message = f"{record.levelname} {dt} {fnameline[-15:]:>15} {record.getMessage()}"
         return message
 
     logging.basicConfig(level=logging.INFO)

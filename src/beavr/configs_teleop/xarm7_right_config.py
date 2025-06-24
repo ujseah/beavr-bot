@@ -50,10 +50,11 @@ class XArm7RobotCfg:
     joint_subscribe_port: int = 10029
     reset_subscribe_port: int = 10009
     state_publish_port: int = 10011
+    home_subscribe_port: int = 10007
     recorder_config: dict[str, Any] = field(default_factory=lambda: {"robot_identifier": "right_xarm7", "recorded_data": ["joint_states", "xarm_cartesian_states", "commanded_cartesian_state", "joint_angles_rad"]})
 
     def build(self):
-        return XArm7Robot(host=self.host, robot_ip=self.robot_ip, is_right_arm=self.is_right_arm, endeff_publish_port=self.endeff_publish_port, endeff_subscribe_port=self.endeff_subscribe_port, joint_subscribe_port=self.joint_subscribe_port, reset_subscribe_port=self.reset_subscribe_port, state_publish_port=self.state_publish_port, recorder_config=self.recorder_config)
+        return XArm7Robot(host=self.host, robot_ip=self.robot_ip, is_right_arm=self.is_right_arm, endeff_publish_port=self.endeff_publish_port, endeff_subscribe_port=self.endeff_subscribe_port, joint_subscribe_port=self.joint_subscribe_port, reset_subscribe_port=self.reset_subscribe_port, state_publish_port=self.state_publish_port, home_subscribe_port=self.home_subscribe_port, recorder_config=self.recorder_config)
 
 @dataclass
 class XArm7RightOperatorCfg:
@@ -79,7 +80,7 @@ class Xarm7RightConfig:
     detector: OculusVRHandDetectorCfg = OculusVRHandDetectorCfg(host='10.31.152.148', oculus_port='8087', unified_pub_port='8088', button_port='8095', teleop_reset_port='8100')
     transforms: list = field(default_factory=lambda: [TransformHandPositionCoordsCfg(host='10.31.152.148', keypoint_port='8088', transformation_port='8092', moving_average_limit=1)])
     visualizers: list = field(default_factory=lambda: [Hand2DVisualizerCfg(host='10.31.152.148', transformed_keypoint_port='8092', oculus_feedback_port='15001', display_plot='${visualize_right_2d}')])
-    robots: list = field(default_factory=lambda: [XArm7RobotCfg(host='10.31.152.148', robot_ip='192.168.1.197', is_right_arm=True, endeff_publish_port=10010, endeff_subscribe_port=10009, joint_subscribe_port=10029, reset_subscribe_port=10009, state_publish_port=10011, recorder_config={"robot_identifier": "right_xarm7", "recorded_data": ["joint_states", "xarm_cartesian_states", "commanded_cartesian_state", "joint_angles_rad"]})])
+    robots: list = field(default_factory=lambda: [XArm7RobotCfg(host='10.31.152.148', robot_ip='192.168.1.197', is_right_arm=True, endeff_publish_port=10010, endeff_subscribe_port=10009, joint_subscribe_port=10029, reset_subscribe_port=10009, state_publish_port=10011, home_subscribe_port=10007, recorder_config={"robot_identifier": "right_xarm7", "recorded_data": ["joint_states", "xarm_cartesian_states", "commanded_cartesian_state", "joint_angles_rad"]})])
     operators: list = field(default_factory=lambda: [XArm7RightOperatorCfg(host='10.31.152.148', transformed_keypoints_port='8092', stream_configs={"host": "10.31.152.148", "port": "10005"}, stream_oculus=True, endeff_publish_port=10009, endeff_subscribe_port=10010, moving_average_limit=1, arm_resolution_port='8088', use_filter=False, teleoperation_reset_port='8088', logging_config={"enabled": False, "log_dir": "logs", "log_poses": True, "log_prefix": "xarm"})])
 
     def build(self):

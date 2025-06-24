@@ -201,6 +201,18 @@ def record_episode(
     fps,
     single_task,
 ):
+    # ------------------------------------------------------------------
+    # Resume teleoperation at the very beginning of a new episode.  This
+    # ensures that the arm robots remain *paused* during the environment
+    # reset grace period and only start accepting operator commands once the
+    # next episode officially begins.
+    # ------------------------------------------------------------------
+    if has_method(robot, "teleop_resume"):
+        try:
+            robot.teleop_resume()
+        except Exception as e:
+            logging.warning(f"Failed to send teleop resume signal: {e}")
+
     control_loop(
         robot=robot,
         control_time_s=episode_time_s,
@@ -353,8 +365,6 @@ def control_loop(
 
         if dataset is not None:
             if action is None:
-                # logging.error("Action is None, skipping frame.")
-                # print(action)
                 continue
             frame = {**observation, **action, "task": single_task}
             dataset.add_frame(frame)
@@ -391,16 +401,35 @@ def control_loop(
 
 
 def reset_environment(robot, events, reset_time_s, fps):
-    # TODO(rcadene): refactor warmup_record and reset_environment
+    """Return all robots to their home pose and give the operator a grace
+    period (*reset_time_s*) before the next episode starts.
+
+    The function achieves this via two steps:
+
+    1. Trigger :py:meth:`robot.teleop_safety_stop` which publishes a *home*
+       signal to each arm robot.  The corresponding low-level interface (e.g.
+       :class:`~beavr.interfaces.xarm7_robot.XArm7Robot`) receives this
+       message, calls ``home_arm()`` and idles until further commands arrive.
+
+    2. Call :pyfunc:`control_loop` with *teleoperate=False* so that the
+       high-level control pipeline does **not** forward any operator-driven
+       commands during the reset phase.  This guarantees that the robots stay
+       in their neutral pose until the next recording episode starts.
+    """
     if has_method(robot, "teleop_safety_stop"):
         robot.teleop_safety_stop()
 
+    # During environment reset we explicitly *disable* teleoperation so that
+    # any operator-driven commands (e.g. from a VR controller) do not
+    # interfere with the homing motion issued above.  Teleoperation will be
+    # re-enabled automatically at the start of the next episode recording
+    # cycle.
     control_loop(
         robot=robot,
         control_time_s=reset_time_s,
         events=events,
         fps=fps,
-        teleoperate=True,
+        teleoperate=False,
     )
 
 

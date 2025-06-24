@@ -4,6 +4,7 @@ import numpy as np
 import zmq
 import torch
 from concurrent.futures import ThreadPoolExecutor
+import os
 
 from beavr.constants import LEAP_HOME_JS, ROBOT_HOME_JS
 from beavr.common.robot_devices.robots.utils import Robot
@@ -128,6 +129,41 @@ class MultiRobotAdapter(Robot):
             except Exception as e:
                 logging.error(
                     f"Failed to create command publisher for robot '{r_name}' at {cfg['host']}:{pub_port}: {e}"
+                )
+        # ------------------------------------------------------------------
+        # Prepare dedicated *home* publishers (one per robot) so that the
+        # homing signal can be sent on a **separate port** and therefore does
+        # not clash with the high-frequency Cartesian command stream used
+        # during teleoperation.  This prevents the "Address already in use"
+        # error observed when two PUB sockets attempt to bind the same port.
+        # ------------------------------------------------------------------
+        self.home_publishers: dict[str, dict] = {}
+        for cfg in robot_configs:
+            r_name = cfg["name"]
+            home_port = cfg.get("home_subscribe_port")
+            if home_port is None:
+                # Not fatal – we fall back to the main command publisher which
+                # might still work (but risks port conflicts if another PUB is
+                # bound there).  Warn the user so they can fix the config.
+                logging.warning(
+                    "Robot '%s' has no 'home_subscribe_port' – homing signal will reuse the main command port (risk of conflicts)",
+                    r_name,
+                )
+                continue
+
+            try:
+                self.home_publishers[r_name] = dict(
+                    publisher=ZMQKeypointPublisher(host=cfg["host"], port=home_port),
+                    port=home_port,
+                    topic="home"
+                )
+            except Exception as e:
+                logging.error(
+                    "Failed to create dedicated home publisher for robot '%s' at %s:%s: %s",
+                    r_name,
+                    cfg["host"],
+                    home_port,
+                    e,
                 )
 
         # Thread pool for asynchronous publishing
@@ -256,6 +292,8 @@ class MultiRobotAdapter(Robot):
 
         self._is_connected = False
         logging.info(f"MultiRobotAdapter ({self.robot_type}) disconnected successfully")
+
+        self.teleop_safety_stop()
 
     def _get_nested_value(self, data: dict, path: list):
         """Helper to get nested dictionary values using a path list."""
@@ -419,6 +457,61 @@ class MultiRobotAdapter(Robot):
             return observation_frame, action_dict
 
         return None, None
+
+    def _broadcast_to_arms(self, topic: str, print_message: str):
+        """Helper to broadcast a given topic/payload to all arm robots."""
+        print(print_message)
+
+        for r_name, cmd_info in self.command_publishers.items():
+            if cmd_info.get("robot_type") != "arm":
+                continue
+
+            # Prefer dedicated home publisher if available.
+            home_info = self.home_publishers.get(r_name)
+            if home_info is not None:
+                publisher = home_info["publisher"]
+                port = home_info["port"]
+
+                # The payload is just a simple "1" for these signals.
+                publisher.pub_keypoints(1, topic)
+                print(f"Sent '{topic}' signal to arm '{r_name}' via port {port}")
+
+
+    def teleop_safety_stop(self):
+        """Issue a *home* command to every arm robot and temporarily pause
+        operator-driven teleoperation.
+
+        This helper is invoked by ``reset_environment()`` (see
+        ``beavr.common.robot_devices.control_utils``) between dataset
+        recording episodes.  Publishing the ``home`` signal triggers the
+        corresponding ``Robot`` (or compatible) interface to call
+        ``home_arm()`` on the hardware side, returning the robot to its
+        predefined neutral pose and waiting there until the next episode
+        begins.
+        """
+        self._broadcast_to_arms(
+            topic="home",
+            print_message="Broadcasting home signal to all arm robots …",
+        )
+
+        # ------------------------------------------------------------------
+        # Do NOT automatically broadcast a *reset* token here. Keeping the arm in
+        # the paused state ensures that no stray operator commands are executed
+        # during the environment-reset grace period. The reset signal will be sent
+        # explicitly at the *start* of the next episode via :py:meth:`teleop_resume`.
+        # ------------------------------------------------------------------
+
+    def teleop_resume(self):
+        """Explicitly send a reset signal to all arm robots to resume teleoperation.
+
+        This method is called at the beginning of each recording episode to
+        ensure that the arm robots are in a known state before any new
+        teleoperation data is recorded.
+        """
+        self._broadcast_to_arms(
+            topic="reset",
+            print_message="Broadcasting reset signal to all arm robots …",
+        )
 
     def run_calibration(self):
         """No calibration needed for this adapter."""

@@ -7,7 +7,6 @@ from .recorders.sensors import XelaSensorRecorder
 from .sensors import *
 from multiprocessing import Process
 from beavr.constants import *
-from beavr.utils.registry import GlobalRegistry
 from omegaconf import ListConfig # Import ListConfig for type checking
 from beavr.utils.instantiator import instantiate_from_target
 

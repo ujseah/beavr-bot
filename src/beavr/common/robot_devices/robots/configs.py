@@ -726,6 +726,7 @@ class MultiRobotAdapterConfig(RobotConfig):
                     # Port and topic information for action publishing (use 10009, see comment above)
                     "endeff_publish_port": 10009,
                     "command_topic": "endeff_coords",
+                    "home_subscribe_port": 10007,
                 },
                 {
                     "name": "leap",
@@ -741,6 +742,7 @@ class MultiRobotAdapterConfig(RobotConfig):
                     # Publish joint commands on the port the Leap hand operator expects (8120).
                     "joint_angle_publish_port": 8120,
                     "command_topic": "joint_angles",
+                    "home_subscribe_port": 10007,
                 }
             ]
 
@@ -769,6 +771,7 @@ class XArm7OnlyAdapterConfig(MultiRobotAdapterConfig):
                 # Port and topic information for action publishing (use 10009, see comment above)
                 "endeff_publish_port": 10009,
                 "command_topic": "endeff_coords",
+                "home_subscribe_port": 10007,
             }
         ]
 
@@ -797,5 +800,6 @@ class LeapOnlyAdapterConfig(MultiRobotAdapterConfig):
                 # Publish joint commands on the port the Leap hand operator expects (8120).
                 "joint_angle_publish_port": 8120,
                 "command_topic": "joint_angles",
+                "home_subscribe_port": 10007,
             }
         ]

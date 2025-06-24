@@ -686,8 +686,8 @@ class XArmOperator(Operator):
         else:
              orientation_quat = np.array([0.,0.,0.,1.]) # Default to identity if norm is zero
 
-        x, z, y = self.quat_to_axis_angle(orientation_quat[0], orientation_quat[1], orientation_quat[2], orientation_quat[3])
-        axis_angle_orientation = [x, y, z]
+        x, y, z = self.quat_to_axis_angle(orientation_quat[0], orientation_quat[1], orientation_quat[2], orientation_quat[3])
+        axis_angle_orientation = [x, -z, y]
 
         # 11. Publish Command
         command_data = {

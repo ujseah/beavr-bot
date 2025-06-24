@@ -17,6 +17,7 @@ class XArm7RobotCfg:
     endeff_subscribe_port: int = 10009
     joint_subscribe_port: int = 10029
     reset_subscribe_port: int = 10009
+    home_subscribe_port: int = 10007
     robot_ip: str = '192.168.1.197'
     simulation_mode: bool = False
     state_publish_port: int = 10011
@@ -39,6 +40,7 @@ class XArm7RobotCfg:
             endeff_subscribe_port=self.endeff_subscribe_port,
             joint_subscribe_port=self.joint_subscribe_port,
             reset_subscribe_port=self.reset_subscribe_port,
+            home_subscribe_port=self.home_subscribe_port,
             robot_ip=self.robot_ip,
             is_right_arm=self.is_right_arm,
             simulation_mode=self.simulation_mode,
@@ -188,6 +190,7 @@ class LeapXarmRightConfig(TeleopRobotConfig):
                 endeff_subscribe_port=10009,
                 joint_subscribe_port=10029,
                 reset_subscribe_port=10009,
+                home_subscribe_port=10007,
                 robot_ip='192.168.1.197',
                 simulation_mode=False,
                 state_publish_port=10011,
