@@ -2,26 +2,30 @@ import os
 import cv2
 import matplotlib
 import warnings
-# Specifically suppress the FigureCanvasAgg warning
-warnings.filterwarnings('ignore', category=UserWarning, message='FigureCanvasAgg is non-interactive')
-matplotlib.use('TkAgg')  # Set the backend to TkAgg before importing pyplot
 import matplotlib.pyplot as plt
 from .plotter import Plotter
 from beavr.utils.network import ZMQCompressedImageTransmitter
-from beavr.utils.files import *
-from beavr.constants import *
+from beavr.utils.files import check_file, get_npz_data, make_dir
+from beavr.constants import VR_DISPLAY_THUMB_BOUNDS_PATH, VR_THUMB_BOUND_VERTICES, OCULUS_JOINTS, VR_2D_PLOT_SAVE_PATH, CALIBRATION_FILES_PATH
+# Specifically suppress the FigureCanvasAgg warning
+warnings.filterwarnings('ignore', category=UserWarning, message='FigureCanvasAgg is non-interactive')
+matplotlib.use('TkAgg')  # Set the backend to TkAgg before importing pyplot
+
 
 def plot_line(X1, X2, Y1, Y2):
     plt.plot([X1, X2], [Y1, Y2])
 
 class PlotHand2D(Plotter):
-    def __init__(self, host, port, display_plot):
-        # Display plot
-        if not display_plot:
-            matplotlib.use('Agg')
+    def __init__(self, host: str, port: int, display_plot: bool = False):
+        assert isinstance(display_plot, bool), \
+            f"display_plot must be bool, got {type(display_plot)}"
+        if display_plot:
+            plt.ion()
+        else:
+            plt.switch_backend("Agg")
+            plt.ioff()
 
         # Thumb bound info
-        self.display_plot = display_plot
         self.thumb_bounds = None
         self.thumb_bounds_path = VR_DISPLAY_THUMB_BOUNDS_PATH
         self.bound_update_counter = 0
@@ -35,9 +39,6 @@ class PlotHand2D(Plotter):
 
         # Plot streamer settings
         self.socket = ZMQCompressedImageTransmitter(host = host, port = port)
-
-        # Ensure interactive mode is on
-        plt.ion()
 
     def _check_thumb_bounds(self):
         if check_file(self.thumb_bounds_path):

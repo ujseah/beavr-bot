@@ -7,7 +7,6 @@ from queue import Queue
 import traceback
 
 from beavr.utils.network import ZMQKeypointSubscriber, EnhancedZMQKeypointPublisher as ZMQKeypointPublisher
-import time
 import zmq
 from beavr.utils.registry import GlobalRegistry
 

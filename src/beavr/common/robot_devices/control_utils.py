@@ -37,6 +37,10 @@ from beavr.common.robot_devices.robots.utils import Robot
 from beavr.common.robot_devices.utils import busy_wait
 from beavr.common.utils.utils import get_safe_torch_device, has_method
 
+# ---- Asynchronous inference support ----
+import threading
+import queue
+
 
 def log_control_info(robot: Robot, dt_s, episode_index=None, frame_index=None, fps=None):
     log_items = []
@@ -248,6 +252,72 @@ def control_loop(
     if policy is not None:
         policy.reset()
 
+    # =============================================================================
+    # Background worker for asynchronous policy inference
+    # =============================================================================
+    obs_queue = queue.Queue(maxsize=1)
+    last_pred_action_holder = {}
+    infer_thread = None
+
+    def _policy_inference_worker(
+        obs_queue: "queue.Queue[dict]",
+        action_holder: dict,
+        policy: PreTrainedPolicy,
+        device: torch.device,
+        use_amp: bool,
+        events: dict,
+    ):
+        """Continuously read the most recent observation from *obs_queue*, run the
+        policy to compute an action, and store it in *action_holder* under the key
+        "action". The worker terminates when *events["exit_early"]* becomes True.
+
+        Parameters
+        ----------
+        obs_queue : queue.Queue
+            Queue where the main thread pushes the latest observation. Only the
+            last item in the queue is relevant; older ones are discarded.
+        action_holder : dict
+            A shared dictionary where the latest computed action will be stored
+            (under the "action" key).
+        policy : PreTrainedPolicy
+            The policy used for action selection.
+        device : torch.device
+            Torch device on which to run inference.
+        use_amp : bool
+            Whether to run inference under autocast precision mode.
+        events : dict
+            Control dictionary coming from *init_keyboard_listener()* allowing
+            early-exit.
+        """
+        while not events.get("exit_early", False):
+            try:
+                # Block for a short time waiting for the newest observation.
+                observation = obs_queue.get(timeout=0.1)
+            except queue.Empty:
+                continue  # Check exit flag again.
+
+            # Always keep only the most recent observation (drop older ones).
+            while True:
+                try:
+                    observation = obs_queue.get_nowait()
+                except queue.Empty:
+                    break
+
+            try:
+                action = predict_action(observation, policy, device, use_amp)
+                action_holder["action"] = action
+            except Exception:
+                logging.exception("Policy inference failed.")
+                # Do not terminate on failure; keep trying.
+
+    if policy is not None:
+        infer_thread = threading.Thread(
+            target=_policy_inference_worker,
+            args=(obs_queue, last_pred_action_holder, policy, get_safe_torch_device(policy.config.device), policy.config.use_amp, events),
+            daemon=True
+        )
+        infer_thread.start()
+
     while timestamp < control_time_s:
         start_loop_t = time.perf_counter()
 
@@ -257,19 +327,34 @@ def control_loop(
             observation = robot.capture_observation()
             action = None
 
+            # -----------------------------------------------------------------
+            # Asynchronous action generation: push observation to the queue and
+            # send the *last* computed action (if any) to the robot.
+            # -----------------------------------------------------------------
             if policy is not None:
-                pred_action = predict_action(
-                    observation, policy, get_safe_torch_device(policy.config.device), policy.config.use_amp
-                )
-                # Action can eventually be clipped using `max_relative_target`,
-                # so action actually sent is saved in the dataset.
-                action = robot.send_action(pred_action)
-                action = {"action": action}
+                # Push latest observation, discarding older ones if the queue
+                # is full (size 1) so that the worker always sees the freshest
+                # data.
+                if obs_queue.full():
+                    try:
+                        obs_queue.get_nowait()
+                    except queue.Empty:
+                        pass
+                obs_queue.put_nowait(observation)
+
+                pred_action = last_pred_action_holder.get("action")
+
+                if pred_action is not None:
+                    # Action can eventually be clipped using
+                    # `max_relative_target`, so the actual sent action is what
+                    # we record.
+                    action_to_send = robot.send_action(pred_action)
+                    action = {"action": action_to_send}
 
         if dataset is not None:
             if action is None:
-                logging.error("Action is None, skipping frame.")
-                print(action)
+                # logging.error("Action is None, skipping frame.")
+                # print(action)
                 continue
             frame = {**observation, **action, "task": single_task}
             dataset.add_frame(frame)
@@ -296,6 +381,13 @@ def control_loop(
         if events["exit_early"]:
             events["exit_early"] = False
             break
+
+    # ---------------------------------------------------------------------
+    # Clean-up: stop the background worker if it was started.
+    # ---------------------------------------------------------------------
+    if policy is not None and "infer_thread" in locals():
+        events["exit_early"] = True
+        infer_thread.join(timeout=1.0)
 
 
 def reset_environment(robot, events, reset_time_s, fps):

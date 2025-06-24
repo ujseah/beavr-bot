@@ -385,16 +385,16 @@ class XArmOperator(Operator):
              print("SVD did not converge. Returning identity matrix.")
              return np.eye(3) # Fallback
 
-    def quat_to_euler_rad(self, qx: float, qy: float, qz: float, qw: float) -> Tuple[float, float, float]:
+    def quat_to_axis_angle(self, qx: float, qy: float, qz: float, qw: float) -> Tuple[float, float, float]:
         """
-        Convert quaternion (qx, qy, qz, qw order) to Euler angles in radians (Roll, Pitch, Yaw).
+        Convert quaternion (qx, qy, qz, qw order) to axis angle in radians (x, y, z).
         Uses extrinsic 'XYZ' convention suitable for global reference frames.
 
         Args:
             qx, qy, qz, qw: Quaternion components.
 
         Returns:
-            Tuple of (roll, pitch, yaw) in radians.
+            Tuple of (x, y, z) in radians.
         """
         # Ensure quaternion is normalized
         norm = np.sqrt(qx**2 + qy**2 + qz**2 + qw**2)
@@ -406,10 +406,10 @@ class XArmOperator(Operator):
             rot = Rotation.from_quat([qx, qy, qz, qw])
             # Use uppercase 'XYZ' for extrinsic rotations around fixed axes
             # This corresponds to roll, pitch, yaw in a typical aerospace/robotics sequence
-            euler_rad = rot.as_euler('XYZ')
-            return tuple(euler_rad)
+            axis_angle = rot.as_rotvec()
+            return tuple(axis_angle)
         except ValueError:
-             print("Invalid quaternion for Euler conversion. Returning (0,0,0).")
+             print("Invalid quaternion for axis angle conversion. Returning (0,0,0).")
              return (0.0, 0.0, 0.0) # Fallback
 
     def _get_resolution_scale_mode(self) -> float:
@@ -686,13 +686,13 @@ class XArmOperator(Operator):
         else:
              orientation_quat = np.array([0.,0.,0.,1.]) # Default to identity if norm is zero
 
-        roll, pitch, yaw = self.quat_to_euler_rad(orientation_quat[0], orientation_quat[1], orientation_quat[2], orientation_quat[3])
-        euler_orientation = [roll, pitch, yaw]
+        x, z, y = self.quat_to_axis_angle(orientation_quat[0], orientation_quat[1], orientation_quat[2], orientation_quat[3])
+        axis_angle_orientation = [x, y, z]
 
         # 11. Publish Command
         command_data = {
             "position": position.tolist(), # Convert numpy arrays to lists for JSON compatibility
-            "orientation": euler_orientation,
+            "orientation": axis_angle_orientation,
             "timestamp": time.time()
         }
         self.unified_publisher.pub_keypoints(command_data, "endeff_coords")

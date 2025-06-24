@@ -29,6 +29,8 @@ class MultiRobotAdapter(Robot):
         robot_configs: list[dict],
         cameras: dict[str, CameraConfig],
         robot_type: str = "multi_robot",
+        *,
+        debug_joint_obs: bool = True,
     ):
         """Initialize the multi-robot adapter.
         
@@ -45,6 +47,7 @@ class MultiRobotAdapter(Robot):
                 - command_state_path: Path to command states in message (e.g., ["commanded_cartesian_state", "commanded_cartesian_position"])
             cameras: Dictionary of camera configurations
             robot_type: Overall robot type identifier
+            debug_joint_obs: Flag to enable debug printouts for arm joint observations
         """
         self.robot_type = robot_type
         self.robot_configs = robot_configs
@@ -131,6 +134,14 @@ class MultiRobotAdapter(Robot):
         # We keep a small pool (<= #robots) so that PUB sends never block the
         # policy/control loop. Threads are daemonised by default.
         self._publish_pool = ThreadPoolExecutor(max_workers=max(4, len(self.command_publishers)))
+
+        # When enabled, the adapter will emit one log per call to
+        # ``capture_observation`` that prints the raw joint observation it
+        # receives for every *arm* robot.  This is helpful for debugging but
+        # can generate a large amount of output, so it is disabled by
+        # default.  Use a higher log-level (e.g. ``logging.INFO``) or set
+        # this flag to ``True`` when constructing the adapter to activate it.
+        self.debug_joint_obs = debug_joint_obs
 
     def _build_features(self) -> dict:
         """Build the features dictionary dynamically based on robot configurations.
@@ -314,6 +325,7 @@ class MultiRobotAdapter(Robot):
 
         # Build combined state array
         combined_state = []
+        missing_robots: list[str] = []
         
         # Process each robot's state in the sorted order (arms first, then hands)
         for config in self._sorted_configs:
@@ -327,13 +339,30 @@ class MultiRobotAdapter(Robot):
                         joint_data = np.array(joint_data, dtype=np.float32)
                     if joint_data.ndim == 0:
                         joint_data = joint_data.reshape(1)
+
+                    # --------------------------------------------------
+                    # Optional debug printout for arm joint observations
+                    # --------------------------------------------------
+                    # if self.debug_joint_obs and config["robot_type"] == "arm":
+                    #     print(f"[JointObs][{name}] {np.round(joint_data, 5)}")
+                    #     pass
+
                     combined_state.extend(joint_data)
                     continue  # processed this robot
             # If we reach here we did not manage to append any data for this robot.
+            missing_robots.append(name)
+
+            if self.debug_joint_obs:
+                print(f"[MissingState] No live data for robot '{name}', using home pose placeholder")
+
             if config["robot_type"] == "arm":
                 combined_state.extend(np.array(ROBOT_HOME_JS, dtype=np.float32))
             elif config["robot_type"] == "hand":
                 combined_state.extend(np.array(LEAP_HOME_JS, dtype=np.float32))
+
+        # Attach error flags if any
+        if missing_robots:
+            observation["error.missing_states"] = missing_robots
 
         # Convert to torch tensor and store
         if combined_state:

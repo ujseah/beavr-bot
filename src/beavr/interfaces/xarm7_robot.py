@@ -5,7 +5,7 @@ from beavr.utils.network import EnhancedZMQKeypointPublisher as ZMQKeypointPubli
 import numpy as np
 import time
 import zmq
-from beavr.constants import VR_FREQ  # Import VR_FREQ from constants
+from beavr.constants import VR_FREQ
 import logging
 
 class XArm7Robot(RobotWrapper):
@@ -167,50 +167,12 @@ class XArm7Robot(RobotWrapper):
         return joint_state_dict
 
     def get_cartesian_commanded_position(self):
-        """
-        Attempts to receive the latest cartesian command via ZMQ (non-blocking).
-        Parses the expected dictionary format {'position': [...], 'orientation': [...]}.
-        Returns a dictionary containing the last successfully received and parsed command,
-        or None if no valid command has been received yet.
-        """
-        # Try to receive a new command without blocking
-        command_msg = self._cartesian_coords_subscriber.recv_keypoints(flags=zmq.NOBLOCK)
-        received_new_command = False
-
-        if command_msg is not None:
-            # Check if the received message is a dictionary with expected keys
-            if isinstance(command_msg, dict) and 'position' in command_msg and 'orientation' in command_msg:
-                try:
-                    # Extract and combine position and orientation
-                    position = command_msg['position']
-                    orientation = command_msg['orientation']
-                    # Ensure they are numpy arrays before concatenating
-                    combined_coords = np.concatenate([
-                        np.asarray(position, dtype=np.float32),
-                        np.asarray(orientation, dtype=np.float32)
-                    ])
-
-                    # Update the cache with the new valid command
-                    self._latest_commanded_cartesian_position = combined_coords
-                    # Use the timestamp from the message if available, otherwise use current time
-                    self._latest_commanded_cartesian_timestamp = command_msg.get('timestamp', time.time())
-                    received_new_command = True
-                except (TypeError, ValueError) as e:
-                    # Handle potential errors during conversion or concatenation
-                    print(f"Warning: Error processing received cartesian command: {e}. Data: {command_msg}")
-            else:
-                print(f"Warning: Received unexpected command format: {command_msg}")
-
-        # Return the latest valid command from the cache
-        if self._latest_commanded_cartesian_position is not None:
-            command_state_dict = dict(
-                commanded_cartesian_position=self._latest_commanded_cartesian_position, # Already a numpy array
-                timestamp=self._latest_commanded_cartesian_timestamp
-            )
-            return command_state_dict
-        else:
-            # Return None if no valid command has ever been received
+        if self._latest_commanded_cartesian_position is None:
             return None
+        return {
+            "commanded_cartesian_position": self._latest_commanded_cartesian_position,
+            "timestamp": self._latest_commanded_cartesian_timestamp,
+        }
 
     def get_robot_actual_cartesian_position(self):
         cartesian_state=self.get_cartesian_position()
@@ -261,32 +223,26 @@ class XArm7Robot(RobotWrapper):
                 # Calculate next frame time
                 next_frame_time = current_time + target_interval
 
-                recv_coords = self._cartesian_coords_subscriber.recv_keypoints(zmq.NOBLOCK)
-                if recv_coords is not None:
-                    # Track command timestamp and add current timestamp
-                    if 'timestamp' not in recv_coords:
-                        recv_coords['timestamp'] = current_time
-
-                    latency = (current_time - recv_coords.get('timestamp', current_time)) * 1000  # ms
-                    movement_stats["latency_ms"].append(latency)
-                    movement_stats["total_commands"] += 1
-
-                    # Process the frame
-                    try:
-                        cartesian_coords = np.concatenate([
-                            recv_coords['position'],
-                            recv_coords['orientation']
-                        ])
-
-                        # Move the robot
-                        self.move_coords(cartesian_coords)
-                        self.publish_current_state()
-                    except Exception as e:
-                        movement_stats["rejected_commands"] += 1
-                        print(f"Command rejected: {e}")
+                msg = self._cartesian_coords_subscriber.recv_keypoints(zmq.NOBLOCK)
+                if msg:
+                    self._latest_commanded_cartesian_position = np.concatenate(
+                        [np.asarray(msg["position"], dtype=np.float32),
+                         np.asarray(msg["orientation"], dtype=np.float32)]
+                    )
+                    self._latest_commanded_cartesian_timestamp = msg["timestamp"]
+                    # print(f"Latest commanded cartesian position (xarm_7_robot): {self._latest_commanded_cartesian_position}")
+                    self.move_coords(self._latest_commanded_cartesian_position)
 
                 if self.check_reset():
                     self.send_robot_pose()
+
+                # Publish the current state every cycle so that external
+                # adapters (e.g. MultiRobotAdapter) receive up-to-date joint
+                # information for observation building.
+                try:
+                    self.publish_current_state()
+                except Exception as e:
+                    logging.error(f"Failed to publish current state for {self.name}: {e}")
 
                 # Calculate sleep time to maintain consistent frequency
                 sleep_time = max(0, next_frame_time - time.time())

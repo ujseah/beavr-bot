@@ -694,7 +694,7 @@ class MultiRobotAdapterConfig(RobotConfig):
                 height=480,
             ),
             "overhead": OpenCVCameraConfig(
-                camera_index=10,
+                camera_index=6,
                 fps=30,
                 width=640,
                 height=480,

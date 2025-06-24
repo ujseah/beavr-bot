@@ -5,7 +5,7 @@ from xarm import XArmAPI
 from enum import Enum
 import math
 
-from beavr.constants import VR_FREQ, XARM_SCALE_FACTOR, ROBOT_HOME_JS
+from beavr.constants import XARM_SCALE_FACTOR, ROBOT_HOME_JS, VR_FREQ
 from scipy.spatial.transform import Rotation as R
 
 class RobotControlMode(Enum):
@@ -291,7 +291,9 @@ class Robot(XArmAPI):
             self._last_command_time = current_time
             self._metrics["command_times"].append(current_time)
             
-            
+            # Scale position
+            cartesian_pos[0:3] = np.array(cartesian_pos[0:3]) * XARM_SCALE_FACTOR
+
             # Check if we're in servo mode (mode 1)
             # Allow both state 1 (MOVING) and state 2 (READY) as valid states
             if self.mode != 1 or (self.state != 1 and self.state != 2):
@@ -414,7 +416,7 @@ class Robot(XArmAPI):
         # print(f"  Command Interval: {avg_interval:.2f}ms avg, {interval_jitter:.2f}ms jitter")
         # print(f"  Position Change: {avg_delta:.4f} avg, {max_delta:.4f} max")
         
-        # Diagnostic conclusion
+        # # Diagnostic conclusion
         # if interval_jitter > 10:
         #     print("  Warning: High timing jitter detected - commands arriving inconsistently")
         # if max_latency > 50:
