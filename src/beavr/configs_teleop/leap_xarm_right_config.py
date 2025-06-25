@@ -51,11 +51,12 @@ class XArm7RobotCfg:
 @dataclass
 class LeapHandRobotCfg:
     host: str = '10.31.152.148'
-    joint_angle_subscribe_port: str = '8120'
-    joint_angle_publish_port: str = '8119'
-    reset_subscribe_port: str = '8102'
+    joint_angle_subscribe_port: int = 8120
+    joint_angle_publish_port: int = 8119
+    reset_subscribe_port: int = 8102
     simulation_mode: bool = False
     state_publish_port: int = 10012
+    home_suscribe_port: int = 10007
     recorder_config: dict[str, Any] = field(
         default_factory=lambda: {
             "robot_identifier":
@@ -77,20 +78,21 @@ class LeapHandRobotCfg:
             simulation_mode=self.simulation_mode,
             state_publish_port=self.state_publish_port,
             recorder_config=self.recorder_config,
+            home_suscribe_port=self.home_suscribe_port,
         )
 
 @dataclass
 class XArm7RightOperatorCfg:
     host: str = '10.31.152.148'
-    transformed_keypoints_port: str = '8092'
+    transformed_keypoints_port: int = 8092
     stream_configs: dict[str, Any] = field(default_factory=lambda: {"host": "10.31.152.148", "port": "10005"})
     stream_oculus: bool = True
     endeff_publish_port: int = 10009
     endeff_subscribe_port: int = 10010
     moving_average_limit: int = 1
-    arm_resolution_port: str = '8088'
+    arm_resolution_port: int = 8088
     use_filter: bool = False
-    teleoperation_reset_port: str = '8088'
+    teleoperation_reset_port: int = 8088
     logging_config: dict[str, Any] = field(
         default_factory=lambda: {
             "enabled": False,
@@ -114,10 +116,10 @@ class XArm7RightOperatorCfg:
 @dataclass
 class LeapHandOperatorCfg:
     host: str = '10.31.152.148'
-    transformed_keypoints_port: str = '8092'
-    joint_angle_subscribe_port: str = '8119'
-    joint_angle_publish_port: str = '8120'
-    reset_publish_port: str = '8102'
+    transformed_keypoints_port: int = 8092
+    joint_angle_subscribe_port: int = 8119
+    joint_angle_publish_port: int = 8120
+    reset_publish_port: int = 8102
     finger_configs: dict[str, Any] = field(
         default_factory=lambda: {
             "freeze_index": False,
@@ -157,17 +159,17 @@ class LeapXarmRightConfig(TeleopRobotConfig):
     robot_name: str = 'leap_xarm7_right_combo'
     detector: OculusVRHandDetectorCfg = OculusVRHandDetectorCfg(
         host='10.31.152.148',
-        oculus_port='8087',
-        unified_pub_port='8088',
-        button_port='8095',
-        teleop_reset_port='8100'
+        oculus_port=8087,
+        unified_pub_port=8088,
+        button_port=8095,
+        teleop_reset_port=8100
     )
     transforms: list = field(
         default_factory=lambda: [
             TransformHandPositionCoordsCfg(
                 host='10.31.152.148',
-                keypoint_port='8088',
-                transformation_port='8092',
+                keypoint_port=8088,
+                transformation_port=8092,
                 moving_average_limit=1
             )
         ]
@@ -176,8 +178,8 @@ class LeapXarmRightConfig(TeleopRobotConfig):
         default_factory=lambda: [
             Hand2DVisualizerCfg(
                 host='10.31.152.148',
-                transformed_keypoint_port='8092',
-                oculus_feedback_port='15001',
+                transformed_keypoint_port=8092,
+                oculus_feedback_port=15001,
                 display_plot=False
             )
         ]
@@ -207,11 +209,12 @@ class LeapXarmRightConfig(TeleopRobotConfig):
             ),
             LeapHandRobotCfg(
                 host='10.31.152.148',
-                joint_angle_subscribe_port='8120',
-                joint_angle_publish_port='8119',
-                reset_subscribe_port='8102',
+                joint_angle_subscribe_port=8120,
+                joint_angle_publish_port=8119,
+                reset_subscribe_port=8102,
                 simulation_mode=False,
                 state_publish_port=10012,
+                home_suscribe_port=10007,
                 recorder_config={
                     "robot_identifier":
                         "leap",
@@ -228,7 +231,7 @@ class LeapXarmRightConfig(TeleopRobotConfig):
         default_factory=lambda: [
             XArm7RightOperatorCfg(
                 host='10.31.152.148',
-                transformed_keypoints_port='8092',
+                transformed_keypoints_port=8092,
                 stream_configs={
                     "host": "10.31.152.148",
                     "port": "10005"
@@ -237,9 +240,9 @@ class LeapXarmRightConfig(TeleopRobotConfig):
                 endeff_publish_port=10009,
                 endeff_subscribe_port=10010,
                 moving_average_limit=1,
-                arm_resolution_port='8088',
+                arm_resolution_port=8088,
                 use_filter=False,
-                teleoperation_reset_port='8088',
+                teleoperation_reset_port=8088,
                 logging_config={
                     "enabled": False,
                     "log_dir": "logs",
@@ -249,10 +252,10 @@ class LeapXarmRightConfig(TeleopRobotConfig):
             ),
             LeapHandOperatorCfg(
                 host='10.31.152.148',
-                transformed_keypoints_port='8092',
-                joint_angle_subscribe_port='8119',
-                joint_angle_publish_port='8120',
-                reset_publish_port='8102',
+                transformed_keypoints_port=8092,
+                joint_angle_subscribe_port=8119,
+                joint_angle_publish_port=8120,
+                reset_publish_port=8102,
                 finger_configs={
                     "freeze_index": False,
                     "freeze_middle": False,

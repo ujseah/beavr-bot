@@ -12,7 +12,7 @@ from beavr.utils.registry import GlobalRegistry
 
 class LeapHandRobot(RobotWrapper):
     def __init__(self, host, joint_angle_subscribe_port, joint_angle_publish_port, reset_subscribe_port, 
-                 state_publish_port=10008, simulation_mode=False, **kwargs):
+                 state_publish_port=10008, home_subscribe_port=10007, simulation_mode=False, **kwargs):
         """Initialize the robot adapter for data acquisition.
         
         Args:
@@ -67,6 +67,12 @@ class LeapHandRobot(RobotWrapper):
             host = host,
             port = reset_subscribe_port,
             topic = 'reset'
+        )
+
+        self._home_subscriber = ZMQKeypointSubscriber(
+            host = host,
+            port = home_subscribe_port,
+            topic = 'home'
         )
 
         # Add recording control
@@ -196,6 +202,14 @@ class LeapHandRobot(RobotWrapper):
             print(f"Received reset signal for {self.name}")
             return True
         return False
+
+    def check_home(self):
+        """Check if a home message was received"""
+        home_bool = self._home_subscriber.recv_keypoints(flags=zmq.NOBLOCK)
+        if home_bool is not None:
+            print(f"Received home signal for {self.name}")
+            return True
+        return False
     
     def stream(self):
         """Stream loop for LeapHand"""
@@ -238,9 +252,13 @@ class LeapHandRobot(RobotWrapper):
                 
                 # Check for reset signal
                 if self.check_reset():
-                    # print(f"Reset signal received for {self.name}")
-                    # Automatically start recording
+                    # Automatically start recording after reset
                     self.start_recording()
+
+                # Check for home signal and send robot to home position
+                # if self.check_home():
+                #     self.home()
+                #     pass
                 
                 time.sleep(1/self._data_frequency)
                 
@@ -298,3 +316,4 @@ class LeapHandRobot(RobotWrapper):
         if hasattr(self, '_joint_angle_publisher'): self._joint_angle_publisher.stop()
         if hasattr(self, '_state_publisher'): self._state_publisher.stop()
         if hasattr(self, '_reset_subscriber'): self._reset_subscriber.stop()
+        if hasattr(self, '_home_subscriber'): self._home_subscriber.stop()

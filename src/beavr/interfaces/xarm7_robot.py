@@ -221,14 +221,20 @@ class XArm7Robot(RobotWrapper):
         self._general_publisher.pub_keypoints(cartesian_state, "endeff_homo")
 
     def check_reset(self):
-        # Check dedicated RESET subscriber first
         reset_bool = self._reset_subscriber.recv_keypoints(flags=zmq.NOBLOCK)
+        if reset_bool is not None:
+            return True
+        else:
+            return False
+        
+    def check_resume(self):
+        resume_bool = self._reset_subscriber.recv_keypoints(flags=zmq.NOBLOCK)
 
         # Fallback: check optional secondary subscriber on the *home* port
-        if reset_bool is None and self._reset_home_subscriber is not None:
-            reset_bool = self._reset_home_subscriber.recv_keypoints(flags=zmq.NOBLOCK)
-
-        return reset_bool is not None
+        if resume_bool is None and self._reset_home_subscriber is not None:
+            resume_bool = self._reset_home_subscriber.recv_keypoints(flags=zmq.NOBLOCK)
+        
+        return resume_bool is not None
 
     def check_home(self):
         home_bool = self._home_subscriber.recv_keypoints(flags=zmq.NOBLOCK)
@@ -236,7 +242,7 @@ class XArm7Robot(RobotWrapper):
 
     # Modified stream method with automatic recording start after reset
     def stream(self):
-        self._controller.home_arm()
+        self.home()
         assert self._controller.robot.set_mode_and_state(1, 0), "Failed to enter SERVO-READY"
         
         target_interval = 1.0 / self._data_frequency
@@ -258,9 +264,9 @@ class XArm7Robot(RobotWrapper):
                 if self.check_home():
                     print("Home signal received")
                     # Enter *paused* mode and home the arm.
-                    self._controller.home_arm()
+                    self.home()
                     self._teleop_paused = True
-                    print(f"Teleop paused for {self._teleop_paused}")
+                    print("Teleop paused")
 
                     # ------------------------------------------------------------------
                     # Remove *any* additional queued home signals so that we do not
@@ -280,12 +286,17 @@ class XArm7Robot(RobotWrapper):
                         if leftover is None:
                             break
 
+                # --------------------------------------------------------------
+                # Handle *reset* first so we always publish the current pose
+                # --------------------------------------------------------------
                 if self.check_reset():
-                    # Resume teleoperation: publish current pose so the
-                    # operator can re-initialise its kinematic mapping.
                     self.send_robot_pose()
                     self._teleop_paused = False
-                    print(f"Teleop resumed for {self._teleop_paused}")
+
+                # Only if we are still paused check for an explicit 'resume'
+                if self._teleop_paused and self.check_resume():
+                    self._teleop_paused = False
+
                 # ------------------------------------------------------------------
                 # 2) Process incoming Cartesian targets **only when** teleop is
                 #    active.
