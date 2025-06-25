@@ -6,7 +6,7 @@ import torch
 from concurrent.futures import ThreadPoolExecutor
 import os
 
-from beavr.constants import LEAP_HOME_JS, ROBOT_HOME_JS
+from beavr.constants import LEAP_HOME_JS, ROBOT_HOME_JS, XARM_SCALE_FACTOR
 from beavr.common.robot_devices.robots.utils import Robot
 from beavr.common.datasets.utils import Frame
 from beavr.common.robot_devices.cameras.configs import CameraConfig, OpenCVCameraConfig
@@ -429,7 +429,7 @@ class MultiRobotAdapter(Robot):
         # Get observation frame
         observation_frame = self.capture_observation()
 
-        # Build combined action array
+        # Build combined action array (raw, in native units)
         combined_action = []
         
         # Process each robot's action in the sorted order (arms first, then hands)
@@ -451,7 +451,25 @@ class MultiRobotAdapter(Robot):
                             joint_data = joint_data.reshape(1)
                         combined_action.extend(joint_data)
 
-        action_dict = {"action": np.array(combined_action, dtype=np.float32)} if combined_action else None
+        # ------------------------------------------------------------------
+        # Convert linear components of **arm** actions from millimetres to
+        # metres before writing them to the dataset.  We iterate over the
+        # robots in the same order that combined_action was built so that the
+        # cursor logic aligns with the segment boundaries.
+        # ------------------------------------------------------------------
+        if combined_action:
+            action_arr = np.asarray(combined_action, dtype=np.float32)
+            cursor = 0
+            for cfg in self._sorted_configs:
+                if cfg["robot_type"] == "arm":
+                    # First three values are x-y-z translation
+                    action_arr[cursor : cursor + 3] /= XARM_SCALE_FACTOR
+                    cursor += 6  # skip 6-DoF segment (x y z roll pitch yaw)
+                else:
+                    cursor += cfg["joint_count"]
+            action_dict = {"action": action_arr}
+        else:
+            action_dict = None
 
         if observation_frame is not None:
             return observation_frame, action_dict
