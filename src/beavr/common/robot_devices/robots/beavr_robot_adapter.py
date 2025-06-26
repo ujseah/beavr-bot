@@ -180,6 +180,10 @@ class MultiRobotAdapter(Robot):
         # this flag to ``True`` when constructing the adapter to activate it.
         self.debug_joint_obs = debug_joint_obs
 
+        # Cache last sent axis-angle orientation for each arm to ensure
+        # sign continuity when actions cross the ±π boundary
+        self._last_axis_angles: dict[str, np.ndarray] = {}
+
     def _build_features(self) -> dict:
         """Build the features dictionary dynamically based on robot configurations.
         
@@ -601,6 +605,11 @@ class MultiRobotAdapter(Robot):
                 if theta > 1e-6:
                     wrapped = ((theta + np.pi) % (2 * np.pi)) - np.pi
                     ori = ori / theta * wrapped
+                # Maintain orientation continuity using cached previous vector
+                last = self._last_axis_angles.get(name)
+                if last is not None and np.linalg.norm(ori - last) > np.pi:
+                    ori = -ori
+                self._last_axis_angles[name] = ori.copy()
                 payload = {
                     "position": pos.tolist(),
                     "orientation": ori.tolist(),
