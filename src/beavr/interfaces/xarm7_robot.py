@@ -248,6 +248,11 @@ class XArm7Robot(RobotWrapper):
         target_interval = 1.0 / self._data_frequency
         next_frame_time = time.time()
         
+        # At the top of the stream() method, **before the main loop**:
+        last_msg_time   = None        # holds timestamp of previous command
+        avg_start_time  = time.time() # window start for average frequency
+        msg_counter     = 0           # how many commands arrived in this window
+        
         while True:
             current_time = time.time()
 
@@ -310,6 +315,25 @@ class XArm7Robot(RobotWrapper):
                         )
                         self._latest_commanded_cartesian_timestamp = msg["timestamp"]
                         self.move_coords(self._latest_commanded_cartesian_position)
+
+                        # -------------------------------------------------------------
+                        # Inside the main while True loop, right after `if msg:`:
+                        now = time.time()
+
+                        # 1. Instantaneous frequency ----------------------------------
+                        if last_msg_time is not None:
+                            inst_freq = 1.0 / (now - last_msg_time)
+                            # print(f"Instantaneous cmd freq: {inst_freq:6.2f} Hz")
+
+                        last_msg_time = now
+
+                        # 2. Running average over 1-second windows --------------------
+                        msg_counter += 1
+                        if now - avg_start_time >= 1.0:
+                            avg_freq = msg_counter / (now - avg_start_time)
+                            # print(f"Average cmd freq over last second: {avg_freq:6.2f} Hz")
+                            avg_start_time = now
+                            msg_counter = 0
 
                 # Publish the current state every cycle so that external
                 # adapters (e.g. MultiRobotAdapter) receive up-to-date joint

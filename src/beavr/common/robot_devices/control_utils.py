@@ -128,7 +128,17 @@ def predict_action(observation, policy, device, use_amp):
 
         # Move to cpu, if not already the case
         action = action.to("cpu")
-
+    # Print the first 7 elements of the state
+    obs_state_first7 = (
+        observation["observation.state"]       # (1, state_dim)
+        .squeeze(0)                            # (state_dim,)
+        .to("cpu")                             # ensure it is on CPU
+        [:7]                                   # take first 7 elements
+    )
+    obs_state_rounded = obs_state_first7.numpy().round(4).tolist()
+    action_rounded = action[:6].numpy().round(4).tolist()
+    print(f"observation: {obs_state_rounded}")
+    print(f"action: {action_rounded}")
     return action
 
 

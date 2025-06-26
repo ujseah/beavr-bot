@@ -90,7 +90,8 @@ class MultiRobotAdapter(Robot):
         # The port/topic naming follows the conventions used across the
         # code-base (see configs/leap_xarm_right.yaml):
         #   • Arm robots listen for Cartesian targets on  <endeff_publish_port>
-        #     with topic "endeff_coords" (x, y, z, roll, pitch, yaw)
+        #     with topic "endeff_coords" (x, y, z, ax, ay, az) where the
+        #     orientation is in axis-angle format
         #   • Hand robots listen for joint targets on <joint_angle_publish_port>
         #     with topic "joint_angles"
         # For maximum flexibility we inspect the config for these keys. If a
@@ -214,7 +215,7 @@ class MultiRobotAdapter(Robot):
         action_names = []
         for config in sorted_configs:
             if config["robot_type"] == "arm":
-                action_names.extend([f"{config['name']}_{dim}" for dim in ["x", "y", "z", "roll", "pitch", "yaw"]])
+                action_names.extend([f"{config['name']}_{dim}" for dim in ["x", "y", "z", "ax", "ay", "az"]])
             else:
                 action_names.extend([f"{config['name']}_cmd_{i}" for i in range(config["joint_count"])])
         
@@ -464,7 +465,7 @@ class MultiRobotAdapter(Robot):
                 if cfg["robot_type"] == "arm":
                     # First three values are x-y-z translation
                     action_arr[cursor : cursor + 3] /= XARM_SCALE_FACTOR
-                    cursor += 6  # skip 6-DoF segment (x y z roll pitch yaw)
+                    cursor += 6  # skip 6-DoF segment (x y z ax ay az)
                 else:
                     cursor += cfg["joint_count"]
             action_dict = {"action": action_arr}
@@ -541,7 +542,7 @@ class MultiRobotAdapter(Robot):
         The input `action` is assumed to follow the ordering defined in
         `self._sorted_configs` (all arm actions first, then hand actions).
 
-        • Arm action (6-DoF): `[x, y, z, roll, pitch, yaw]` will be mapped to a
+        • Arm action (6-DoF): `[x, y, z, ax, ay, az]` will be mapped to a
           dictionary `{"position": [...], "orientation": [...], "timestamp": t}`
           and published on topic ``endeff_coords``.
         • Hand action (`n` joints): raw joint position array will be published
@@ -594,7 +595,12 @@ class MultiRobotAdapter(Robot):
             # Build the payload according to robot type ------------------
             if r_type == "arm":
                 pos = segment_np[:3]
+                # Normalize the orientation [-π, π]
                 ori = segment_np[3:]
+                theta = np.linalg.norm(ori)
+                if theta > 1e-6:
+                    wrapped = ((theta + np.pi) % (2 * np.pi)) - np.pi
+                    ori = ori / theta * wrapped
                 payload = {
                     "position": pos.tolist(),
                     "orientation": ori.tolist(),

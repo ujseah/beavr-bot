@@ -676,10 +676,10 @@ class XArmOperator(Operator):
         else:
             cart_target_filtered = cart_target_raw # No filtering
 
-        # 10. Convert Filtered Pose to desired output format (Pos + Euler)
+        # 10. Convert Filtered Pose to desired output format (axis-angle)
         position = cart_target_filtered[0:3]
         orientation_quat = cart_target_filtered[3:7]
-        # Ensure quaternion is normalized before converting to Euler
+        # Ensure quaternion is normalized before converting to axis-angle
         norm = np.linalg.norm(orientation_quat)
         if norm > 1e-6:
              orientation_quat /= norm
