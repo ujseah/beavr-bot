@@ -333,7 +333,7 @@ class Robot(XArmAPI):
             
             # Print metrics periodically
             if current_time - self._last_metrics_print > self._metrics_print_interval:
-                self._print_performance_metrics()
+                self._print_performance_metrics(print_metrics=False)
                 self._last_metrics_print = current_time
             
             return status
@@ -406,7 +406,7 @@ class Robot(XArmAPI):
         return np.block([[rotation, translation[:, np.newaxis]],
                         [0, 0, 0, 1]])
 
-    def _print_performance_metrics(self):
+    def _print_performance_metrics(self, print_metrics=False):
         """Print detailed performance metrics"""
         metrics = self._metrics
         
@@ -419,32 +419,33 @@ class Robot(XArmAPI):
         avg_latency = max_latency = 0
         avg_interval = interval_jitter = 0
         avg_delta = max_delta = 0
+        
+        if print_metrics:
+            # Calculate statistics only if we have data
+            if len(metrics["command_latencies"]) > 0:
+                avg_latency = sum(metrics["command_latencies"]) / len(metrics["command_latencies"])
+                max_latency = max(metrics["command_latencies"])
             
-        # Calculate statistics only if we have data
-        if len(metrics["command_latencies"]) > 0:
-            avg_latency = sum(metrics["command_latencies"]) / len(metrics["command_latencies"])
-            max_latency = max(metrics["command_latencies"])
-        
-        if len(metrics["interval_times"]) > 1:
-            avg_interval = sum(metrics["interval_times"]) / len(metrics["interval_times"])
-            interval_jitter = np.std(metrics["interval_times"])
-        
-        if len(metrics["position_deltas"]) > 1:
-            avg_delta = sum(metrics["position_deltas"]) / len(metrics["position_deltas"])
-            max_delta = max(metrics["position_deltas"])
-        
-        # print("\nPerformance Metrics:")
-        # print(f"  Command Latency: {avg_latency:.2f}ms avg, {max_latency:.2f}ms max")
-        # print(f"  Command Interval: {avg_interval:.2f}ms avg, {interval_jitter:.2f}ms jitter")
-        # print(f"  Position Change: {avg_delta:.4f} avg, {max_delta:.4f} max")
-        
-        # # Diagnostic conclusion
-        # if interval_jitter > 10:
-        #     print("  Warning: High timing jitter detected - commands arriving inconsistently")
-        # if max_latency > 50:
-        #     print("  Warning: High maximum latency detected - some commands delayed significantly")
-        # if max_delta > 0.05:
-        #     print("  Warning: Large position jumps detected - may cause jerky motion")
+            if len(metrics["interval_times"]) > 1:
+                avg_interval = sum(metrics["interval_times"]) / len(metrics["interval_times"])
+                interval_jitter = np.std(metrics["interval_times"])
+            
+            if len(metrics["position_deltas"]) > 1:
+                avg_delta = sum(metrics["position_deltas"]) / len(metrics["position_deltas"])
+                max_delta = max(metrics["position_deltas"])
+            
+            print("\nPerformance Metrics:")
+            print(f"  Command Latency: {avg_latency:.2f}ms avg, {max_latency:.2f}ms max")
+            print(f"  Command Interval: {avg_interval:.2f}ms avg, {interval_jitter:.2f}ms jitter")
+            print(f"  Position Change: {avg_delta:.4f} avg, {max_delta:.4f} max")
+            
+            # Diagnostic conclusion
+            if interval_jitter > 10:
+                print("  Warning: High timing jitter detected - commands arriving inconsistently")
+            if max_latency > 50:
+                print("  Warning: High maximum latency detected - some commands delayed significantly")
+            if max_delta > 0.05:
+                print("  Warning: Large position jumps detected - may cause jerky motion")
 
 class DexArmControl:
     """Controller class for XArm robot using the Robot implementation"""
