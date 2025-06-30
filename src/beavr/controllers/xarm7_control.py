@@ -7,6 +7,7 @@ import math
 
 from beavr.constants import XARM_SCALE_FACTOR, ROBOT_HOME_JS, VR_FREQ
 from scipy.spatial.transform import Rotation as R
+from beavr.utils.orientation import quat_positive, quat_to_axis_angle
 
 class RobotControlMode(Enum):
     CARTESIAN_CONTROL = 0
@@ -291,20 +292,41 @@ class Robot(XArmAPI):
             self._last_command_time = current_time
             self._metrics["command_times"].append(current_time)
             
-            # Scale position
-            cartesian_pos[0:3] = np.array(cartesian_pos[0:3]) * XARM_SCALE_FACTOR
+            # ------------------------------------------------------------------
+            # Convert xyz + quaternion -> xyz + axis–angle expected by xArm SDK
+            # ------------------------------------------------------------------
+            if len(cartesian_pos) != 7:
+                raise ValueError("Expected 7-D pose (x,y,z,qx,qy,qz,qw) with quaternion orientation")
 
-            # Check if we're in servo mode (mode 1)
-            # Allow both state 1 (MOVING) and state 2 (READY) as valid states
+            pos_m = np.asarray(cartesian_pos[0:3], dtype=np.float32)
+            quat  = np.asarray(cartesian_pos[3:7], dtype=np.float32)
+
+            # Normalise and force positive hemisphere using shared utils
+            quat = quat_positive(quat)
+
+            # Quaternion → rotation-vector (axis–angle, length-3)
+            rotvec = quat_to_axis_angle(quat)
+
+            # Map to xArm convention (rx, -rz, ry)  – keeps behaviour identical to
+            # the previous operator-side conversion.
+            aa = np.array([rotvec[0], -rotvec[2], rotvec[1]], dtype=np.float32)
+
+            # Assemble 6-D pose in *millimetres* for the SDK call
+            pose_mm = np.zeros(6, dtype=np.float32)
+            pose_mm[0:3] = pos_m * XARM_SCALE_FACTOR
+            pose_mm[3:6] = aa
+
+            # ------------------------------------------------------------------
+            # Ensure correct servo mode / state before sending the command
+            # ------------------------------------------------------------------
             if self.mode != 1 or (self.state != 1 and self.state != 2):
                 print(f"Robot not in correct mode/state. Current: Mode={self.mode}, State={self.state}")
-                # Try to set correct mode and wait for READY state
-                self.set_mode_and_state(1, 0)  # Servo mode + STANDBY (→ READY)
-                time.sleep(0.2)  # Give it time to transition
-            
-            # Execute move in servo mode
+                self.set_mode_and_state(1, 0)
+                time.sleep(0.2)
+
+            # Execute move in servo mode using axis–angle format
             status = self.set_servo_cartesian_aa(
-                cartesian_pos, wait=False, relative=False, mvacc=50, speed=10, is_radian=True)
+                pose_mm, wait=False, relative=False, mvacc=50, speed=10, is_radian=True)
             
             if status != 0:
                 print(f"Servo cartesian command failed with status {status}")

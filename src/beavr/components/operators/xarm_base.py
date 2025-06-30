@@ -676,24 +676,24 @@ class XArmOperator(Operator):
         else:
             cart_target_filtered = cart_target_raw # No filtering
 
-        # 10. Convert Filtered Pose to desired output format (axis-angle)
+        # 10. Prepare filtered pose for publishing (quaternion orientation, positive hemisphere)
         position = cart_target_filtered[0:3]
-        orientation_quat = cart_target_filtered[3:7]
-        # Ensure quaternion is normalized before converting to axis-angle
+        orientation_quat = cart_target_filtered[3:7].copy()
+
+        # Normalise and force the quaternion into the *positive* hemisphere (w >= 0)
         norm = np.linalg.norm(orientation_quat)
-        if norm > 1e-6:
-             orientation_quat /= norm
+        if norm < 1e-6:
+            orientation_quat = np.array([0.0, 0.0, 0.0, 1.0], dtype=np.float32)
         else:
-             orientation_quat = np.array([0.,0.,0.,1.]) # Default to identity if norm is zero
+            orientation_quat = orientation_quat / norm
+            if orientation_quat[3] < 0:  # w component negative → flip sign
+                orientation_quat = -orientation_quat
 
-        x, y, z = self.quat_to_axis_angle(orientation_quat[0], orientation_quat[1], orientation_quat[2], orientation_quat[3])
-        axis_angle_orientation = [x, -z, y]
-
-        # 11. Publish Command
+        # 11. Publish Command (quaternion-based orientation)
         command_data = {
-            "position": position.tolist(), # Convert numpy arrays to lists for JSON compatibility
-            "orientation": axis_angle_orientation,
-            "timestamp": time.time()
+            "position": position.tolist(),  # xyz in metres
+            "orientation": orientation_quat.tolist(),  # qx, qy, qz, qw with qw >= 0
+            "timestamp": time.time(),
         }
         self.unified_publisher.pub_keypoints(command_data, "endeff_coords")
 

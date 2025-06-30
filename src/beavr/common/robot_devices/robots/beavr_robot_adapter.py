@@ -4,9 +4,8 @@ import numpy as np
 import zmq
 import torch
 from concurrent.futures import ThreadPoolExecutor
-import os
 
-from beavr.constants import LEAP_HOME_JS, ROBOT_HOME_JS, XARM_SCALE_FACTOR
+from beavr.constants import LEAP_HOME_JS, ROBOT_HOME_JS
 from beavr.common.robot_devices.robots.utils import Robot
 from beavr.common.datasets.utils import Frame
 from beavr.common.robot_devices.cameras.configs import CameraConfig, OpenCVCameraConfig
@@ -180,8 +179,14 @@ class MultiRobotAdapter(Robot):
         # this flag to ``True`` when constructing the adapter to activate it.
         self.debug_joint_obs = debug_joint_obs
 
-        # Cache last sent axis-angle orientation for each arm to ensure
-        # sign continuity when actions cross the ±π boundary
+        # Replace simple axis-angle cache by a quaternion based cache that is
+        # numerically stable and hemisphere-aware.  Each entry stores the
+        # *unit* quaternion (x, y, z, w) that was last sent for a given arm.
+        self._last_quaternions: dict[str, np.ndarray] = {}
+
+        # Cache the *axis-angle vector* that was last transmitted so we can
+        # enforce continuity on the vector form as well (handles the π ↔ −π
+        # wrap which quaternions alone cannot prevent once we map back).
         self._last_axis_angles: dict[str, np.ndarray] = {}
 
     def _build_features(self) -> dict:
@@ -202,7 +207,7 @@ class MultiRobotAdapter(Robot):
         
         # Calculate total dimensions
         total_obs_dim = sum(c["joint_count"] for c in sorted_configs)
-        total_action_dim = sum(6 if c["robot_type"] == "arm" else c["joint_count"] for c in sorted_configs)
+        total_action_dim = sum(7 if c["robot_type"] == "arm" else c["joint_count"] for c in sorted_configs)
         
         # Build combined observation feature
         obs_names = []
@@ -219,7 +224,7 @@ class MultiRobotAdapter(Robot):
         action_names = []
         for config in sorted_configs:
             if config["robot_type"] == "arm":
-                action_names.extend([f"{config['name']}_{dim}" for dim in ["x", "y", "z", "ax", "ay", "az"]])
+                action_names.extend([f"{config['name']}_{dim}" for dim in ["x", "y", "z", "qx", "qy", "qz", "qw"]])
             else:
                 action_names.extend([f"{config['name']}_cmd_{i}" for i in range(config["joint_count"])])
         
@@ -456,23 +461,8 @@ class MultiRobotAdapter(Robot):
                             joint_data = joint_data.reshape(1)
                         combined_action.extend(joint_data)
 
-        # ------------------------------------------------------------------
-        # Convert linear components of **arm** actions from millimetres to
-        # metres before writing them to the dataset.  We iterate over the
-        # robots in the same order that combined_action was built so that the
-        # cursor logic aligns with the segment boundaries.
-        # ------------------------------------------------------------------
         if combined_action:
-            action_arr = np.asarray(combined_action, dtype=np.float32)
-            cursor = 0
-            for cfg in self._sorted_configs:
-                if cfg["robot_type"] == "arm":
-                    # First three values are x-y-z translation
-                    action_arr[cursor : cursor + 3] /= XARM_SCALE_FACTOR
-                    cursor += 6  # skip 6-DoF segment (x y z ax ay az)
-                else:
-                    cursor += cfg["joint_count"]
-            action_dict = {"action": action_arr}
+            action_dict = {"action": np.asarray(combined_action, dtype=np.float32)}
         else:
             action_dict = None
 
@@ -582,7 +572,7 @@ class MultiRobotAdapter(Robot):
         for cfg in self._sorted_configs:
             name = cfg["name"]
             r_type = cfg["robot_type"]
-            dim = 6 if r_type == "arm" else cfg["joint_count"]
+            dim = 7 if r_type == "arm" else cfg["joint_count"]
 
             segment = action_np[cursor : cursor + dim]
             cursor += dim
@@ -599,20 +589,15 @@ class MultiRobotAdapter(Robot):
             # Build the payload according to robot type ------------------
             if r_type == "arm":
                 pos = segment_np[:3]
-                # Normalize the orientation [-π, π]
-                ori = segment_np[3:]
-                theta = np.linalg.norm(ori)
-                if theta > 1e-6:
-                    wrapped = ((theta + np.pi) % (2 * np.pi)) - np.pi
-                    ori = ori / theta * wrapped
-                # Maintain orientation continuity using cached previous vector
-                last = self._last_axis_angles.get(name)
-                if last is not None and np.linalg.norm(ori - last) > np.pi:
-                    ori = -ori
-                self._last_axis_angles[name] = ori.copy()
+                quat = segment_np[3:7]
+                # Force positive hemisphere for reproducibility
+                if quat[3] < 0:
+                    quat = -quat
+                self._last_quaternions[name] = quat.copy()
+
                 payload = {
                     "position": pos.tolist(),
-                    "orientation": ori.tolist(),
+                    "orientation": quat.tolist(),  # qx,qy,qz,qw
                     "timestamp": time.time(),
                 }
             elif r_type == "hand":
@@ -647,9 +632,12 @@ class MultiRobotAdapter(Robot):
                 f"Async publish error for robot '{cfg['name']}' on tcp://{cfg['host']}:{pub_info['port']}: {e}"
             )
 
-    # ------------------------------------------------------------------
     def __del__(self):
         # Shutdown thread-pool gracefully
         if hasattr(self, "_publish_pool"):
             self._publish_pool.shutdown(wait=False)
+        if hasattr(self, "_last_quaternions"):
+            self._last_quaternions.clear()
+        if hasattr(self, "_last_axis_angles"):
+            self._last_axis_angles.clear()
         # existing cleanup continues automatically

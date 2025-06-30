@@ -4,9 +4,9 @@ from .recorders.image import RGBImageRecorder, DepthImageRecorder, FishEyeImageR
 from .recorders.robot_state import RobotInformationRecord
 from .recorders.sim_state import SimInformationRecord
 from .recorders.sensors import XelaSensorRecorder
-from .sensors import *
+from .sensors import RealsenseCamera, FishEyeCamera
 from multiprocessing import Process
-from beavr.constants import *
+from beavr.constants import DEPTH_PORT_OFFSET
 from omegaconf import ListConfig # Import ListConfig for type checking
 from beavr.utils.instantiator import instantiate_from_target
 

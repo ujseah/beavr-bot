@@ -51,7 +51,17 @@ class XArm7RobotCfg:
     reset_subscribe_port: int = 10009
     state_publish_port: int = 10011
     home_subscribe_port: int = 10007
-    recorder_config: dict[str, Any] = field(default_factory=lambda: {"robot_identifier": "right_xarm7", "recorded_data": ["joint_states", "xarm_cartesian_states", "commanded_cartesian_state", "joint_angles_rad"]})
+    recorder_config: dict[str, Any] = field(
+        default_factory=lambda: {
+            "robot_identifier": "right_xarm7",
+            "recorded_data": [
+                "joint_states",
+                "xarm_cartesian_states",
+                "commanded_cartesian_state",
+                "joint_angles_rad"
+                ]
+            }
+        )
 
     def build(self):
         return XArm7Robot(host=self.host, robot_ip=self.robot_ip, is_right_arm=self.is_right_arm, endeff_publish_port=self.endeff_publish_port, endeff_subscribe_port=self.endeff_subscribe_port, joint_subscribe_port=self.joint_subscribe_port, reset_subscribe_port=self.reset_subscribe_port, state_publish_port=self.state_publish_port, home_subscribe_port=self.home_subscribe_port, recorder_config=self.recorder_config)
