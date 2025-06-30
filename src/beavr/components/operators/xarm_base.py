@@ -3,13 +3,18 @@ import zmq
 from copy import deepcopy as copy
 from scipy.spatial.transform import Rotation, Slerp
 import time
-from typing import Tuple, Dict, Any, Optional
+from typing import Dict, Any, Optional
 
-from beavr.constants import *
+from beavr.constants import (
+    VR_FREQ,
+    ARM_TELEOP_CONT,
+    ARM_TELEOP_STOP,
+    ARM_HIGH_RESOLUTION,
+    ARM_LOW_RESOLUTION,
+)
 from beavr.utils.timer import FrequencyTimer
 from beavr.utils.network import ZMQKeypointSubscriber
 from beavr.utils.network import EnhancedZMQKeypointPublisher as ZMQKeypointPublisher
-from beavr.utils.vectorops import *
 from .operator import Operator
 
 from beavr.utils.logger import PoseLogger
@@ -385,33 +390,6 @@ class XArmOperator(Operator):
              print("SVD did not converge. Returning identity matrix.")
              return np.eye(3) # Fallback
 
-    def quat_to_axis_angle(self, qx: float, qy: float, qz: float, qw: float) -> Tuple[float, float, float]:
-        """
-        Convert quaternion (qx, qy, qz, qw order) to axis angle in radians (x, y, z).
-        Uses extrinsic 'XYZ' convention suitable for global reference frames.
-
-        Args:
-            qx, qy, qz, qw: Quaternion components.
-
-        Returns:
-            Tuple of (x, y, z) in radians.
-        """
-        # Ensure quaternion is normalized
-        norm = np.sqrt(qx**2 + qy**2 + qz**2 + qw**2)
-        if norm < 1e-6: # Avoid division by zero
-            return (0.0, 0.0, 0.0) # Return zero angles for zero quaternion
-        qx, qy, qz, qw = qx/norm, qy/norm, qz/norm, qw/norm
-
-        try:
-            rot = Rotation.from_quat([qx, qy, qz, qw])
-            # Use uppercase 'XYZ' for extrinsic rotations around fixed axes
-            # This corresponds to roll, pitch, yaw in a typical aerospace/robotics sequence
-            axis_angle = rot.as_rotvec()
-            return tuple(axis_angle)
-        except ValueError:
-             print("Invalid quaternion for axis angle conversion. Returning (0,0,0).")
-             return (0.0, 0.0, 0.0) # Fallback
-
     def _get_resolution_scale_mode(self) -> float:
         """Gets the resolution scale mode from the subscriber."""
         if not self._arm_resolution_subscriber:
@@ -713,20 +691,6 @@ class XArmOperator(Operator):
                     )
             except Exception as e:
                 print(f"Error logging frame ({self.operator_name}): {e}")
-
-        # Optional diagnostics print
-        # if time.time() % 5 < 0.02: # Print roughly every 5 seconds based on VR_FREQ
-        #     print(f"\nDiagnostics ({self.operator_name}):")
-        #     print(f"  Teleop State: {'CONT' if self.arm_teleop_state == ARM_TELEOP_CONT else 'STOP'}")
-        #     print(f"  Resolution Scale: {self.resolution_scale:.2f}")
-        #     if self.hand_moving_h is not None:
-        #          print(f"  Hand Moving Det: {np.linalg.det(self.hand_moving_h[:3,:3]):.4f}")
-        #     if self.robot_moving_h is not None:
-        #          print(f"  Robot Target Det: {np.linalg.det(self.robot_moving_h[:3,:3]):.4f}")
-        #     print(f"  Target Pos: [{position[0]:.3f}, {position[1]:.3f}, {position[2]:.3f}]")
-        #     print(f"  Target Euler (deg): R={np.degrees(euler_orientation[0]):.1f}, P={np.degrees(euler_orientation[1]):.1f}, Y={np.degrees(euler_orientation[2]):.1f}")
-        #     if self.comp_filter and hasattr(self.comp_filter, 'velocity'):
-        #          print(f"  Filter Vel Norm: {np.linalg.norm(self.comp_filter.velocity):.4f}")
 
 
     def moving_average(self, action: np.ndarray, queue: list, limit: int) -> np.ndarray:
