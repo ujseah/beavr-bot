@@ -97,6 +97,12 @@ ARM_LOW_RESOLUTION = 0
 ARM_TELEOP_CONT = 1
 ARM_TELEOP_STOP = 0
 
+TELEOP_RESET_PORT = 8100
+
+# Port used for the optional REQ/REP pause-handshake between adapter (client)
+# and operator (server).  Chosen to be out of the way of existing PUB/SUB
+# ports but can be overridden per deployment via config if needed.
+TELEOP_HANDSHAKE_PORT = 8150
 
 # Bimanual Robot Constants
 

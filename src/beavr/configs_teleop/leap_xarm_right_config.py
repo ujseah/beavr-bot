@@ -90,9 +90,8 @@ class XArm7RightOperatorCfg:
     endeff_publish_port: int = 10009
     endeff_subscribe_port: int = 10010
     moving_average_limit: int = 1
-    arm_resolution_port: int = 8088
     use_filter: bool = False
-    teleoperation_reset_port: int = 8088
+    teleoperation_reset_port: int = 8089
     logging_config: dict[str, Any] = field(
         default_factory=lambda: {
             "enabled": False,
@@ -106,10 +105,13 @@ class XArm7RightOperatorCfg:
         return XArm7RightOperator(
             host=self.host,
             transformed_keypoints_port=self.transformed_keypoints_port,
-            stream_configs=self.stream_configs, stream_oculus=self.stream_oculus,
-            endeff_publish_port=self.endeff_publish_port, endeff_subscribe_port=self.endeff_subscribe_port,
-            moving_average_limit=self.moving_average_limit, arm_resolution_port=self.arm_resolution_port,
-            use_filter=self.use_filter, teleoperation_reset_port=self.teleoperation_reset_port,
+            stream_configs=self.stream_configs,
+            stream_oculus=self.stream_oculus,
+            endeff_publish_port=self.endeff_publish_port,
+            endeff_subscribe_port=self.endeff_subscribe_port,
+            moving_average_limit=self.moving_average_limit,
+            use_filter=self.use_filter,
+            teleoperation_reset_port=self.teleoperation_reset_port,
             logging_config=self.logging_config,
         )
 
@@ -240,9 +242,8 @@ class LeapXarmRightConfig(TeleopRobotConfig):
                 endeff_publish_port=10009,
                 endeff_subscribe_port=10010,
                 moving_average_limit=1,
-                arm_resolution_port=8088,
                 use_filter=False,
-                teleoperation_reset_port=8088,
+                teleoperation_reset_port=8089,
                 logging_config={
                     "enabled": False,
                     "log_dir": "logs",

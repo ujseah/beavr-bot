@@ -56,10 +56,10 @@ class Robot(XArmAPI):
         
         # Check if we're in the expected mode and READY state
         if self.mode == mode and self.state == 2:
-            print(f"Robot ready: Mode={mode}, State={self.state} (READY)")
+            # print(f"Robot ready: Mode={mode}, State={self.state} (READY)")
             return True
         else:
-            print(f"Warning: Robot not ready. Mode={self.mode} (expected {mode}), State={self.state} (expected 2)")
+            # print(f"Warning: Robot not ready. Mode={self.mode} (expected {mode}), State={self.state} (expected 2)")
             return False
 
     def reset(self):

@@ -13,7 +13,7 @@ network:
 
   # Generic ports
   keypoint_stream_port: 8088        # All keypoint data from VR/Oculus
-  control_stream_port: 8089         # All control signals (buttons, resets)
+  control_stream_port: 8086         # All control signals (buttons, resets)
   robot_state_port: 8090            # Robot state information
   robot_command_port: 8091          # Robot commands
 

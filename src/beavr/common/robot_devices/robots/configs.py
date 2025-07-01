@@ -727,6 +727,7 @@ class MultiRobotAdapterConfig(RobotConfig):
                     "endeff_publish_port": 10009,
                     "command_topic": "endeff_coords",
                     "home_subscribe_port": 10007,
+                    "teleop_port": 8089,
                 },
                 {
                     "name": "leap",
@@ -743,6 +744,7 @@ class MultiRobotAdapterConfig(RobotConfig):
                     "joint_angle_publish_port": 8120,
                     "command_topic": "joint_angles",
                     "home_subscribe_port": 10007,
+                    "teleop_port": 8089,
                 }
             ]
 
@@ -772,6 +774,7 @@ class XArm7OnlyAdapterConfig(MultiRobotAdapterConfig):
                 "endeff_publish_port": 10009,
                 "command_topic": "endeff_coords",
                 "home_subscribe_port": 10007,
+                "teleop_port": 8089,
             }
         ]
 
@@ -801,5 +804,6 @@ class LeapOnlyAdapterConfig(MultiRobotAdapterConfig):
                 "joint_angle_publish_port": 8120,
                 "command_topic": "joint_angles",
                 "home_subscribe_port": 10007,
+                "teleop_port": 8089,
             }
         ]

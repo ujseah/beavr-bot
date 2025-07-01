@@ -5,7 +5,7 @@ import zmq
 import torch
 from concurrent.futures import ThreadPoolExecutor
 
-from beavr.constants import LEAP_HOME_JS, ROBOT_HOME_JS
+from beavr.constants import LEAP_HOME_JS, ROBOT_HOME_JS, ARM_TELEOP_CONT, ARM_TELEOP_STOP, TELEOP_HANDSHAKE_PORT
 from beavr.common.robot_devices.robots.utils import Robot
 from beavr.common.datasets.utils import Frame
 from beavr.common.robot_devices.cameras.configs import CameraConfig, OpenCVCameraConfig
@@ -16,6 +16,7 @@ from beavr.utils.network import (
     ZMQKeypointSubscriber,
     EnhancedZMQKeypointPublisher as ZMQKeypointPublisher,
 )
+from beavr.utils.handshake import HandshakeClient
 
 
 class MultiRobotAdapter(Robot):
@@ -28,9 +29,10 @@ class MultiRobotAdapter(Robot):
         self,
         robot_configs: list[dict],
         cameras: dict[str, CameraConfig],
-        robot_type: str = "multi_robot",
+        robot_type: str = "multi_robot_adapter",
         *,
-        debug_joint_obs: bool = True,
+        teleop_port: int = 8089,
+        handshake_host: str = "127.0.0.1",
     ):
         """Initialize the multi-robot adapter.
         
@@ -47,7 +49,6 @@ class MultiRobotAdapter(Robot):
                 - command_state_path: Path to command states in message (e.g., ["commanded_cartesian_state", "commanded_cartesian_position"])
             cameras: Dictionary of camera configurations
             robot_type: Overall robot type identifier
-            debug_joint_obs: Flag to enable debug printouts for arm joint observations
         """
         self.robot_type = robot_type
         self.robot_configs = robot_configs
@@ -84,19 +85,49 @@ class MultiRobotAdapter(Robot):
         self._follower_arms = {}
         self.logs = {}
 
+        self.home_publishers: dict[str, dict] = {}
+        for cfg in robot_configs:
+            r_name = cfg["name"]
+            home_port = cfg.get("home_subscribe_port")
+            if home_port is None:
+                # Not fatal – we fall back to the main command publisher which
+                # might still work (but risks port conflicts if another PUB is
+                # bound there).  Warn the user so they can fix the config.
+                logging.warning(
+                    "Robot '%s' has no 'home_subscribe_port' – homing signal will reuse the main command port (risk of conflicts)",
+                    r_name,
+                )
+                continue
+
+
+            self.home_publishers[r_name] = dict(
+                publisher=ZMQKeypointPublisher(host=cfg["host"], port=home_port),
+                port=home_port,
+                topic="home"
+            )
+
+
         # ------------------------------------------------------------------
-        # Initialise a ZMQ publisher for sending commands to each robot.
-        # The port/topic naming follows the conventions used across the
-        # code-base (see configs/leap_xarm_right.yaml):
-        #   • Arm robots listen for Cartesian targets on  <endeff_publish_port>
-        #     with topic "endeff_coords" (x, y, z, ax, ay, az) where the
-        #     orientation is in axis-angle format
-        #   • Hand robots listen for joint targets on <joint_angle_publish_port>
-        #     with topic "joint_angles"
-        # For maximum flexibility we inspect the config for these keys. If a
-        # suitable publish port is missing we fall back to a generic
-        # "command_pub_port" (user provided) and topic "action".
+        # Ensure PUB sockets are created *immediately* so that SUB sockets on
+        # the robot side can establish their TCP connection long before the
+        # first HOME signal is sent.  Without this, the very first message
+        # can be silently dropped due to the inherent "slow-joiner" behaviour
+        # of ZeroMQ PUB/SUB.
         # ------------------------------------------------------------------
+        for pub_info in self.home_publishers.values():
+            try:
+                # Accessing the underlying manager forces socket creation.
+                p = pub_info["publisher"]
+                p._manager.get_publisher(p._host, p._port)  # pylint: disable=protected-access
+            except Exception as e:
+                logging.warning(
+                    "Failed to pre-bind home publisher socket on tcp://%s:%s: %s",
+                    p._host,
+                    p._port,
+                    e,
+                )
+
+
         self.command_publishers: dict[str, dict] = {}
         for cfg in robot_configs:
             r_name = cfg["name"]
@@ -118,76 +149,26 @@ class MultiRobotAdapter(Robot):
                 )
                 continue
 
-            try:
-                publisher = ZMQKeypointPublisher(host=cfg["host"], port=pub_port)
-                self.command_publishers[r_name] = dict(
-                    publisher=publisher,
-                    topic=topic,
-                    robot_type=r_type,
-                    port=pub_port,
-                )
-            except Exception as e:
-                logging.error(
-                    f"Failed to create command publisher for robot '{r_name}' at {cfg['host']}:{pub_port}: {e}"
-                )
-        # ------------------------------------------------------------------
-        # Prepare dedicated *home* publishers (one per robot) so that the
-        # homing signal can be sent on a **separate port** and therefore does
-        # not clash with the high-frequency Cartesian command stream used
-        # during teleoperation.  This prevents the "Address already in use"
-        # error observed when two PUB sockets attempt to bind the same port.
-        # ------------------------------------------------------------------
-        self.home_publishers: dict[str, dict] = {}
-        for cfg in robot_configs:
-            r_name = cfg["name"]
-            home_port = cfg.get("home_subscribe_port")
-            if home_port is None:
-                # Not fatal – we fall back to the main command publisher which
-                # might still work (but risks port conflicts if another PUB is
-                # bound there).  Warn the user so they can fix the config.
-                logging.warning(
-                    "Robot '%s' has no 'home_subscribe_port' – homing signal will reuse the main command port (risk of conflicts)",
-                    r_name,
-                )
-                continue
 
-            try:
-                self.home_publishers[r_name] = dict(
-                    publisher=ZMQKeypointPublisher(host=cfg["host"], port=home_port),
-                    port=home_port,
-                    topic="home"
-                )
-            except Exception as e:
-                logging.error(
-                    "Failed to create dedicated home publisher for robot '%s' at %s:%s: %s",
-                    r_name,
-                    cfg["host"],
-                    home_port,
-                    e,
-                )
+            publisher = ZMQKeypointPublisher(host=cfg["host"], port=pub_port)
+            self.command_publishers[r_name] = dict(
+                publisher=publisher,
+                topic=topic,
+                robot_type=r_type,
+                port=pub_port,
+            )
+
+        # Publisher to toggle reset in the operator
+        self.teleop_publisher = ZMQKeypointPublisher(host=cfg["host"], port=teleop_port)
 
         # Thread pool for asynchronous publishing
         # We keep a small pool (<= #robots) so that PUB sends never block the
         # policy/control loop. Threads are daemonised by default.
         self._publish_pool = ThreadPoolExecutor(max_workers=max(4, len(self.command_publishers)))
 
-        # When enabled, the adapter will emit one log per call to
-        # ``capture_observation`` that prints the raw joint observation it
-        # receives for every *arm* robot.  This is helpful for debugging but
-        # can generate a large amount of output, so it is disabled by
-        # default.  Use a higher log-level (e.g. ``logging.INFO``) or set
-        # this flag to ``True`` when constructing the adapter to activate it.
-        self.debug_joint_obs = debug_joint_obs
-
-        # Replace simple axis-angle cache by a quaternion based cache that is
-        # numerically stable and hemisphere-aware.  Each entry stores the
-        # *unit* quaternion (x, y, z, w) that was last sent for a given arm.
         self._last_quaternions: dict[str, np.ndarray] = {}
+        self.handshake_host = handshake_host
 
-        # Cache the *axis-angle vector* that was last transmitted so we can
-        # enforce continuity on the vector form as well (handles the π ↔ −π
-        # wrap which quaternions alone cannot prevent once we map back).
-        self._last_axis_angles: dict[str, np.ndarray] = {}
 
     def _build_features(self) -> dict:
         """Build the features dictionary dynamically based on robot configurations.
@@ -303,7 +284,7 @@ class MultiRobotAdapter(Robot):
         self._is_connected = False
         logging.info(f"MultiRobotAdapter ({self.robot_type}) disconnected successfully")
 
-        self.teleop_safety_stop()
+        self.teleop_stop()
 
     def _get_nested_value(self, data: dict, path: list):
         """Helper to get nested dictionary values using a path list."""
@@ -388,20 +369,10 @@ class MultiRobotAdapter(Robot):
                     if joint_data.ndim == 0:
                         joint_data = joint_data.reshape(1)
 
-                    # --------------------------------------------------
-                    # Optional debug printout for arm joint observations
-                    # --------------------------------------------------
-                    # if self.debug_joint_obs and config["robot_type"] == "arm":
-                    #     print(f"[JointObs][{name}] {np.round(joint_data, 5)}")
-                    #     pass
-
                     combined_state.extend(joint_data)
                     continue  # processed this robot
             # If we reach here we did not manage to append any data for this robot.
             missing_robots.append(name)
-
-            if self.debug_joint_obs:
-                print(f"[MissingState] No live data for robot '{name}', using home pose placeholder")
 
             if config["robot_type"] == "arm":
                 combined_state.extend(np.array(ROBOT_HOME_JS, dtype=np.float32))
@@ -471,60 +442,36 @@ class MultiRobotAdapter(Robot):
 
         return None, None
 
-    def _broadcast_to_arms(self, topic: str, print_message: str):
-        """Helper to broadcast a given topic/payload to all arm robots."""
-        print(print_message)
 
-        for r_name, cmd_info in self.command_publishers.items():
-            if cmd_info.get("robot_type") != "arm":
-                continue
-
-            # Prefer dedicated home publisher if available.
-            home_info = self.home_publishers.get(r_name)
-            if home_info is not None:
-                publisher = home_info["publisher"]
-                port = home_info["port"]
-
-                # The payload is just a simple "1" for these signals.
-                publisher.pub_keypoints(1, topic)
-                print(f"Sent '{topic}' signal to arm '{r_name}' via port {port}")
-
-
-    def teleop_safety_stop(self):
-        """Issue a *home* command to every arm robot and temporarily pause
-        operator-driven teleoperation.
-
-        This helper is invoked by ``reset_environment()`` (see
-        ``beavr.common.robot_devices.control_utils``) between dataset
-        recording episodes.  Publishing the ``home`` signal triggers the
-        corresponding ``Robot`` (or compatible) interface to call
-        ``home_arm()`` on the hardware side, returning the robot to its
-        predefined neutral pose and waiting there until the next episode
-        begins.
+    def teleop_stop(self):
+        """Send a stop signal to all operators to pause teleoperation.
         """
-        self._broadcast_to_arms(
-            topic="home",
-            print_message="Broadcasting home signal to all arm robots …",
-        )
+        print(f"[{self.robot_type}] teleop_stop() sent at {time.time():.3f}")
+        self.teleop_publisher.pub_keypoints(ARM_TELEOP_STOP, 'pause')
 
-        # ------------------------------------------------------------------
-        # Do NOT automatically broadcast a *reset* token here. Keeping the arm in
-        # the paused state ensures that no stray operator commands are executed
-        # during the environment-reset grace period. The reset signal will be sent
-        # explicitly at the *start* of the next episode via :py:meth:`teleop_resume`.
-        # ------------------------------------------------------------------
+ 
+        ok = HandshakeClient(host=self.handshake_host, port=TELEOP_HANDSHAKE_PORT).request(timeout=2.0)
+        if ok:
+            print("Operator acknowledged pause (handshake OK)")
+        else:
+            print("WARNING: No handshake ACK from operator – proceeding anyway")
+
+        print("Paused teleoperation")
+
+        for _, home_info in self.home_publishers.items():
+
+            home_info["publisher"].pub_keypoints(1, "home")  # 1st attempt (may drop)
+            # time.sleep(0.1)  # allow SUB sockets to connect
+            # home_info["publisher"].pub_keypoints(1, "home")  # 2nd attempt
+
 
     def teleop_resume(self):
-        """Explicitly send a reset signal to all arm robots to resume teleoperation.
-
-        This method is called at the beginning of each recording episode to
-        ensure that the arm robots are in a known state before any new
-        teleoperation data is recorded.
+        """Send a resume signal to all operators to resume teleoperation.
         """
-        self._broadcast_to_arms(
-            topic="reset",
-            print_message="Broadcasting reset signal to all arm robots …",
-        )
+        print(f"[{self.robot_type}] teleop_resume() sent at {time.time():.3f}")
+        self.teleop_publisher.pub_keypoints(ARM_TELEOP_CONT, 'pause')
+        print("Resumed teleoperation")
+
 
     def run_calibration(self):
         """No calibration needed for this adapter."""
@@ -536,7 +483,7 @@ class MultiRobotAdapter(Robot):
         The input `action` is assumed to follow the ordering defined in
         `self._sorted_configs` (all arm actions first, then hand actions).
 
-        • Arm action (6-DoF): `[x, y, z, ax, ay, az]` will be mapped to a
+        • Arm action (6-DoF): `[x, y, z, qx, qy, qz, qw]` will be mapped to a
           dictionary `{"position": [...], "orientation": [...], "timestamp": t}`
           and published on topic ``endeff_coords``.
         • Hand action (`n` joints): raw joint position array will be published
@@ -638,6 +585,7 @@ class MultiRobotAdapter(Robot):
             self._publish_pool.shutdown(wait=False)
         if hasattr(self, "_last_quaternions"):
             self._last_quaternions.clear()
-        if hasattr(self, "_last_axis_angles"):
-            self._last_axis_angles.clear()
-        # existing cleanup continues automatically
+        if hasattr(self, "teleop_reset_publisher"):
+            self.teleop_reset_publisher.stop()
+        if hasattr(self, "teleop_pause_publisher") and self.teleop_pause_publisher is not None:
+            self.teleop_pause_publisher.stop()

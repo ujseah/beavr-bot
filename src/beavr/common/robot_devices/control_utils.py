@@ -385,7 +385,7 @@ def control_loop(
             busy_wait(1 / fps - dt_s)
 
         dt_s = time.perf_counter() - start_loop_t
-        log_control_info(robot, dt_s, fps=fps)
+        # log_control_info(robot, dt_s, fps=fps)
 
         timestamp = time.perf_counter() - start_episode_t
         if events["exit_early"]:
@@ -406,7 +406,7 @@ def reset_environment(robot, events, reset_time_s, fps):
 
     The function achieves this via two steps:
 
-    1. Trigger :py:meth:`robot.teleop_safety_stop` which publishes a *home*
+    1. Trigger :py:meth:`robot.teleop_stop` which publishes a *home*
        signal to each arm robot.  The corresponding low-level interface (e.g.
        :class:`~beavr.interfaces.xarm7_robot.XArm7Robot`) receives this
        message, calls ``home_arm()`` and idles until further commands arrive.
@@ -416,8 +416,8 @@ def reset_environment(robot, events, reset_time_s, fps):
        commands during the reset phase.  This guarantees that the robots stay
        in their neutral pose until the next recording episode starts.
     """
-    if has_method(robot, "teleop_safety_stop"):
-        robot.teleop_safety_stop()
+    if has_method(robot, "teleop_stop"):
+        robot.teleop_stop()
 
     # During environment reset we explicitly *disable* teleoperation so that
     # any operator-driven commands (e.g. from a VR controller) do not

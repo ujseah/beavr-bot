@@ -11,10 +11,12 @@ from beavr.constants import (
     ARM_TELEOP_STOP,
     ARM_HIGH_RESOLUTION,
     ARM_LOW_RESOLUTION,
+    TELEOP_HANDSHAKE_PORT,
 )
 from beavr.utils.timer import FrequencyTimer
 from beavr.utils.network import ZMQKeypointSubscriber
 from beavr.utils.network import EnhancedZMQKeypointPublisher as ZMQKeypointPublisher
+from beavr.utils.handshake import HandshakeServer
 from .operator import Operator
 
 from beavr.utils.logger import PoseLogger
@@ -240,6 +242,9 @@ class XArmOperator(Operator):
         else:
             self.pose_logger = None
 
+        
+        self._handshake_server = HandshakeServer(host="*", port=TELEOP_HANDSHAKE_PORT)
+
     @property
     def timer(self) -> FrequencyTimer:
         """Returns the frequency timer instance."""
@@ -429,6 +434,7 @@ class XArmOperator(Operator):
         try:
             state = int(np.asanyarray(data).reshape(1)[0])
             if state in [ARM_TELEOP_STOP, ARM_TELEOP_CONT]:
+                print(f"Teleop state received: {state}")
                 return state
             else:
                 print(f"Warning: Unknown teleop state received: {state}")
@@ -448,6 +454,8 @@ class XArmOperator(Operator):
         Returns:
             The initial moving hand frame (4x3) captured after reset, or None on failure.
         """
+        print(f"[{self.operator_name}] ▶ reset() sent at {time.time():.3f}")
+
         print(f'****** {self.operator_name}: RESETTING TELEOP ******')
         # Request robot's current pose
         self.unified_publisher.pub_keypoints(1, 'reset')
@@ -477,7 +485,6 @@ class XArmOperator(Operator):
         self.robot_moving_h = copy(self.robot_init_h)
         print(f"{self.operator_name} Robot init H:\n{self.robot_init_h}")
 
-        # Get initial hand frame (wait for a valid one)
         first_hand_frame = None
         while first_hand_frame is None:
             first_hand_frame = self._get_hand_frame()
@@ -495,6 +502,7 @@ class XArmOperator(Operator):
         self.is_first_frame = False # Reset successful
         self.comp_filter = None # Reset filter, will be initialized on first _apply call
         print(f"****** {self.operator_name}: TELEOP RESET COMPLETE ******")
+        print(f"[{self.operator_name}] hand_init_h\n{self.hand_init_h}")
         return first_hand_frame # Return the frame used for initialization
 
     # ------------------------------
@@ -531,26 +539,25 @@ class XArmOperator(Operator):
         Handles state changes (reset, pause/resume), applies transformations,
         filters the result, and publishes the command.
         """
+        # Service potential handshake request (non-blocking, very cheap)
+        if self._handshake_server:
+            self._handshake_server.poll_once(timeout_ms=0)
+
         # 1. Check for state changes (Pause/Resume, Resolution)
         new_arm_teleop_state = self._get_arm_teleop_state()
         self.resolution_scale = self._get_resolution_scale_mode() # Update resolution scale
 
         # Determine if a reset is needed
+        # If this is the first frame, we need to reset
+        # If the arm teleop state is stopped and the new state is continue, we need to reset
         needs_reset = self.is_first_frame or \
                       (self.arm_teleop_state == ARM_TELEOP_STOP and new_arm_teleop_state == ARM_TELEOP_CONT)
 
         # Update state *after* checking for transition
         self.arm_teleop_state = new_arm_teleop_state
 
-        # If paused, do nothing further
-        if self.arm_teleop_state == ARM_TELEOP_STOP and False: # TODO: This does not work with current app
-            # Optionally send a 'hold position' command or simply return
-            # print(f"{self.operator_name}: Teleoperation paused.")
-            # We might want to clear the filter state or cache when paused
-            self.comp_filter = None
-            self.last_valid_hand_frame = None # Clear cached frame on pause
-            print("early return")
-            return
+        # Decide whether we should publish commands this cycle
+        publish_commands = (self.arm_teleop_state == ARM_TELEOP_CONT)
 
         # 2. Handle Reset Condition
         if needs_reset:
@@ -565,7 +572,7 @@ class XArmOperator(Operator):
 
         # If no valid hand frame is available (after reset or during normal operation), exit
         if moving_hand_frame is None:
-            # print(f"Warning ({self.operator_name}): No valid hand frame received, skipping cycle.")
+            print(f"Warning ({self.operator_name}): No valid hand frame received, skipping cycle.")
             return
 
         # Ensure initial robot/hand poses are set (should be handled by reset)
@@ -673,7 +680,13 @@ class XArmOperator(Operator):
             "orientation": orientation_quat.tolist(),  # qx, qy, qz, qw with qw >= 0
             "timestamp": time.time(),
         }
-        self.unified_publisher.pub_keypoints(command_data, "endeff_coords")
+        # Publish only if tele-operation is in CONT mode. During STOP we still
+        # run the full pipeline so that filters and internal state remain
+        # up-to-date, but we do not send any commands to the robot. This avoids
+        # a sudden jump when tele-op resumes while still maintaining smooth
+        # pose estimation.
+        if publish_commands:
+            self.unified_publisher.pub_keypoints(command_data, "endeff_coords")
 
         # 12. Logging (Optional)
         if self.logging_enabled and self.pose_logger:

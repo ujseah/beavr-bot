@@ -69,20 +69,6 @@ class XArm7Robot(RobotWrapper):
             topic = 'home'
         )
 
-        # Optional secondary RESET subscriber on the *home* port for reliability
-        self._reset_home_subscriber = None
-        if home_subscribe_port != reset_subscribe_port:
-            try:
-                self._reset_home_subscriber = ZMQKeypointSubscriber(
-                    host = host,
-                    port = home_subscribe_port,
-                    topic = 'reset'
-                )
-            except Exception as e:
-                logging.warning(
-                    f"Failed to create secondary reset subscriber on home port {home_subscribe_port}: {e}"
-                )
-
         # Publisher for general data (using endeff_publish_port)
         self._general_publisher = ZMQKeypointPublisher(
             host = host,
@@ -103,14 +89,6 @@ class XArm7Robot(RobotWrapper):
         
         # Recording control
         self._is_recording_enabled = False
-
-        # ------------------------------------------------------------------
-        # Flag used to temporarily *pause* consumption of incoming Cartesian
-        # commands.  This allows the high-level controller to home the robot
-        # and keep it idle (e.g. during dataset reset) even if the teleop
-        # operator process continues to publish targets.
-        # ------------------------------------------------------------------
-        self._teleop_paused = False
 
         # Add cache for the last valid commanded cartesian position received
         self._latest_commanded_cartesian_position = None
@@ -162,6 +140,7 @@ class XArm7Robot(RobotWrapper):
 
     # Movement functions
     def home(self):
+        print(f"[{self.name}] home() triggered {time.time():.3f}")
         return self._controller.home_arm()
 
     def move(self, input_angles):
@@ -218,6 +197,7 @@ class XArm7Robot(RobotWrapper):
     
     def send_robot_pose(self):
         cartesian_state = self._controller.get_arm_pose()
+        print(f"[{self.name}] sending robot pose {time.time():.3f}")
         self._general_publisher.pub_keypoints(cartesian_state, "endeff_homo")
 
     def check_reset(self):
@@ -226,15 +206,6 @@ class XArm7Robot(RobotWrapper):
             return True
         else:
             return False
-        
-    def check_resume(self):
-        resume_bool = self._reset_subscriber.recv_keypoints(flags=zmq.NOBLOCK)
-
-        # Fallback: check optional secondary subscriber on the *home* port
-        if resume_bool is None and self._reset_home_subscriber is not None:
-            resume_bool = self._reset_home_subscriber.recv_keypoints(flags=zmq.NOBLOCK)
-        
-        return resume_bool is not None
 
     def check_home(self):
         home_bool = self._home_subscriber.recv_keypoints(flags=zmq.NOBLOCK)
@@ -261,79 +232,42 @@ class XArm7Robot(RobotWrapper):
                 # Calculate next frame time
                 next_frame_time = current_time + target_interval
 
-                # ------------------------------------------------------------------
-                # 1) Check for *home* or *reset* signals **before** processing
-                #    any operator commands so that homing takes precedence.
-                # ------------------------------------------------------------------
-
                 if self.check_home():
-                    print("Home signal received")
-                    # Enter *paused* mode and home the arm.
+                    print(f"[{self.name}] home() triggered {time.time():.3f}")
+                    # Execute the homing motion.
                     self.home()
-                    self._teleop_paused = True
-                    print("Teleop paused")
-
-                    # ------------------------------------------------------------------
-                    # Remove *any* additional queued home signals so that we do not
-                    # immediately re-enter the paused state once teleop resumes.  This
-                    # is important now that the home broadcaster may repeat the message
-                    # several times for reliability.
-                    # ------------------------------------------------------------------
-                    while True:
-                        leftover_home = self._home_subscriber.recv_keypoints(zmq.NOBLOCK)
-                        if leftover_home is None:
-                            break
-
-                    # Flush any queued Cartesian commands so they are not
-                    # executed after resuming.
-                    while True:
-                        leftover = self._cartesian_coords_subscriber.recv_keypoints(zmq.NOBLOCK)
-                        if leftover is None:
-                            break
-
-                # --------------------------------------------------------------
-                # Handle *reset* first so we always publish the current pose
-                # --------------------------------------------------------------
-                if self.check_reset():
                     self.send_robot_pose()
-                    self._teleop_paused = False
 
-                # Only if we are still paused check for an explicit 'resume'
-                if self._teleop_paused and self.check_resume():
-                    self._teleop_paused = False
+                if self.check_reset():
+                    print(f"[{self.name}] reset msg received {time.time():.3f}")
+                    self.send_robot_pose()
 
-                # ------------------------------------------------------------------
-                # 2) Process incoming Cartesian targets **only when** teleop is
-                #    active.
-                # ------------------------------------------------------------------
-                if not self._teleop_paused:
-                    msg = self._cartesian_coords_subscriber.recv_keypoints(zmq.NOBLOCK)
-                    if msg:
-                        self._latest_commanded_cartesian_position = np.concatenate(
-                            [np.asarray(msg["position"], dtype=np.float32),
-                             np.asarray(msg["orientation"], dtype=np.float32)]
-                        )
-                        self._latest_commanded_cartesian_timestamp = msg["timestamp"]
-                        self.move_coords(self._latest_commanded_cartesian_position)
 
-                        # -------------------------------------------------------------
-                        # Inside the main while True loop, right after `if msg:`:
-                        now = time.time()
+                if msg := self._cartesian_coords_subscriber.recv_keypoints(zmq.NOBLOCK):
+                    self._latest_commanded_cartesian_position = np.concatenate(
+                        [np.asarray(msg["position"], dtype=np.float32),
+                         np.asarray(msg["orientation"], dtype=np.float32)]
+                    )
+                    self._latest_commanded_cartesian_timestamp = msg["timestamp"]
+                    self.move_coords(self._latest_commanded_cartesian_position)
 
-                        # 1. Instantaneous frequency ----------------------------------
-                        if last_msg_time is not None:
-                            inst_freq = 1.0 / (now - last_msg_time)
-                            # print(f"Instantaneous cmd freq: {inst_freq:6.2f} Hz")
+                    # -------------------------------------------------------------
+                    # Instantaneous and average command frequency diagnostics.
+                    # -------------------------------------------------------------
+                    now = time.time()
 
-                        last_msg_time = now
+                    if last_msg_time is not None:
+                        inst_freq = 1.0 / (now - last_msg_time)
+                        # print(f"Instantaneous cmd freq: {inst_freq:6.2f} Hz")
 
-                        # 2. Running average over 1-second windows --------------------
-                        msg_counter += 1
-                        if now - avg_start_time >= 1.0:
-                            avg_freq = msg_counter / (now - avg_start_time)
-                            # print(f"Average cmd freq over last second: {avg_freq:6.2f} Hz")
-                            avg_start_time = now
-                            msg_counter = 0
+                    last_msg_time = now
+
+                    msg_counter += 1
+                    if now - avg_start_time >= 1.0:
+                        avg_freq = msg_counter / (now - avg_start_time)
+                        # print(f"Average cmd freq over last second: {avg_freq:6.2f} Hz")
+                        avg_start_time = now
+                        msg_counter = 0
 
                 # Publish the current state every cycle so that external
                 # adapters (e.g. MultiRobotAdapter) receive up-to-date joint
@@ -385,8 +319,5 @@ class XArm7Robot(RobotWrapper):
         if hasattr(self, '_joint_state_subscriber'): self._joint_state_subscriber.stop()
         if hasattr(self, '_home_subscriber'): self._home_subscriber.stop()
         if hasattr(self, '_reset_subscriber'): self._reset_subscriber.stop()
-        if hasattr(self, '_reset_home_subscriber') and self._reset_home_subscriber is not None:
-            self._reset_home_subscriber.stop()
-        # Close both publishers
         if hasattr(self, '_general_publisher'): self._general_publisher.stop()
         if hasattr(self, '_state_publisher'): self._state_publisher.stop()
