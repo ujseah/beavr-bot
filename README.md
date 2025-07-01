@@ -79,12 +79,13 @@ except ImportError: print('An error occurred'); sys.exit(1)"
 
 For detailed documentation, please refer to the following guides in the `docs` directory:
 
+- [Technical Overview and Workflow](docs/workflow.md) - Detailed system architecture and component interactions
 - [VR Setup and Configuration](docs/vr.md)
 - [Robot Controller Setup](docs/robot_controller.md)
 - [Sensor Integration](docs/sensors.md)
 - [Simulation Environment](docs/simulation.md)
 - [Teleoperation Data Collection](docs/teleop_data_collect.md)
-- [Policy Learning](docs/policy_learning.md)
+- [Policy Learning](docs/policy_learning.md)  <!-- Commenting out as it is not yet implemented -->
 - [Adding Your Own Robot](docs/add_your_own_robot.md)
 
 ## Additional Features
@@ -120,7 +121,7 @@ We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.
 ## Acknowledgments
 
 <p align="center">
-  <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/15/USAF_logo.svg/1200px-USAF_logo.svg.png" alt="USAF Logo" width="60"/>
+  <img src="https://upload.wikimedia.org/wikipedia/commons/0/06/US_Air_Force_Logo_Solid_Colour.svg" alt="USAF Logo" width="60"/>
 </p>
 
 <p align="justify">
