@@ -1,48 +1,36 @@
-# VR Application Installation.
+# VR Application Installation
 
-This can be done in two ways.
+You can set up the VR app in **one** of two ways:
 
-1. You can install the application directly into your Quest using the APK file we provide using SideQuest.
-2. Inorder to have more flexibility and modify the VR APK we have also released the source code corresponding to it. The APK is made in Unity 2021.3.5f1. To ensure clean builds with no errors using this version is recommended.
-3. For building the apk from source , add the zipped code files to Unity and within the settings in File menu run Build and Run. The targeted device in Build settings should be the Quest you are connecting to. Also users might need Meta account with Meta Quest Developer Hub and will need to enable Developer mode for the Meta Quest Application. 
-4. To setup the VR Application in Oculus Headset, enter the IP Address of the robot server. The robot server and the Oculus Headset should be in the same network. 
+1. **Install the pre-built APK** directly onto your Quest headset with SideQuest.  Check [`installation instructions`](https://github.com/ARCLab-MIT/BeaVR-app/tree/main/BeaVR-Unity)
 
-## User Interface
+Once the app is on the headset, enter the IP address of the robot server. The robot server **and** the Quest must be on the same network.
 
-## Single Robot Arm + Robot Hand: 
+---
 
-​	Since the Robot Hand is a Right Hand, the user controls to switch modes are in Left Hand to have seemless keypoint stream happening from the Right Hand. 
+## User Interface – Single Robot Arm + Hand
 
-| Pinch ( Left Hand) | Mode                 | Stream Border Color |
-| ------------------ | -------------------- | ------------------- |
-| Index Pinch        | Only Hand Mode       | Green               |
-| Middle Pinch       | Arm + Hand Mode      | Blue                |
-| Ring Pinch         | Pause                | Red                 |
-| Pinky Pinch        | Resolution Selection | Black               |
+Because the robot hand is right-handed, all mode-switch gestures are performed with the **left** hand, leaving the right hand free for key-point streaming.
 
-**Note: Here the teleoperation is just like mimicking the human hand and arm actions**
+| Left-Hand Pinch | Mode              | Stream Border Color |
+| --------------- | ----------------- | ------------------- |
+| Index           | **Hand Only**     | 🟢 Green            |
+| Middle          | **Arm + Hand**    | 🔵 Blue             |
+| Ring            | **Pause**         | 🔴 Red              |
+| Pinky           | **Resolution Select** | ⚫ Black        |
 
-## Multi Robot Arm (Bimanual):
+> **Tip:** The app runs continuously. If the robot arm connects successfully, the border will turn (or stay) **green**. A non-green border on first interaction indicates no active connection.
 
-Since both the hands are being used here for teleoperation and gripper mode selection we use pinches in both the hands. Due to the noise in hand pose detection while moving the hands , for better detection of pinches we use keypoint distance threshold based approach between two fingers. For our setup we use Xarms as bimanual robots.
+---
 
-| Pinch (On Both Hands) | Mode                                                         | Stream Border Color |
-| ----------------------- | ------------------------------------------------------------ | ------------------- |
-| Index Pinch             | Start the Teleop ( Only used at the start of the teleoperation ) | Green               |
-| Middle Pinch            | Pause/Resume the Robot                                       | Red                 |
-| Ring Pinch              | Pause/Resume the Robot                                       | Red                 |
-| Pinky Pinch             | Gripper Open/Close                                           | Yellow              |
+## Getting Started
 
+1. Launch the app on your Quest. A blank screen with a red border and **Menu** button appears.  
+2. Enable hand tracking (Quest settings).  
+3. Tap **Menu ▸ Change IP**, enter the robot-server IP, then go back and tap **Stream**.  
+4. When the border turns **green**, the headset is streaming key-points to the server.
 
-**Note: Here the teleoperation is not mimicking the arm actions. Like other bimanual teleoperation methods we imagine we are holding the end effector of the arm and rotating and translating accordingly**
+The APK files are available **[here](/VR/APK/)**.  
+After setup, continue to the **[teleoperation guide](/docs/teleop_data_collect.md)**.
 
-
-The VR APK files are available [here](/VR/APK/).
-
-After you install the APK file. You will be prompted with a blank screen with red border with a Menu button on it. Click the Menu button (Ensure you have Hand tracking enabled in the Oculus.), you will see IP: Not Defined. Just Click on Change IP and enter the IP using the dropdown (The VR and the Robot should be under the same network provider). Once the IP is enter go back to the screen where you clicked Change IP and Click Stream. The screen border will become green and  your App is ready to stream the keypoints.
-
-#### Note: Remember to enter your same IP on the server host address variable [config](/configs/network.yaml)
-
-Once finished setting up the APK proceed to [teleop](/docs/teleop_data_collect.md).
-
-If Teleoperation server is not started, the APK will work for sometime and stop as there are ports to send the information to. 
+> **Note:** Make sure the same IP is set in the server-side config: [`configs/network.yaml`](/configs/network.yaml).
