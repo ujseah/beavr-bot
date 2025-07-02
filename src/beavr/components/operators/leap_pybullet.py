@@ -1,8 +1,13 @@
 from copy import deepcopy as copy
-from beavr.utils.network import ZMQKeypointSubscriber, EnhancedZMQKeypointPublisher as ZMQKeypointPublisher
+from beavr.utils.network import (
+    ZMQKeypointSubscriber,
+    ZMQPublisherManager,
+    cleanup_zmq_resources,
+    get_global_context,
+)
 from .operator import Operator
 from beavr.utils.timer import FrequencyTimer
-from beavr.constants import *
+from beavr.constants import VR_FREQ, OCULUS_JOINTS, LEAP_JOINTS_PER_FINGER, LEAP_JOINT_OFFSETS
 import time
 from concurrent.futures import ThreadPoolExecutor
 import threading
@@ -16,33 +21,34 @@ class LeapHandOperator(Operator):
         self.notify_component_start('leap hand operator with PyBullet IK')
         self._host, self._port = host, transformed_keypoints_port
         
+        # Shared ZMQ context
+        self._context = get_global_context()
+
         # Subscriber for the transformed hand keypoints
         self._transformed_hand_keypoint_subscriber = ZMQKeypointSubscriber(
-            host = self._host,
-            port = self._port,
-            topic = 'transformed_hand_coords'
+            host=self._host,
+            port=self._port,
+            topic='transformed_hand_coords',
+            context=self._context,
         )
         # Subscriber for the transformed arm frame
         self._transformed_arm_keypoint_subscriber = ZMQKeypointSubscriber(
-            host = self._host,
-            port = self._port,
-            topic = 'transformed_hand_frame'
+            host=self._host,
+            port=self._port,
+            topic='transformed_hand_frame',
+            context=self._context,
         )
-        # New publishers for joint control
-        self._joint_angle_publisher = ZMQKeypointPublisher(
-            host = host,
-            port = joint_angle_publish_port
-        )
-        
-        self._reset_publisher = ZMQKeypointPublisher(
-            host = host,
-            port = reset_publish_port
-        )
+        # Centralized publisher manager (new pub/sub structure)
+        self._publisher_manager = ZMQPublisherManager.get_instance()
+        self._publisher_host = host
+        self._joint_angle_publish_port = joint_angle_publish_port
+        self._reset_publish_port = reset_publish_port  # Currently unused
 
         self._joint_angle_subscriber = ZMQKeypointSubscriber(
-            host = host,
-            port = joint_angle_subscribe_port,
-            topic = 'joint_angles'
+            host=host,
+            port=joint_angle_subscribe_port,
+            topic='joint_angles',
+            context=self._context,
         )   
 
         # Initializing the finger configs
@@ -113,12 +119,21 @@ class LeapHandOperator(Operator):
     # Get the transformed finger coordinates
     def _get_finger_coords(self):
         raw_keypoints = self.transformed_hand_keypoint_subscriber.recv_keypoints()
-        return dict(
-            index = np.vstack([raw_keypoints[0], raw_keypoints[OCULUS_JOINTS['index']]]),
-            middle = np.vstack([raw_keypoints[0], raw_keypoints[OCULUS_JOINTS['middle']]]),
-            ring = np.vstack([raw_keypoints[0], raw_keypoints[OCULUS_JOINTS['ring']]]),
-            thumb = np.vstack([raw_keypoints[0], raw_keypoints[OCULUS_JOINTS['thumb']]])
-        )
+        if raw_keypoints is None:
+            print("Warning: No keypoints received from subscriber")
+            return None
+            
+        try:
+            return dict(
+                index = np.vstack([raw_keypoints[0], raw_keypoints[OCULUS_JOINTS['index']]]),
+                middle = np.vstack([raw_keypoints[0], raw_keypoints[OCULUS_JOINTS['middle']]]),
+                ring = np.vstack([raw_keypoints[0], raw_keypoints[OCULUS_JOINTS['ring']]]),
+                thumb = np.vstack([raw_keypoints[0], raw_keypoints[OCULUS_JOINTS['thumb']]])
+            )
+        except (IndexError, TypeError) as e:
+            print(f"Error processing keypoints: {e}")
+            print(f"Received keypoints shape/content: {raw_keypoints}")
+            return None
     
     # Generate frozen angles for the fingers
     def _generate_frozen_angles(self, joint_angles, finger_type):
@@ -160,10 +175,20 @@ class LeapHandOperator(Operator):
         # Get finger coordinates
         t1 = time.time()
         hand_keypoints = self._get_finger_coords()
+        if hand_keypoints is None:
+            # If we can't get keypoints, just wait for next iteration
+            time.sleep(0.01)  # Small sleep to prevent busy waiting
+            return
+            
         t2 = time.time()
         
         # Get current joint positions from robot
         desired_joint_angles = self._joint_angle_subscriber.recv_keypoints()
+        if desired_joint_angles is None:
+            print("Warning: No joint angles received from subscriber")
+            time.sleep(0.01)
+            return
+            
         t3 = time.time()
 
         # Process all fingers using PyBullet IK
@@ -207,6 +232,7 @@ class LeapHandOperator(Operator):
         except Exception as e:
             print(f"Error in PyBullet IK processing: {e}")
             finger_data = {}
+            return
         
         t4 = time.time()
         
@@ -224,10 +250,12 @@ class LeapHandOperator(Operator):
             except Exception as e:
                 print(f"Error queuing log data: {e}")
 
-        # Publish joint angles
-        self._joint_angle_publisher.pub_keypoints(
+        # Publish joint angles using the new publisher manager
+        self._publisher_manager.publish(
+            self._publisher_host,
+            self._joint_angle_publish_port,
+            'joint_angles',
             desired_joint_angles,
-            'joint_angles'
         )
         
         t5 = time.time()
@@ -289,6 +317,9 @@ class LeapHandOperator(Operator):
                 except:
                     pass
             self.hand_logger.close()
+
+        # Ensure all ZMQ resources are cleaned up
+        cleanup_zmq_resources()
 
 def allegro_to_LEAPhand(joints, teleop = True, zeros = True):
     ret_joints = np.array(joints)

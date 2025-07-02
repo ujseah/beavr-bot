@@ -26,12 +26,12 @@ class OculusVRHandDetectorCfg:
 @dataclass
 class TransformHandPositionCoordsCfg:
     host: str = '10.31.152.148'
-    keypoint_port: str = '${keypoint_port}'
-    transformation_port: str = '${transformed_position_keypoint_port}'
+    keypoint_sub_port: str = '${keypoint_port}'
+    keypoint_transform_pub_port: str = '${transformed_position_keypoint_port}'
     moving_average_limit: int = 1
 
     def build(self):
-        return TransformHandPositionCoords(host=self.host, keypoint_port=self.keypoint_port, transformation_port=self.transformation_port, moving_average_limit=self.moving_average_limit)
+        return TransformHandPositionCoords(host=self.host, keypoint_sub_port=self.keypoint_sub_port, keypoint_transform_pub_port=self.keypoint_transform_pub_port, moving_average_limit=self.moving_average_limit)
 
 @dataclass
 class Hand2DVisualizerCfg:
@@ -77,7 +77,7 @@ class LeapHandEnvCfg:
 class LeapSimConfig:
     robot_name: str = 'leap_sim'
     detector: OculusVRHandDetectorCfg = OculusVRHandDetectorCfg(host='10.31.152.148', oculus_port='${oculus_reciever_port}', keypoint_pub_port='${keypoint_port}', button_port='8095', button_publish_port='8093', teleop_reset_port='8100', teleop_reset_publish_port='8102')
-    transforms: list = field(default_factory=lambda: [TransformHandPositionCoordsCfg(host='10.31.152.148', keypoint_port='${keypoint_port}', transformation_port='${transformed_position_keypoint_port}', moving_average_limit=1)])
+    transforms: list = field(default_factory=lambda: [TransformHandPositionCoordsCfg(host='10.31.152.148', keypoint_sub_port='${keypoint_port}', keypoint_transform_pub_port='${transformed_position_keypoint_port}', moving_average_limit=1)])
     visualizers: list = field(default_factory=lambda: [Hand2DVisualizerCfg(host='10.31.152.148', transformed_keypoint_port='${transformed_position_keypoint_port}', oculus_feedback_port='15001', display_plot='${visualize_right_2d}')])
     operators: list = field(default_factory=lambda: [LeapHandSimOperatorCfg(host='10.31.152.148', transformed_keypoints_port='${transformed_position_keypoint_port}', finger_configs={"freeze_index": False, "freeze_middle": False, "freeze_ring": False, "freeze_thumb": False, "no_index": False, "no_middle": False, "no_ring": False, "no_thumb": False, "three_dim": True}, stream_configs={"host": "10.31.152.148", "port": "10005"}, stream_oculus=True, jointanglepublishport=10013, jointanglesubscribeport=10012)])
     environment: list = field(default_factory=lambda: [LeapHandEnvCfg(host='10.31.152.148', camport='10005', transformed_keypoints_port='${transformed_position_keypoint_port}', jointanglepublishport=10012, jointanglesubscribeport=10013, timestamppublisherport=10008, endeff_publish_port=10009, endeffpossubscribeport=10010, actualanglepublishport=10011, stream_oculus=True)])

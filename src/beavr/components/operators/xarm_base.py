@@ -4,6 +4,7 @@ from copy import deepcopy as copy
 from scipy.spatial.transform import Rotation, Slerp
 import time
 from typing import Dict, Any, Optional
+import logging
 
 from beavr.constants import (
     VR_FREQ,
@@ -14,12 +15,19 @@ from beavr.constants import (
     TELEOP_HANDSHAKE_PORT,
 )
 from beavr.utils.timer import FrequencyTimer
-from beavr.utils.network import ZMQKeypointSubscriber
-from beavr.utils.network import EnhancedZMQKeypointPublisher as ZMQKeypointPublisher
+from beavr.utils.network import (
+    ZMQKeypointSubscriber,
+    ZMQPublisherManager,
+    get_global_context,
+    cleanup_zmq_resources,
+    SerializationError,
+)
 from beavr.utils.handshake import HandshakeServer
 from .operator import Operator
 
 from beavr.utils.logger import PoseLogger
+
+logger = logging.getLogger(__name__)
 
 # Simple complementary filter with SLERP for orientation (same as Allegro)
 class CompStateFilter:
@@ -97,7 +105,7 @@ class CompStateFilter:
             self.ori_state /= np.linalg.norm(self.ori_state) # Re-normalize after SLERP
         except ValueError as e:
             # Handle potential Slerp errors (e.g., identical quaternions after normalization/flip)
-            print(f"SLERP Warning: {e}. Using previous orientation state.")
+            logger.warning(f"SLERP Warning: {e}. Using previous orientation state.")
             # Keep self.ori_state as is
 
         self.prev_pos = current_pos
@@ -158,43 +166,55 @@ class XArmOperator(Operator):
         self.h_r_v = h_r_v
         self.h_t_v = h_t_v
 
-        self._arm_transformed_keypoint_subscriber = ZMQKeypointSubscriber(
-            host=host,
-            port=transformed_keypoints_port,
-            topic='transformed_hand_frame'
-        )
-
-        # Optional subscribers
-        self._arm_resolution_subscriber = None
-        if arm_resolution_port:
-            self._arm_resolution_subscriber = ZMQKeypointSubscriber(
-                host = host,
-                port = arm_resolution_port,
-                topic = 'button'
+        # Initialize ZMQ context and subscribers
+        self._context = get_global_context()
+        
+        try:
+            self._arm_transformed_keypoint_subscriber = ZMQKeypointSubscriber(
+                host=host,
+                port=transformed_keypoints_port,
+                topic='transformed_hand_frame',
+                context=self._context
             )
 
-        self._arm_teleop_state_subscriber = None
-        if teleoperation_reset_port:
-            self._arm_teleop_state_subscriber = ZMQKeypointSubscriber(
-                host = host,
-                port = teleoperation_reset_port,
-                topic = 'pause'
+            # Optional subscribers
+            self._arm_resolution_subscriber = None
+            if arm_resolution_port:
+                self._arm_resolution_subscriber = ZMQKeypointSubscriber(
+                    host=host,
+                    port=arm_resolution_port,
+                    topic='button',
+                    context=self._context
+                )
+
+            self._arm_teleop_state_subscriber = None
+            if teleoperation_reset_port:
+                self._arm_teleop_state_subscriber = ZMQKeypointSubscriber(
+                    host=host,
+                    port=teleoperation_reset_port,
+                    topic='pause',
+                    context=self._context
+                )
+
+            self.endeff_homo_subscriber = ZMQKeypointSubscriber(
+                host=host,
+                port=endeff_subscribe_port,
+                topic='endeff_homo',
+                context=self._context
             )
 
-        self.endeff_homo_subscriber = ZMQKeypointSubscriber(
-            host = host,
-            port =  endeff_subscribe_port,
-            topic = 'endeff_homo'
-        )
+            # Using the centralized publisher manager
+            self._publisher_manager = ZMQPublisherManager.get_instance(self._context)
+            self._publisher_host = host
+            self._publisher_port = endeff_publish_port
 
-        # ONE publisher for all messages
-        self.unified_publisher = ZMQKeypointPublisher(
-            host = host,
-            port = endeff_publish_port
-        )
+        except (zmq.ZMQError, ConnectionError) as e:
+            logger.error(f"Failed to initialize ZMQ sockets for {operator_name}: {e}")
+            self._cleanup()
+            raise
 
-        self._stream_oculus=stream_oculus
-        self.stream_configs=stream_configs
+        self._stream_oculus = stream_oculus
+        self.stream_configs = stream_configs
 
         # State initialization
         self.arm_teleop_state = ARM_TELEOP_CONT
@@ -237,7 +257,7 @@ class XArmOperator(Operator):
 
         if self.logging_enabled:
             log_filename = self.logging_config.get("filename", f"{self.operator_name}_poses.csv")
-            print(f"Initializing pose logger for {self.operator_name} with config: {self.logging_config}")
+            logger.info(f"Initializing pose logger for {self.operator_name} with config: {self.logging_config}")
             self.pose_logger = PoseLogger(filename=log_filename) # Pass filename if specified
         else:
             self.pose_logger = None
@@ -282,7 +302,7 @@ class XArmOperator(Operator):
             or None if no valid frame is available.
         """
         # Try to get new data without blocking
-        data = self._arm_transformed_keypoint_subscriber.recv_keypoints(flags=zmq.NOBLOCK)
+        data = self._arm_transformed_keypoint_subscriber.recv_keypoints()
 
         if data is not None:
             # Process new data
@@ -291,7 +311,7 @@ class XArmOperator(Operator):
                 self.last_valid_hand_frame = frame_data  # Cache the new valid frame
                 return frame_data
             except Exception as e:
-                print(f"Error processing hand frame data: {e}")
+                logger.error(f"Error processing hand frame data: {e}")
                 # Fall through to return cached frame if processing fails
         
         # If no new data or processing failed, return the cached frame if it exists
@@ -392,7 +412,7 @@ class XArmOperator(Operator):
                 r_fixed = u @ vt # Recalculate R
             return r_fixed
         except np.linalg.LinAlgError:
-             print("SVD did not converge. Returning identity matrix.")
+             logger.warning("SVD did not converge. Returning identity matrix.")
              return np.eye(3) # Fallback
 
     def _get_resolution_scale_mode(self) -> float:
@@ -401,7 +421,7 @@ class XArmOperator(Operator):
             return 1.0  # default if subscriber not configured
 
         # Use NOBLOCK to avoid waiting if no message is present
-        data = self._arm_resolution_subscriber.recv_keypoints(flags=zmq.NOBLOCK)
+        data = self._arm_resolution_subscriber.recv_keypoints()
         if data is None:
             # Keep the current resolution scale if no new message
             return self.resolution_scale
@@ -412,13 +432,11 @@ class XArmOperator(Operator):
                 self.resolution_scale = 1.0
             elif scale_mode == ARM_LOW_RESOLUTION:
                 self.resolution_scale = 0.6
-            # Add other modes if necessary
-            # else:
-            #     print(f"Warning: Unknown resolution scale mode received: {scale_mode}")
+
 
             return self.resolution_scale # Return the updated scale
         except Exception as e:
-            print(f"Error processing resolution scale data: {e}")
+            logger.error(f"Error processing resolution scale data: {e}")
             return self.resolution_scale # Return current scale on error
 
     def _get_arm_teleop_state(self) -> int:
@@ -428,19 +446,16 @@ class XArmOperator(Operator):
             return ARM_TELEOP_CONT
 
         # Use NOBLOCK to avoid waiting
-        data = self._arm_teleop_state_subscriber.recv_keypoints(flags=zmq.NOBLOCK)
+        data = self._arm_teleop_state_subscriber.recv_keypoints()
         if data is None:
             return self.arm_teleop_state # Return current state if no new message
         try:
             state = int(np.asanyarray(data).reshape(1)[0])
             if state in [ARM_TELEOP_STOP, ARM_TELEOP_CONT]:
-                print(f"Teleop state received: {state}")
                 return state
             else:
-                print(f"Warning: Unknown teleop state received: {state}")
                 return self.arm_teleop_state # Return current state if unknown value
         except Exception as e:
-            print(f"Error processing teleop state data: {e}")
             return self.arm_teleop_state # Return current state on error
 
     # ------------------------------
@@ -454,17 +469,16 @@ class XArmOperator(Operator):
         Returns:
             The initial moving hand frame (4x3) captured after reset, or None on failure.
         """
-        print(f"[{self.operator_name}] ▶ reset() sent at {time.time():.3f}")
 
-        print(f'****** {self.operator_name}: RESETTING TELEOP ******')
+        logger.info(f'****** {self.operator_name}: RESETTING TELEOP ******')
         # Request robot's current pose
-        self.unified_publisher.pub_keypoints(1, 'reset')
-        robot_frame_homo = self.endeff_homo_subscriber.recv_keypoints(flags=zmq.NOBLOCK)
+        self._publisher_manager.publish(self._publisher_host, self._publisher_port, 'reset', 1)
+        robot_frame_homo = self.endeff_homo_subscriber.recv_keypoints()
         
         # Keep trying until we get a response
         while robot_frame_homo is None:
-            self.unified_publisher.pub_keypoints(1, 'reset')
-            robot_frame_homo = self.endeff_homo_subscriber.recv_keypoints(flags=zmq.NOBLOCK)
+            self._publisher_manager.publish(self._publisher_host, self._publisher_port, 'reset', 1)
+            robot_frame_homo = self.endeff_homo_subscriber.recv_keypoints()
             time.sleep(0.01)
         
         try:
@@ -472,18 +486,18 @@ class XArmOperator(Operator):
             self.robot_init_h = np.asanyarray(robot_frame_homo).reshape(4, 4)
             # Validate if it's close to a homogeneous matrix
             if not np.allclose(self.robot_init_h[3, :], [0, 0, 0, 1]):
-                 print(f"Warning ({self.operator_name}): Received robot frame is not a valid homogeneous matrix. Resetting bottom row.")
+                 logger.warning(f"Warning ({self.operator_name}): Received robot frame is not a valid homogeneous matrix. Resetting bottom row.")
                  self.robot_init_h[3, :] = [0, 0, 0, 1]
             # Ensure rotation part is valid SO(3)
             self.robot_init_h[:3, :3] = self.project_to_rotation_matrix(self.robot_init_h[:3, :3])
 
         except Exception as e:
-            print(f"ERROR ({self.operator_name}): Failed to process received robot frame: {e}")
+            logger.error(f"ERROR ({self.operator_name}): Failed to process received robot frame: {e}")
             self.is_first_frame = True # Stay in reset state
             return None
 
         self.robot_moving_h = copy(self.robot_init_h)
-        print(f"{self.operator_name} Robot init H:\n{self.robot_init_h}")
+        logger.info(f"{self.operator_name} Robot init H:\n{self.robot_init_h}")
 
         first_hand_frame = None
         while first_hand_frame is None:
@@ -493,16 +507,16 @@ class XArmOperator(Operator):
         try:
             self.hand_init_h = self._turn_frame_to_homo_mat(first_hand_frame)
             self.hand_init_t = copy(self.hand_init_h[:3, 3]) # Store initial hand translation
-            print(f"{self.operator_name} Hand init H:\n{self.hand_init_h}")
+            logger.info(f"{self.operator_name} Hand init H:\n{self.hand_init_h}")
         except ValueError as e:
-             print(f"ERROR ({self.operator_name}): Failed to convert initial hand frame to matrix: {e}")
+             logger.error(f"ERROR ({self.operator_name}): Failed to convert initial hand frame to matrix: {e}")
              self.is_first_frame = True # Stay in reset state
              return None
 
         self.is_first_frame = False # Reset successful
         self.comp_filter = None # Reset filter, will be initialized on first _apply call
-        print(f"****** {self.operator_name}: TELEOP RESET COMPLETE ******")
-        print(f"[{self.operator_name}] hand_init_h\n{self.hand_init_h}")
+        logger.info(f"****** {self.operator_name}: TELEOP RESET COMPLETE ******")
+        logger.info(f"[{self.operator_name}] hand_init_h\n{self.hand_init_h}")
         return first_hand_frame # Return the frame used for initialization
 
     # ------------------------------
@@ -548,8 +562,6 @@ class XArmOperator(Operator):
         self.resolution_scale = self._get_resolution_scale_mode() # Update resolution scale
 
         # Determine if a reset is needed
-        # If this is the first frame, we need to reset
-        # If the arm teleop state is stopped and the new state is continue, we need to reset
         needs_reset = self.is_first_frame or \
                       (self.arm_teleop_state == ARM_TELEOP_STOP and new_arm_teleop_state == ARM_TELEOP_CONT)
 
@@ -563,7 +575,7 @@ class XArmOperator(Operator):
         if needs_reset:
             moving_hand_frame = self._reset_teleop()
             if moving_hand_frame is None:
-                print(f"ERROR ({self.operator_name}): Reset failed, cannot proceed.")
+                logger.error(f"ERROR ({self.operator_name}): Reset failed, cannot proceed.")
                 return # Exit if reset failed
             # Reset is done, is_first_frame is now False
         else:
@@ -572,12 +584,12 @@ class XArmOperator(Operator):
 
         # If no valid hand frame is available (after reset or during normal operation), exit
         if moving_hand_frame is None:
-            print(f"Warning ({self.operator_name}): No valid hand frame received, skipping cycle.")
+            logger.warning(f"Warning ({self.operator_name}): No valid hand frame received, skipping cycle.")
             return
 
         # Ensure initial robot/hand poses are set (should be handled by reset)
         if self.robot_init_h is None or self.hand_init_h is None:
-             print(f"ERROR ({self.operator_name}): Initial robot or hand poses not set. Triggering reset.")
+             logger.error(f"ERROR ({self.operator_name}): Initial robot or hand poses not set. Triggering reset.")
              self.is_first_frame = True # Force reset on next cycle
              return
 
@@ -585,7 +597,7 @@ class XArmOperator(Operator):
         try:
             self.hand_moving_h = self._turn_frame_to_homo_mat(moving_hand_frame)
         except ValueError as e:
-            print(f"Error ({self.operator_name}): Could not convert moving hand frame: {e}")
+            logger.error(f"Error ({self.operator_name}): Could not convert moving hand frame: {e}")
             return # Skip cycle if conversion fails
 
         # 5. Calculate Relative Transformation
@@ -596,7 +608,7 @@ class XArmOperator(Operator):
             h_ht_hi = h_hi_hh_inv @ self.hand_moving_h # Relative motion of hand w.r.t its start pose
             # Alternative using solve: H_HT_HI = np.linalg.solve(self.hand_init_H, self.hand_moving_H)
         except np.linalg.LinAlgError:
-            print(f"Error ({self.operator_name}): Could not invert initial hand matrix. Resetting.")
+            logger.error(f"Error ({self.operator_name}): Could not invert initial hand matrix. Resetting.")
             self.is_first_frame = True
             return
 
@@ -621,7 +633,7 @@ class XArmOperator(Operator):
             h_ht_hi_t = h_t_v_inv[:3,:3] @ h_ht_hi[:3, 3] * self.resolution_scale
 
         except np.linalg.LinAlgError:
-            print(f"Error ({self.operator_name}): Could not invert H_R_V or H_T_V matrix.")
+            logger.error(f"Error ({self.operator_name}): Could not invert H_R_V or H_T_V matrix.")
             # Handle error appropriately, maybe reset or use identity
             return
 
@@ -680,13 +692,21 @@ class XArmOperator(Operator):
             "orientation": orientation_quat.tolist(),  # qx, qy, qz, qw with qw >= 0
             "timestamp": time.time(),
         }
-        # Publish only if tele-operation is in CONT mode. During STOP we still
-        # run the full pipeline so that filters and internal state remain
-        # up-to-date, but we do not send any commands to the robot. This avoids
-        # a sudden jump when tele-op resumes while still maintaining smooth
-        # pose estimation.
+        
+        # Publish only if tele-operation is in CONT mode
         if publish_commands:
-            self.unified_publisher.pub_keypoints(command_data, "endeff_coords")
+            try:
+                self._publisher_manager.publish(
+                    self._publisher_host,
+                    self._publisher_port,
+                    "endeff_coords",
+                    command_data
+                )
+                # logger.info(f"Published end-effector command: {command_data}")
+            except (ConnectionError, SerializationError) as e:
+                logger.error(f"Failed to publish end-effector command: {e}")
+            except Exception as e:
+                logger.error(f"Unexpected error publishing command: {e}")
 
         # 12. Logging (Optional)
         if self.logging_enabled and self.pose_logger:
@@ -703,7 +723,7 @@ class XArmOperator(Operator):
                         self.robot_moving_h # Log the target pose *before* filtering
                     )
             except Exception as e:
-                print(f"Error logging frame ({self.operator_name}): {e}")
+                logger.error(f"Error logging frame ({self.operator_name}): {e}")
 
 
     def moving_average(self, action: np.ndarray, queue: list, limit: int) -> np.ndarray:
@@ -734,7 +754,7 @@ class XArmOperator(Operator):
                 with self.timer: # Ensures loop runs at desired frequency (e.g., VR_FREQ)
                     self._apply_retargeted_angles()
         except KeyboardInterrupt:
-            print(f"{self.operator_name} received KeyboardInterrupt. Cleaning up...")
+            logger.info(f"{self.operator_name} received KeyboardInterrupt. Cleaning up...")
         finally:
             self._cleanup()
 
@@ -743,16 +763,22 @@ class XArmOperator(Operator):
         self._cleanup()
 
     def _cleanup(self):
-        """Performs cleanup actions like closing log files."""
-        print(f"Cleaning up {self.operator_name}...")
+        """Performs cleanup actions like closing log files and ZMQ resources."""
+        logger.info(f"Cleaning up {self.operator_name}...")
+        
+        # Close pose logger if it exists
         if self.pose_logger:
-            print(f"Closing pose logger for {self.operator_name}.")
+            logger.info(f"Closing pose logger for {self.operator_name}.")
             self.pose_logger.close()
-            self.pose_logger = None # Prevent double closing
+            self.pose_logger = None
 
-        # Close ZMQ sockets if necessary (subscribers/publisher might handle this)
-        # Example: self._arm_transformed_keypoint_subscriber.close()
-        #          self.unified_publisher.close()
-        # Check ZMQKeypointSubscriber/Publisher implementation for cleanup methods
+        cleanup_zmq_resources()
 
-        print(f"{self.operator_name} cleanup complete.") 
+        # Close handshake server if it exists
+        if hasattr(self, '_handshake_server') and self._handshake_server:
+            try:
+                self._handshake_server.close()
+            except Exception as e:
+                logger.error(f"Error closing handshake server: {e}")
+
+        logger.info(f"{self.operator_name} cleanup complete.") 

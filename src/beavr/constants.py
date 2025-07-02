@@ -1,6 +1,14 @@
 import os.path as path
 import numpy as np
-# VR detector 
+import yaml
+
+# Load constants from the constants.yaml file
+with open(path.join(path.dirname(__file__), 'configs_teleop', 'constants.yaml'), 'r') as f:
+    constants = yaml.safe_load(f)
+
+# -----------------------------------------------------------------------------
+# VR detector constants
+# -----------------------------------------------------------------------------
 # Arm movement
 WRIST_HOME_STATE = {
     'translation': [0, 0, 0],
@@ -11,7 +19,9 @@ WRIST_HOME_STATE = {
     ]
 }
 
+# -----------------------------------------------------------------------------
 # Joint Information
+# -----------------------------------------------------------------------------
 OCULUS_NUM_KEYPOINTS = 24
 #VR_THUMB_BOUND_VERTICES = 8
 VR_THUMB_BOUND_VERTICES = 4
@@ -47,8 +57,10 @@ XELA_PALM_NUM_TAXELS = 24
 XELA_FINGERTIP_NUM_TAXELS= 30
 XELA_FINGER_NUM_TAXELS= 16 
 XELA_NUM_TAXELS = 16
-# Robot parameters
 
+# -----------------------------------------------------------------------------
+# Robot parameters
+# -----------------------------------------------------------------------------
 # Allegro and Leap
 ALLEGRO_JOINTS_PER_FINGER = LEAP_JOINTS_PER_FINGER = 4
 ALLEGRO_JOINT_OFFSETS = LEAP_JOINT_OFFSETS = {
@@ -58,7 +70,9 @@ ALLEGRO_JOINT_OFFSETS = LEAP_JOINT_OFFSETS = {
     'thumb': 12
 }
 
+# -----------------------------------------------------------------------------
 # Realsense Camera parameters
+# -----------------------------------------------------------------------------
 NUM_CAMS = 4
 CAM_FPS = 30
 CAM_FPS_SIM = 60
@@ -76,37 +90,44 @@ VR_DISPLAY_THUMB_BOUNDS_PATH = path.join(CALIBRATION_FILES_PATH, 'vr_thumb_plot_
 VR_2D_PLOT_SAVE_PATH = path.join(CALIBRATION_FILES_PATH, 'oculus_hand_2d_plot.jpg')
 XELA_PLOT_SAVE_PATH = path.join(CALIBRATION_FILES_PATH, 'xela_plot.png')
 
-
+# -----------------------------------------------------------------------------
 # Data recording parameters - Images are recorded at CAM_FPS rate
+# -----------------------------------------------------------------------------
 IMAGE_RECORD_RESOLUTION = (1280, 720) 
 IMAGE_RECORD_RESOLUTION_SIM = (480, 480)
 DEPTH_RECORD_FPS = 30
 ALLEGRO_SAMPLE_OFFSET = 10 # For sampling states
 SAMPLE_WRITER_FPS = 5
 
-# Deployment
+# -----------------------------------------------------------------------------
+# Deployment constants
+# -----------------------------------------------------------------------------
 DEPLOY_REACH_THRESHOLD = 0.35
 DEPLOY_FREQ = 3 
 
-#RESOLUTION SPECIFIC parameters
-
+# -----------------------------------------------------------------------------
+# Resolution specific parameters
+# -----------------------------------------------------------------------------
 ARM_HIGH_RESOLUTION = 1 #  for arm teleoperation
 ARM_LOW_RESOLUTION = 0
 
-
+# -----------------------------------------------------------------------------
+# Teleop constants
+# -----------------------------------------------------------------------------
 ARM_TELEOP_CONT = 1
 ARM_TELEOP_STOP = 0
 
-TELEOP_RESET_PORT = 8100
+# Get the teleop reset port from the constants.yaml file
+TELEOP_RESET_PORT = int(constants['network']['teleop_reset_port'])
 
-# Port used for the optional REQ/REP pause-handshake between adapter (client)
-# and operator (server).  Chosen to be out of the way of existing PUB/SUB
-# ports but can be overridden per deployment via config if needed.
+#Get the
 TELEOP_HANDSHAKE_PORT = 8150
 
-# Bimanual Robot Constants
-
+# -----------------------------------------------------------------------------
+# XArm constants
+# -----------------------------------------------------------------------------
 XARM_SCALE_FACTOR= 1000
+
 
 RIGHT_ARM_IP = "192.168.86.230" # For Right XArm
 LEFT_ARM_IP = "192.168.86.216" # For Left XArm
@@ -125,3 +146,25 @@ ROBOT_HOME_JS = [0.0, -0.4363323129985824, -0.017453292519943295,
 LEAP_FINGER_SCALE_FACTOR = 1.8               # default scaling for non-thumb fingertips
 LEAP_THUMB_SCALE_FACTOR = 1.7         # separate scaling for thumb positions
 LEAP_HOME_JS = np.zeros(16)
+
+# -----------------------------------------------------------------------------
+# Oculus constants
+# -----------------------------------------------------------------------------
+VR_DETECTOR = 'vr detector'
+KEYPOINTS = 'keypoints'
+BUTTON = 'button'
+PAUSE = 'pause'
+RIGHT = 'right'
+LEFT = 'left'
+
+LEFT_HAND_PORT = int(constants['network']['left_hand_oculus_receiver_port']) # 8110
+RIGHT_HAND_PORT = int(constants['network']['right_hand_oculus_receiver_port']) # 8087
+
+# -----------------------------------------------------------------------------
+# Keypoint transform constants
+# -----------------------------------------------------------------------------
+KEYPOINT_POSITION_TRANSFORM = 'keypoint position transform'
+ABSOLUTE = 'absolute'
+RELATIVE = 'relative'
+TRANSFORMED_HAND_COORDS = 'transformed_hand_coords'
+TRANSFORMED_HAND_FRAME = 'transformed_hand_frame'

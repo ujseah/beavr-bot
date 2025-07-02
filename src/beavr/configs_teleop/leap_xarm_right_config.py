@@ -161,8 +161,8 @@ class LeapXarmRightConfig(TeleopRobotConfig):
     robot_name: str = 'leap_xarm7_right_combo'
     detector: OculusVRHandDetectorCfg = OculusVRHandDetectorCfg(
         host='10.31.152.148',
-        oculus_port=8087,
-        unified_pub_port=8088,
+        oculus_hand_port=8087,
+        oculus_pub_port=8088,
         button_port=8095,
         teleop_reset_port=8100
     )
@@ -170,8 +170,8 @@ class LeapXarmRightConfig(TeleopRobotConfig):
         default_factory=lambda: [
             TransformHandPositionCoordsCfg(
                 host='10.31.152.148',
-                keypoint_port=8088,
-                transformation_port=8092,
+                keypoint_sub_port=8088,
+                keypoint_transform_pub_port=8092,
                 moving_average_limit=1
             )
         ]

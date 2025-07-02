@@ -1,24 +1,45 @@
 import numpy as np
 from copy import deepcopy as copy
 from beavr.components import Component
-from beavr.constants import *
-from beavr.utils.vectorops import *
-from beavr.utils.network import ZMQKeypointPublisher, ZMQKeypointSubscriber
+
+from beavr.constants import (
+    OCULUS_NUM_KEYPOINTS,
+    OCULUS_JOINTS, 
+    VR_FREQ, 
+    KEYPOINT_POSITION_TRANSFORM, 
+    RIGHT, 
+    ABSOLUTE, 
+    RELATIVE, 
+    TRANSFORMED_HAND_COORDS, TRANSFORMED_HAND_FRAME)
+
+from beavr.utils.vectorops import normalize_vector, moving_average
+from beavr.utils.network import ZMQKeypointSubscriber, ZMQPublisherManager
 from beavr.utils.timer import FrequencyTimer
-from enum import Enum, auto, IntEnum
+from enum import IntEnum
+import logging
+import time
+
+logger = logging.getLogger(__name__)
 
 class HandMode(IntEnum):
     ABSOLUTE = 1
     RELATIVE = 0
 
 class TransformHandPositionCoords(Component):
-    def __init__(self, host, keypoint_port, transformation_port, moving_average_limit = 5):
-        self.notify_component_start('keypoint position transform')
+    def __init__(self, host, keypoint_sub_port, keypoint_transform_pub_port, moving_average_limit = 5):
+        self.notify_component_start(KEYPOINT_POSITION_TRANSFORM)
+        
+        # Store connection info
+        self.host = host
+        self.keypoint_sub_port = keypoint_sub_port
+        self.keypoint_transform_pub_port = keypoint_transform_pub_port
         
         # Initializing the subscriber for right hand keypoints
-        self.original_keypoint_subscriber = ZMQKeypointSubscriber(host, keypoint_port, 'right')
-        # Initializing the publisher for transformed right hand keypoints
-        self.transformed_keypoint_publisher = ZMQKeypointPublisher(host, transformation_port)
+        self.original_keypoint_subscriber = ZMQKeypointSubscriber(host, keypoint_sub_port, RIGHT)
+        
+        # Initialize publisher manager
+        self.publisher_manager = ZMQPublisherManager.get_instance()
+        
         # Timer
         self.timer = FrequencyTimer(VR_FREQ)
         # Define key landmark indices for stable frame calculation
@@ -34,14 +55,24 @@ class TransformHandPositionCoords(Component):
 
     # Function to get the hand coordinates from the VR
     def _get_hand_coords(self):
-        data = self.original_keypoint_subscriber.recv_keypoints()
-        if data is None:
+        """Get hand coordinates from the subscriber.
+        
+        Returns:
+            Tuple of (data_type, coordinates) or (None, None) if no data received
+        """
+        try:
+            data = self.original_keypoint_subscriber.recv_keypoints()
+            if data is None:
+                return None, None
+                        
+            if data[0] == HandMode.ABSOLUTE:
+                data_type = ABSOLUTE
+            else:
+                data_type = RELATIVE
+            return data_type, np.asanyarray(data[1:]).reshape(OCULUS_NUM_KEYPOINTS, 3)
+        except Exception as e:
+            logger.error(f"Error receiving keypoints: {e}")
             return None, None
-        if data[0] == HandMode.ABSOLUTE:
-            data_type = 'absolute'
-        else:
-            data_type = 'relative'
-        return data_type, np.asanyarray(data[1:]).reshape(OCULUS_NUM_KEYPOINTS, 3)
     
     # Function to find hand coordinates with respect to the wrist
     def _translate_coords(self, hand_coords):
@@ -142,7 +173,10 @@ class TransformHandPositionCoords(Component):
             try:
                 self.timer.start_loop()
                 data_type, hand_coords = self._get_hand_coords()
-                if hand_coords is None:
+
+                # If no data was available just continue the loop
+                if hand_coords is None or data_type is None:
+                    self.timer.end_loop()
                     continue
 
                 # Shift the points to required axes
@@ -176,18 +210,26 @@ class TransformHandPositionCoords(Component):
                 # Reconstruct orthogonal frame
                 self.averaged_hand_frame = [origin, x_vec, y_vec, z_vec]
 
-                self.transformed_keypoint_publisher.pub_keypoints(self.averaged_hand_coords, 'transformed_hand_coords')
+                # Always publish transformed hand coordinates
+                self.publisher_manager.publish(
+                    host=self.host, 
+                    port=self.keypoint_transform_pub_port, 
+                    topic=TRANSFORMED_HAND_COORDS, 
+                    data=self.averaged_hand_coords
+                )
 
-                # Only publish the frame in absolute mode, but it's always orthogonalized
-                if data_type == 'absolute':
-                    self.transformed_keypoint_publisher.pub_keypoints(self.averaged_hand_frame, 'transformed_hand_frame')
-
+                # Only publish the frame in absolute mode
+                if data_type == ABSOLUTE:
+                    self.publisher_manager.publish(
+                        host=self.host, 
+                        port=self.keypoint_transform_pub_port, 
+                        topic=TRANSFORMED_HAND_FRAME, 
+                        data=self.averaged_hand_frame
+                    )
                 self.timer.end_loop()
             except Exception as e:
-                print(f"Error in keypoint transform: {e}")
+                logger.error(f"Error in keypoint transform: {e}")
                 break
         
         self.original_keypoint_subscriber.stop()
-        self.transformed_keypoint_publisher.stop()
-
-        print('Stopping the keypoint position transform process.')
+        logger.info('Stopping the keypoint position transform process.')

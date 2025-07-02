@@ -1,11 +1,11 @@
 import numpy as np
 from copy import deepcopy as copy
 from beavr.components import Component
-from beavr.constants import *
-from beavr.utils.vectorops import *
+from beavr.constants import OCULUS_NUM_KEYPOINTS, OCULUS_JOINTS, VR_FREQ
+from beavr.utils.vectorops import normalize_vector, moving_average
 from beavr.utils.network import ZMQKeypointPublisher, ZMQKeypointSubscriber
 from beavr.utils.timer import FrequencyTimer
-from enum import Enum, auto, IntEnum
+from enum import IntEnum
 
 class HandMode(IntEnum):
     ABSOLUTE = 1

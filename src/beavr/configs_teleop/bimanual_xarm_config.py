@@ -22,8 +22,8 @@ from beavr.components.visualizers.visualizer_2d import Hand2DVisualizer
 @dataclass
 class OculusVRTwoHandDetectorCfg:
     host: str = CONST.HOST_ADDRESS
-    oculus_right_port: str = CONST.OCULUS_RECEIVER_PORT
-    oculus_left_port: str = CONST.LEFT_HAND_RECEIVER_PORT
+    oculus_right_port: str = CONST.RIGHT_HAND_OCULUS_RECEIVER_PORT
+    oculus_left_port: str = CONST.LEFT_HAND_OCULUS_RECEIVER_PORT
     keypoint_pub_port: str = CONST.KEYPOINT_STREAM_PORT
     button_port: str = CONST.RESOLUTION_BUTTON_PORT
     button_publish_port: str = CONST.RESOLUTION_BUTTON_PUBLISH_PORT
@@ -34,12 +34,17 @@ class OculusVRTwoHandDetectorCfg:
 @dataclass
 class TransformHandPositionCoordsCfg:
     host: str = CONST.HOST_ADDRESS
-    keypoint_port: str = CONST.KEYPOINT_STREAM_PORT
-    transformation_port: str = CONST.KEYPOINT_TRANSFORM_PORT
+    keypoint_sub_port: int | str = CONST.KEYPOINT_STREAM_PORT
+    keypoint_transform_pub_port: int | str = CONST.KEYPOINT_TRANSFORM_PORT
     moving_average_limit: int = 1
 
     def build(self):
-        return TransformHandPositionCoords(host=self.host, keypoint_port=self.keypoint_port, transformation_port=self.transformation_port, moving_average_limit=self.moving_average_limit)
+        return TransformHandPositionCoords(
+            host=self.host,
+            keypoint_sub_port=self.keypoint_sub_port,
+            keypoint_transform_pub_port=self.keypoint_transform_pub_port,
+            moving_average_limit=self.moving_average_limit,
+        )
 
 @dataclass
 class TransformLeftHandPositionCoordsCfg:
@@ -114,7 +119,7 @@ class XArm7LeftOperatorCfg:
 @TeleopRobotConfig.register_subclass("bimanual_xarm")
 class BimanualXarmConfig:
     robot_name: str = 'bimanual_xarm'
-    detector: OculusVRTwoHandDetectorCfg = OculusVRTwoHandDetectorCfg(host=CONST.HOST_ADDRESS, oculus_right_port=CONST.OCULUS_RECEIVER_PORT, oculus_left_port=CONST.LEFT_HAND_RECEIVER_PORT, keypoint_pub_port=CONST.KEYPOINT_STREAM_PORT, button_port=CONST.RESOLUTION_BUTTON_PORT, button_publish_port=CONST.RESOLUTION_BUTTON_PUBLISH_PORT)
+    detector: OculusVRTwoHandDetectorCfg = OculusVRTwoHandDetectorCfg(host=CONST.HOST_ADDRESS, oculus_right_port=CONST.RIGHT_HAND_OCULUS_RECEIVER_PORT, oculus_left_port=CONST.LEFT_HAND_OCULUS_RECEIVER_PORT, keypoint_pub_port=CONST.KEYPOINT_STREAM_PORT, button_port=CONST.RESOLUTION_BUTTON_PORT, button_publish_port=CONST.RESOLUTION_BUTTON_PUBLISH_PORT)
     transforms: list = field(default_factory=lambda: [TransformHandPositionCoordsCfg(), TransformLeftHandPositionCoordsCfg()])
     visualizers: list = field(default_factory=lambda: [Hand2DVisualizerCfg(display_plot='${visualize_right_2d}')])
     robots: list = field(default_factory=lambda: [XArm7RobotCfg(host=CONST.HOST_ADDRESS, robot_ip='192.168.1.197', is_right_arm=True, endeff_publish_port=10010, endeff_subscribe_port=10009, joint_subscribe_port=10029, reset_subscribe_port=10009, state_publish_port=10011, recorder_config={"robot_identifier": "right_xarm7", "recorded_data": ["joint_states", "xarm_cartesian_states", "commanded_cartesian_state"]}), XArm7RobotCfg(host=CONST.HOST_ADDRESS, endeff_publish_port=10012, endeff_subscribe_port=10011, joint_subscribe_port=10030, reset_subscribe_port=10011, robot_ip='192.168.1.237', is_right_arm=False, recorder_config={"robot_identifier": "left_xarm7", "recorded_data": ["joint_states", "xarm_cartesian_states", "commanded_cartesian_state"]})])

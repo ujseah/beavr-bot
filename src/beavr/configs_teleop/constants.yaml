@@ -17,8 +17,8 @@ network:
   robot_state_port: 8090            # Robot state information
   robot_command_port: 8091          # Robot commands
 
-  oculus_receiver_port: 8087        # Raw data from Oculus
-  left_hand_receiver_port: 8110     # Raw data from left hand sensor
+  right_hand_oculus_receiver_port: 8087        # Raw data from Oculus
+  left_hand_oculus_receiver_port: 8110     # Raw data from left hand sensor
   resolution_button_port: 8095      # Button input (subscribe)
   resolution_button_publish_port: 8093 # Button input (publish)
 

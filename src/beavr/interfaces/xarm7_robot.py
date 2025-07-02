@@ -1,12 +1,16 @@
 from beavr.controllers.xarm7_control import DexArmControl
 from .robot import RobotWrapper
-from beavr.utils.network import ZMQKeypointSubscriber
-from beavr.utils.network import EnhancedZMQKeypointPublisher as ZMQKeypointPublisher
+from beavr.utils.network import (
+    ZMQKeypointSubscriber,
+    ZMQPublisherManager,
+    cleanup_zmq_resources,
+)
 import numpy as np
 import time
-import zmq
 from beavr.constants import VR_FREQ
 import logging
+
+logger = logging.getLogger(__name__)
 
 class XArm7Robot(RobotWrapper):
     def __init__(self, host, endeff_subscribe_port, joint_subscribe_port, home_subscribe_port,
@@ -36,11 +40,7 @@ class XArm7Robot(RobotWrapper):
         self._controller = DexArmControl(ip=robot_ip)
         self._is_right_arm = is_right_arm
         
-        # Use VR_FREQ instead of hardcoded 90Hz
         self._data_frequency = VR_FREQ
-        print(f"XArm7Robot '{self.name}' initialized with command frequency: {self._data_frequency}Hz")
-        print(f"  Publishing general data on tcp://{host}:{endeff_publish_port}")
-        print(f"  Publishing state dictionary on tcp://{host}:{state_publish_port} with topic '{self.name}'")
         
         # Subscribers
         self._cartesian_coords_subscriber = ZMQKeypointSubscriber(
@@ -69,17 +69,11 @@ class XArm7Robot(RobotWrapper):
             topic = 'home'
         )
 
-        # Publisher for general data (using endeff_publish_port)
-        self._general_publisher = ZMQKeypointPublisher(
-            host = host,
-            port = endeff_publish_port
-        )
-
-        # Publisher specifically for the state dictionary (using state_publish_port)
-        self._state_publisher = ZMQKeypointPublisher(
-            host = host,
-            port = state_publish_port
-        )
+        # Centralized publisher manager and publishing configuration
+        self._publisher_manager    = ZMQPublisherManager.get_instance()
+        self._publisher_host       = host
+        self._endeff_publish_port  = endeff_publish_port
+        self._state_publish_port   = state_publish_port
 
         # Add caches for received messages
         self._latest_cartesian_coords = None
@@ -140,7 +134,6 @@ class XArm7Robot(RobotWrapper):
 
     # Movement functions
     def home(self):
-        print(f"[{self.name}] home() triggered {time.time():.3f}")
         return self._controller.home_arm()
 
     def move(self, input_angles):
@@ -197,18 +190,25 @@ class XArm7Robot(RobotWrapper):
     
     def send_robot_pose(self):
         cartesian_state = self._controller.get_arm_pose()
-        print(f"[{self.name}] sending robot pose {time.time():.3f}")
-        self._general_publisher.pub_keypoints(cartesian_state, "endeff_homo")
+        try:
+            self._publisher_manager.publish(
+                self._publisher_host,
+                self._endeff_publish_port,
+                "endeff_homo",
+                cartesian_state,
+            )
+        except Exception as e:
+            logger.error(f"Failed to publish robot pose for {self.name}: {e}")
 
     def check_reset(self):
-        reset_bool = self._reset_subscriber.recv_keypoints(flags=zmq.NOBLOCK)
+        reset_bool = self._reset_subscriber.recv_keypoints()
         if reset_bool is not None:
             return True
         else:
             return False
 
     def check_home(self):
-        home_bool = self._home_subscriber.recv_keypoints(flags=zmq.NOBLOCK)
+        home_bool = self._home_subscriber.recv_keypoints()
         return home_bool is not None
 
     # Modified stream method with automatic recording start after reset
@@ -220,7 +220,6 @@ class XArm7Robot(RobotWrapper):
         next_frame_time = time.time()
         
         # At the top of the stream() method, **before the main loop**:
-        last_msg_time   = None        # holds timestamp of previous command
         avg_start_time  = time.time() # window start for average frequency
         msg_counter     = 0           # how many commands arrived in this window
         
@@ -233,41 +232,34 @@ class XArm7Robot(RobotWrapper):
                 next_frame_time = current_time + target_interval
 
                 if self.check_home():
-                    print(f"[{self.name}] home() triggered {time.time():.3f}")
                     # Execute the homing motion.
                     self.home()
                     self.send_robot_pose()
 
                 if self.check_reset():
-                    print(f"[{self.name}] reset msg received {time.time():.3f}")
                     self.send_robot_pose()
 
-
-                if msg := self._cartesian_coords_subscriber.recv_keypoints(zmq.NOBLOCK):
+                if msg := self._cartesian_coords_subscriber.recv_keypoints():
                     self._latest_commanded_cartesian_position = np.concatenate(
                         [np.asarray(msg["position"], dtype=np.float32),
                          np.asarray(msg["orientation"], dtype=np.float32)]
                     )
                     self._latest_commanded_cartesian_timestamp = msg["timestamp"]
                     self.move_coords(self._latest_commanded_cartesian_position)
+                else:
+                    continue
 
-                    # -------------------------------------------------------------
-                    # Instantaneous and average command frequency diagnostics.
-                    # -------------------------------------------------------------
-                    now = time.time()
+                # -------------------------------------------------------------
+                # Instantaneous and average command frequency diagnostics.
+                # -------------------------------------------------------------
+                now = time.time()
 
-                    if last_msg_time is not None:
-                        inst_freq = 1.0 / (now - last_msg_time)
-                        # print(f"Instantaneous cmd freq: {inst_freq:6.2f} Hz")
-
-                    last_msg_time = now
-
-                    msg_counter += 1
-                    if now - avg_start_time >= 1.0:
-                        avg_freq = msg_counter / (now - avg_start_time)
-                        # print(f"Average cmd freq over last second: {avg_freq:6.2f} Hz")
-                        avg_start_time = now
-                        msg_counter = 0
+                msg_counter += 1
+                if now - avg_start_time >= 1.0:
+                    avg_freq = msg_counter / (now - avg_start_time)
+                    logger.info(f"Average cmd freq over last second: {avg_freq:6.2f} Hz")
+                    avg_start_time = now
+                    msg_counter = 0
 
                 # Publish the current state every cycle so that external
                 # adapters (e.g. MultiRobotAdapter) receive up-to-date joint
@@ -296,28 +288,22 @@ class XArm7Robot(RobotWrapper):
                 state_data = getter_function()
                 if state_data is not None:
                     current_state_dict[key] = state_data
-                    logging.debug(f"Got state for '{key}': {state_data}")
             except Exception as e:
                 logging.error(f"Failed to get state for '{key}' on robot '{self.name}': {e}")
                 current_state_dict[key] = None
 
         current_state_dict['timestamp'] = publish_time
 
-        # Log the complete state dictionary
-        logging.debug(f"Publishing state dictionary for robot '{self.name}': {current_state_dict}")
-
         # Publish the state dictionary using the dedicated state publisher and self.name topic
         try:
-            self._state_publisher.pub_keypoints(current_state_dict, self.name)
+            self._publisher_manager.publish(
+                self._publisher_host,
+                self._state_publish_port,
+                self.name,
+                current_state_dict,
+            )
         except Exception as e:
             logging.error(f"Error publishing state dictionary for robot '{self.name}': {e}")
 
     def __del__(self):
-        # Clean up ZMQ sockets
-        print(f"Closing ZMQ sockets for {self.name}")
-        if hasattr(self, '_cartesian_coords_subscriber'): self._cartesian_coords_subscriber.stop()
-        if hasattr(self, '_joint_state_subscriber'): self._joint_state_subscriber.stop()
-        if hasattr(self, '_home_subscriber'): self._home_subscriber.stop()
-        if hasattr(self, '_reset_subscriber'): self._reset_subscriber.stop()
-        if hasattr(self, '_general_publisher'): self._general_publisher.stop()
-        if hasattr(self, '_state_publisher'): self._state_publisher.stop()
+        cleanup_zmq_resources()

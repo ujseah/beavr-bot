@@ -1,102 +1,160 @@
-from beavr.constants import VR_FREQ, ARM_LOW_RESOLUTION, ARM_HIGH_RESOLUTION, ARM_TELEOP_STOP, ARM_TELEOP_CONT
+from beavr.constants import (
+    VR_FREQ,
+    ARM_LOW_RESOLUTION,
+    ARM_HIGH_RESOLUTION,
+    ARM_TELEOP_STOP,
+    ARM_TELEOP_CONT,
+    ABSOLUTE,
+    VR_DETECTOR, KEYPOINTS,
+    BUTTON, PAUSE,
+    LEFT,
+    RIGHT,
+    LEFT_HAND_PORT,
+    RIGHT_HAND_PORT)
 from beavr.components import Component
 from beavr.utils.timer import FrequencyTimer
-from beavr.utils.network import create_pull_socket, ZMQKeypointPublisher
+from beavr.utils.network import create_pull_socket, ZMQPublisherManager
+import zmq
+import time
+import logging
+
+logger = logging.getLogger(__name__)
 
 class OculusVRHandDetector(Component):
-    def __init__(self, host, oculus_port, unified_pub_port, button_port, teleop_reset_port):
-        self.notify_component_start('vr detector') 
-        # Input sockets
-        self.raw_keypoint_socket = create_pull_socket(host, oculus_port)
-        self.button_keypoint_socket = create_pull_socket(host, button_port)
-        self.teleop_reset_socket = create_pull_socket(host, teleop_reset_port)
+    def __init__(self, host, oculus_hand_port, oculus_pub_port, button_port, teleop_reset_port):
+        self.notify_component_start(VR_DETECTOR)
         
-        # Store the oculus_port for topic detection
-        self.oculus_port = oculus_port
+        # Socket configuration
         self.host = host
+        self.oculus_hand_port = oculus_hand_port
+        self.oculus_pub_port = oculus_pub_port
+        self.button_port = button_port
+        self.teleop_reset_port = teleop_reset_port
 
-        # ONE publisher for ALL data - this is the key change
-        self.unified_publisher = ZMQKeypointPublisher(
-            host=host,
-            port=unified_pub_port
-        )
+        # Initialize sockets
+        self.sockets = {
+            KEYPOINTS: create_pull_socket(host, self.oculus_hand_port),
+            BUTTON: create_pull_socket(host, self.button_port),
+            PAUSE: create_pull_socket(host, self.teleop_reset_port)
+        }
         
+        # Initialize publisher
+        self.publisher_manager = ZMQPublisherManager.get_instance()
+        
+        # Initialize timing
         self.timer = FrequencyTimer(VR_FREQ)
-
-    # Function to process the data token received from the VR
-    def _process_data_token(self, data_token):
-        return data_token.decode().strip()
-
-    # Function to Extract the Keypoints from the String Token sent by the VR
-    def _extract_data_from_token(self, token):        
-        data = self._process_data_token(token)
-        information = dict()
-        keypoint_vals = [0] if data.startswith('absolute') else [1]
-        # Data is in the format <hand>:x,y,z|x,y,z|x,y,z
-        vector_strings = data.split(':')[1].strip().split('|')
-        for vector_str in vector_strings:
-            vector_vals = vector_str.split(',')
-            for float_str in vector_vals[:3]:
-                keypoint_vals.append(float(float_str))
-            
-        information['keypoints'] = keypoint_vals
-        return information
-
-    # Function to Stream the Keypoints
-    def stream(self):
-        # Determine if we're handling left hand based on the port
-        hand_side = 'left' if str(self.oculus_port) == '8110' else 'right'
-        print(f"VR detector identified as {hand_side} hand")
+        self.last_received = {name: 0 for name in self.sockets}
         
-        while True:
-            try:
+        # Determine hand side based on port
+        if self.oculus_hand_port == LEFT_HAND_PORT:
+            self.hand_side = LEFT
+        elif self.oculus_hand_port == RIGHT_HAND_PORT:
+            self.hand_side = RIGHT
+        else:
+            raise ValueError(f"Invalid hand side: {self.oculus_hand_port}")
+        
+        logger.info(f"VR detector initialized for {self.hand_side} hand")
+        
+    def _process_keypoints(self, data):
+        """Process raw keypoint data into a list of values."""
+        data_str = data.decode().strip()
+        is_relative = not data_str.startswith(ABSOLUTE)
+        values = [1 if is_relative else 0]
+        
+        # Parse coordinates (format: <hand>:x,y,z|x,y,z|x,y,z)
+        coords = data_str.split(':')[1].strip().split('|')
+        for coord in coords:
+            values.extend(float(val) for val in coord.split(',')[:3])
+            
+        return values
+        
+    def _process_button(self, data):
+        """Convert button data to resolution value."""
+        return ARM_LOW_RESOLUTION if data == b'Low' else ARM_HIGH_RESOLUTION
+        
+    def _process_pause(self, data):
+        """Convert pause data to teleop status."""
+        return ARM_TELEOP_CONT if data == b'Low' else ARM_TELEOP_STOP
+        
+    def _receive_data(self, socket_name):
+        """Receive data from a socket with timeout handling."""
+        try:
+            data = self.sockets[socket_name].recv()
+            self.last_received[socket_name] = time.time()
+            return data
+        except zmq.Again:
+            now = time.time()
+            last_time = self.last_received[socket_name]
+            gap = now - last_time if last_time > 0 else float('inf')
+            logger.debug(f"No data on {socket_name} socket for {gap:.2f} seconds")
+            return None
+        except Exception as e:
+            logger.error(f"Error receiving from {socket_name} socket: {e}")
+            return None
+
+            
+    def stream(self):
+        """Main streaming loop for VR hand detection."""
+        logger.info(f"Starting VR detector stream for {self.hand_side} hand")
+        consecutive_timeouts = 0
+        max_timeouts = 50  # 5 seconds of no data before stopping
+        
+        try:
+            while True:
                 self.timer.start_loop()
-                # Getting the raw keypoints
-                raw_keypoints = self.raw_keypoint_socket.recv()
-                # Getting the button feedback
-                button_feedback = self.button_keypoint_socket.recv()
-                # Getting the Teleop Reset Status
-                pause_status = self.teleop_reset_socket.recv()
                 
-                # Processing the keypoints
-                keypoint_dict = self._extract_data_from_token(raw_keypoints)
+                # Receive keypoint data (required)
+                keypoint_data = self._receive_data(KEYPOINTS)
+                if keypoint_data is None:
+                    consecutive_timeouts += 1
+                    if consecutive_timeouts >= max_timeouts:
+                        logger.warning(f"No data received for {max_timeouts} consecutive attempts. Stopping.")
+                        break
+                    continue
                 
-                # Analyzing the resolution based on Button Feedback 
-                if button_feedback == b'Low':
-                    button_feedback_num = ARM_LOW_RESOLUTION
-                else:
-                    button_feedback_num = ARM_HIGH_RESOLUTION
-                    
-                # Analyzing the Teleop Reset Status
-                if pause_status == b'Low':
-                    pause_status = ARM_TELEOP_STOP 
-                else:
-                    pause_status = ARM_TELEOP_CONT
+                consecutive_timeouts = 0
                 
-                # Publish ALL data through ONE publisher with different topics
-                # 1. Hand keypoints
-                self.unified_publisher.pub_keypoints(
-                    keypoint_array=keypoint_dict['keypoints'], 
-                    topic_name=hand_side  # Use the detected hand side
-                )
+                # Process and publish keypoints
+                keypoints = self._process_keypoints(keypoint_data)
+                try:
+                    self.publisher_manager.publish(
+                        host=self.host,
+                        port=self.oculus_pub_port,
+                        topic=self.hand_side,
+                        data=keypoints
+                    )
+                    # print this periodically
+                    # print(f"Published keypoints: {keypoints}")
+                    # logger.debug(f"Successfully published {len(keypoints)} keypoints")
+                except Exception as e:
+                    logger.error(f"Failed to publish keypoints: {e}")
                 
-                # 2. Button feedback
-                self.unified_publisher.pub_keypoints(
-                    keypoint_array=button_feedback_num, 
-                    topic_name='button'
-                )
+                # Process and publish button state
+                if button_data := self._receive_data(BUTTON):
+                    button_state = self._process_button(button_data)
+                    self.publisher_manager.publish(
+                        host=self.host,
+                        port=self.oculus_pub_port,
+                        topic=BUTTON,
+                        data=button_state
+                    )
                 
-                # 3. Pause status
-                self.unified_publisher.pub_keypoints(
-                    keypoint_array=pause_status, 
-                    topic_name='pause'
-                )
+                # Process and publish pause state
+                if pause_data := self._receive_data(PAUSE):
+                    pause_state = self._process_pause(pause_data)
+                    self.publisher_manager.publish(
+                        host=self.host,
+                        port=self.oculus_pub_port,
+                        topic=PAUSE,
+                        data=pause_state
+                    )
                 
                 self.timer.end_loop()
-            except Exception as e:
-                print(f"Error in oculus stream: {e}")
-                break
-
-        self.raw_keypoint_socket.close()
-        self.unified_publisher.stop()
-        print('Stopping the oculus keypoint extraction process.')
+                
+        except Exception as e:
+            logger.error(f"Error in stream loop: {e}")
+        finally:
+            for name, socket in self.sockets.items():
+                socket.close()
+                logger.info(f"Closed {name} socket")
+            logger.info('Stopped VR hand detection process.')

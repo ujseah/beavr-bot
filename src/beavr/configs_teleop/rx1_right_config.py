@@ -26,12 +26,12 @@ class OculusVRHandDetectorCfg:
 @dataclass
 class TransformHandPositionCoordsCfg:
     host: str = '10.31.152.148'
-    keypoint_port: str = '${keypoint_port}'
-    transformation_port: str = '${transformed_position_keypoint_port}'
+    keypoint_sub_port: str = '${keypoint_port}'
+    keypoint_transform_pub_port: str = '${transformed_position_keypoint_port}'
     moving_average_limit: int = 1
 
     def build(self):
-        return TransformHandPositionCoords(host=self.host, keypoint_port=self.keypoint_port, transformation_port=self.transformation_port, moving_average_limit=self.moving_average_limit)
+        return TransformHandPositionCoords(host=self.host, keypoint_sub_port=self.keypoint_sub_port, keypoint_transform_pub_port=self.keypoint_transform_pub_port, moving_average_limit=self.moving_average_limit)
 
 @dataclass
 class Hand2DVisualizerCfg:
@@ -79,7 +79,7 @@ class RX1RightOperatorCfg:
 class Rx1RightConfig:
     robot_name: str = 'rx1_right'
     detector: OculusVRHandDetectorCfg = OculusVRHandDetectorCfg(host='10.31.152.148', oculus_port='${oculus_reciever_port}', keypoint_pub_port='${keypoint_port}', button_port='8095', button_publish_port='8093', teleop_reset_port='8100', teleop_reset_publish_port='8102')
-    transforms: list = field(default_factory=lambda: [TransformHandPositionCoordsCfg(host='10.31.152.148', keypoint_port='${keypoint_port}', transformation_port='${transformed_position_keypoint_port}', moving_average_limit=1)])
+    transforms: list = field(default_factory=lambda: [TransformHandPositionCoordsCfg(host='10.31.152.148', keypoint_sub_port='${keypoint_port}', keypoint_transform_pub_port='${transformed_position_keypoint_port}', moving_average_limit=1)])
     visualizers: list = field(default_factory=lambda: [Hand2DVisualizerCfg(host='10.31.152.148', transformed_keypoint_port='${transformed_position_keypoint_port}', oculus_feedback_port='15001', display_plot='${visualize_right_2d}')])
     robots: list = field(default_factory=lambda: [RX1RightCfg(host='10.31.152.148', ee_pose_op_pub=10010, ee_pose_op_sub=10009, ee_pose_ros_pub=9118, reset_op_sub=9069, ee_pose_ros_sub=5555, joint_state_ros_sub=5556)])
     operators: list = field(default_factory=lambda: [RX1RightOperatorCfg(host='10.31.152.148', transformed_keypoints_port='${transformed_position_keypoint_port}', stream_configs={"host": "10.31.152.148", "port": "10005"}, stream_oculus=True, endeff_publish_port=10009, endeff_subscribe_port=10010, moving_average_limit=1, arm_resolution_port='8093', use_filter=False, teleoperation_reset_port='8102', reset_publish_port=9069, logging_config={"enabled": False, "log_dir": "logs", "log_poses": True, "log_prefix": "rx1"})])

@@ -1,4 +1,5 @@
 import draccus
+import logging
 
 from dataclasses import dataclass, field
 from typing import Any
@@ -24,12 +25,12 @@ class NetworkConfig:
     robot_command_port: int = CONST.ROBOT_COMMAND_PORT
 
     # Input ports
-    oculus_receiver_port: int = CONST.OCULUS_RECEIVER_PORT
+    right_hand_oculus_receiver_port: int = CONST.RIGHT_HAND_OCULUS_RECEIVER_PORT
     resolution_button_port: int = CONST.RESOLUTION_BUTTON_PORT
     teleop_reset_port: int = CONST.TELEOP_RESET_PORT
 
     # Left-hand specific
-    left_hand_receiver_port: int = CONST.LEFT_HAND_RECEIVER_PORT
+    left_hand_oculus_receiver_port: int = CONST.LEFT_HAND_OCULUS_RECEIVER_PORT
 
     # Misc
     cam_port_offset: int = CONST.CAM_PORT_OFFSET
@@ -128,8 +129,27 @@ class TeleopConfig:
 # Teleop execution helpers
 # -----------------------------------------------------------------------------
 
+def _setup_root_logger(level: int = logging.DEBUG):
+    """Configure the *root* logger only once (no-op if already configured)."""
+    root = logging.getLogger()
+    if root.handlers:
+        # A configuration already exists – just raise the level if needed.
+        if root.level > level:
+            root.setLevel(level)
+        return
+
+    logging.basicConfig(
+        level=level,
+        format="[%(levelname)s] %(asctime)s %(processName)s %(name)s: %(message)s",
+        datefmt="%H:%M:%S",
+    )
+
+
 def run_teleop(configs):
     """Run the teleoperation system with given configs."""
+
+    # Make sure we see *all* debug output from the refactored networking stack
+    _setup_root_logger(logging.DEBUG)
 
     # Lazy-import to avoid incurring heavy dependencies during mere CLI parsing
     from beavr.components import TeleOperator  # pylint: disable=import-error,cyclic-import

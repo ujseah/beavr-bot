@@ -1,7 +1,6 @@
 import time
 import logging
 import numpy as np
-import zmq
 import torch
 from concurrent.futures import ThreadPoolExecutor
 
@@ -14,7 +13,8 @@ from beavr.common.robot_devices.cameras.opencv import OpenCVCamera
 # Network helpers
 from beavr.utils.network import (
     ZMQKeypointSubscriber,
-    EnhancedZMQKeypointPublisher as ZMQKeypointPublisher,
+    ZMQPublisherManager,
+    cleanup_zmq_resources,
 )
 from beavr.utils.handshake import HandshakeClient
 
@@ -85,6 +85,9 @@ class MultiRobotAdapter(Robot):
         self._follower_arms = {}
         self.logs = {}
 
+        # Centralised publisher manager (shared singleton)
+        self.pub_manager = ZMQPublisherManager.get_instance()
+
         self.home_publishers: dict[str, dict] = {}
         for cfg in robot_configs:
             r_name = cfg["name"]
@@ -101,31 +104,14 @@ class MultiRobotAdapter(Robot):
 
 
             self.home_publishers[r_name] = dict(
-                publisher=ZMQKeypointPublisher(host=cfg["host"], port=home_port),
+                host=cfg["host"],
                 port=home_port,
-                topic="home"
+                topic="home",
             )
 
-
-        # ------------------------------------------------------------------
-        # Ensure PUB sockets are created *immediately* so that SUB sockets on
-        # the robot side can establish their TCP connection long before the
-        # first HOME signal is sent.  Without this, the very first message
-        # can be silently dropped due to the inherent "slow-joiner" behaviour
-        # of ZeroMQ PUB/SUB.
-        # ------------------------------------------------------------------
+        # Pre-create PUB sockets so that subscribers can connect early
         for pub_info in self.home_publishers.values():
-            try:
-                # Accessing the underlying manager forces socket creation.
-                p = pub_info["publisher"]
-                p._manager.get_publisher(p._host, p._port)  # pylint: disable=protected-access
-            except Exception as e:
-                logging.warning(
-                    "Failed to pre-bind home publisher socket on tcp://%s:%s: %s",
-                    p._host,
-                    p._port,
-                    e,
-                )
+            self.pub_manager.get_publisher(pub_info["host"], pub_info["port"])
 
 
         self.command_publishers: dict[str, dict] = {}
@@ -150,16 +136,22 @@ class MultiRobotAdapter(Robot):
                 continue
 
 
-            publisher = ZMQKeypointPublisher(host=cfg["host"], port=pub_port)
             self.command_publishers[r_name] = dict(
-                publisher=publisher,
+                host=cfg["host"],
+                port=pub_port,
                 topic=topic,
                 robot_type=r_type,
-                port=pub_port,
             )
 
-        # Publisher to toggle reset in the operator
-        self.teleop_publisher = ZMQKeypointPublisher(host=cfg["host"], port=teleop_port)
+        # Tele-operation control channel (pause/resume)
+        self.teleop_publish_info = dict(
+            host=cfg["host"],
+            port=teleop_port,
+            topic="pause",
+        )
+
+        # Pre-bind teleop socket
+        self.pub_manager.get_publisher(self.teleop_publish_info["host"], self.teleop_publish_info["port"])
 
         # Thread pool for asynchronous publishing
         # We keep a small pool (<= #robots) so that PUB sends never block the
@@ -305,13 +297,9 @@ class MultiRobotAdapter(Robot):
             subscriber = self.robot_subscribers[name]
             
             try:
-                # Drain queue to get latest data
-                latest_data = None
-                while True:
-                    data = subscriber.recv_keypoints(flags=zmq.NOBLOCK)
-                    if data is None:
-                        break
-                    latest_data = data
+                # Get the most recent data sample (subscriber stores the
+                # latest message internally and returns it on demand).
+                latest_data = subscriber.recv_keypoints()
 
                 if latest_data is not None:
                     self.robot_state_caches[name] = latest_data
@@ -447,7 +435,12 @@ class MultiRobotAdapter(Robot):
         """Send a stop signal to all operators to pause teleoperation.
         """
         print(f"[{self.robot_type}] teleop_stop() sent at {time.time():.3f}")
-        self.teleop_publisher.pub_keypoints(ARM_TELEOP_STOP, 'pause')
+        self.pub_manager.publish(
+            self.teleop_publish_info["host"],
+            self.teleop_publish_info["port"],
+            self.teleop_publish_info["topic"],
+            ARM_TELEOP_STOP,
+        )
 
  
         ok = HandshakeClient(host=self.handshake_host, port=TELEOP_HANDSHAKE_PORT).request(timeout=2.0)
@@ -460,7 +453,12 @@ class MultiRobotAdapter(Robot):
 
         for _, home_info in self.home_publishers.items():
 
-            home_info["publisher"].pub_keypoints(1, "home")  # 1st attempt (may drop)
+            self.pub_manager.publish(
+                home_info["host"],
+                home_info["port"],
+                home_info["topic"],
+                1,
+            )  # 1st attempt (may drop)
             # time.sleep(0.1)  # allow SUB sockets to connect
             # home_info["publisher"].pub_keypoints(1, "home")  # 2nd attempt
 
@@ -469,7 +467,12 @@ class MultiRobotAdapter(Robot):
         """Send a resume signal to all operators to resume teleoperation.
         """
         print(f"[{self.robot_type}] teleop_resume() sent at {time.time():.3f}")
-        self.teleop_publisher.pub_keypoints(ARM_TELEOP_CONT, 'pause')
+        self.pub_manager.publish(
+            self.teleop_publish_info["host"],
+            self.teleop_publish_info["port"],
+            self.teleop_publish_info["topic"],
+            ARM_TELEOP_CONT,
+        )
         print("Resumed teleoperation")
 
 
@@ -554,8 +557,8 @@ class MultiRobotAdapter(Robot):
                 sent_segments.append(segment_np)
                 continue
 
-            # Submit non-blocking publish --------------------------------
-            self._publish_pool.submit(self._publish_async, pub_info, cfg, payload)
+            # Submit non-blocking publish via manager --------------------
+            self._publish_pool.submit(self._publish_async, pub_info, payload)
 
             sent_segments.append(segment_np)
 
@@ -565,27 +568,27 @@ class MultiRobotAdapter(Robot):
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
-    @staticmethod
-    def _publish_async(pub_info: dict, cfg: dict, payload):
-        """Publish *payload* on the publisher contained in *pub_info*.
+    def _publish_async(pub_info: dict, payload):
+        """Publish *payload* using ZMQPublisherManager.
 
-        This is executed in the background thread pool so that network I/O
-        (and occasional DNS/network stalls) never block the policy loop.
+        Executed in the background thread pool so that network I/O never blocks
+        the policy loop.
         """
         try:
-            pub_info["publisher"].pub_keypoints(payload, pub_info["topic"])
+            ZMQPublisherManager.get_instance().publish(
+                pub_info["host"],
+                pub_info["port"],
+                pub_info["topic"],
+                payload,
+            )
         except Exception as e:
             logging.error(
-                f"Async publish error for robot '{cfg['name']}' on tcp://{cfg['host']}:{pub_info['port']}: {e}"
+                "Async publish error to tcp://%s:%s topic '%s': %s",
+                pub_info["host"],
+                pub_info["port"],
+                pub_info["topic"],
+                e,
             )
 
     def __del__(self):
-        # Shutdown thread-pool gracefully
-        if hasattr(self, "_publish_pool"):
-            self._publish_pool.shutdown(wait=False)
-        if hasattr(self, "_last_quaternions"):
-            self._last_quaternions.clear()
-        if hasattr(self, "teleop_reset_publisher"):
-            self.teleop_reset_publisher.stop()
-        if hasattr(self, "teleop_pause_publisher") and self.teleop_pause_publisher is not None:
-            self.teleop_pause_publisher.stop()
+        cleanup_zmq_resources()

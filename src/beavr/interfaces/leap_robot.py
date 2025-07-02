@@ -6,7 +6,11 @@ import time
 from queue import Queue
 import traceback
 
-from beavr.utils.network import ZMQKeypointSubscriber, EnhancedZMQKeypointPublisher as ZMQKeypointPublisher
+from beavr.utils.network import (
+    ZMQKeypointSubscriber,
+    ZMQPublisherManager,
+    cleanup_zmq_resources,
+)
 import zmq
 from beavr.utils.registry import GlobalRegistry
 
@@ -52,16 +56,15 @@ class LeapHandRobot(RobotWrapper):
             topic = 'joint_angles'
         )
 
-        self._joint_angle_publisher = ZMQKeypointPublisher(
-            host = host,
-            port = joint_angle_publish_port
-        )
+        # Centralized publisher manager (new pub/sub structure)
+        self._publisher_manager = ZMQPublisherManager.get_instance()
+        self._publisher_host = host
+        self._joint_angle_publish_port = joint_angle_publish_port
+        self._state_publish_port = state_publish_port
 
-        # State publisher for comprehensive data recording
-        self._state_publisher = ZMQKeypointPublisher(
-            host = host,
-            port = state_publish_port
-        )
+        # Pre-bind sockets so that subscribers can connect early
+        self._publisher_manager.get_publisher(self._publisher_host, self._joint_angle_publish_port)
+        self._publisher_manager.get_publisher(self._publisher_host, self._state_publish_port)
 
         self._reset_subscriber = ZMQKeypointSubscriber(
             host = host,
@@ -197,7 +200,7 @@ class LeapHandRobot(RobotWrapper):
     
     def check_reset(self):
         """Check if a reset message was received"""
-        reset_bool = self._reset_subscriber.recv_keypoints(flags=zmq.NOBLOCK)
+        reset_bool = self._reset_subscriber.recv_keypoints()
         if reset_bool is not None:
             print(f"Received reset signal for {self.name}")
             return True
@@ -205,7 +208,7 @@ class LeapHandRobot(RobotWrapper):
 
     def check_home(self):
         """Check if a home message was received"""
-        home_bool = self._home_subscriber.recv_keypoints(flags=zmq.NOBLOCK)
+        home_bool = self._home_subscriber.recv_keypoints()
         if home_bool is not None:
             print(f"Received home signal for {self.name}")
             return True
@@ -220,7 +223,7 @@ class LeapHandRobot(RobotWrapper):
         while True:
             try:
                 # Get joint angles with non-blocking receive
-                joint_angles = self._joint_angle_subscriber.recv_keypoints(zmq.NOBLOCK)
+                joint_angles = self._joint_angle_subscriber.recv_keypoints()
                 self._action = joint_angles
                 
                 if joint_angles is not None:
@@ -244,7 +247,12 @@ class LeapHandRobot(RobotWrapper):
                     self._latest_joint_angles_timestamp = time.time()
                 
                 # Publish current state regardless of recording state
-                self._joint_angle_publisher.pub_keypoints(self.get_joint_position(), 'joint_angles')
+                self._publisher_manager.publish(
+                    self._publisher_host,
+                    self._joint_angle_publish_port,
+                    'joint_angles',
+                    self.get_joint_position(),
+                )
                 self._state = self.get_joint_position()
                 
                 # Publish comprehensive state data for recording
@@ -305,15 +313,14 @@ class LeapHandRobot(RobotWrapper):
 
         # Publish the state dictionary using self.name as topic
         try:
-            self._state_publisher.pub_keypoints(current_state_dict, self.name)
+            self._publisher_manager.publish(
+                self._publisher_host,
+                self._state_publish_port,
+                self.name,
+                current_state_dict,
+            )
         except Exception as e:
             print(f"Error publishing state dictionary for robot '{self.name}': {e}")
 
     def __del__(self):
-        # Clean up ZMQ sockets
-        print(f"Closing ZMQ sockets for {self.name}")
-        if hasattr(self, '_joint_angle_subscriber'): self._joint_angle_subscriber.stop()
-        if hasattr(self, '_joint_angle_publisher'): self._joint_angle_publisher.stop()
-        if hasattr(self, '_state_publisher'): self._state_publisher.stop()
-        if hasattr(self, '_reset_subscriber'): self._reset_subscriber.stop()
-        if hasattr(self, '_home_subscriber'): self._home_subscriber.stop()
+        cleanup_zmq_resources()

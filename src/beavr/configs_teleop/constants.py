@@ -24,4 +24,13 @@ for section_dict in _data.values():
     for key, value in section_dict.items():
         globals()[key.upper()] = value
 
+# ------------------------------------------------------------------ #
+# Backwards-compatibility aliases – remove once all code is migrated
+# ------------------------------------------------------------------ #
+if "RIGHT_HAND_OCULUS_RECEIVER_PORT" in globals():
+    globals()["OCULUS_RECEIVER_PORT"] = globals()["RIGHT_HAND_OCULUS_RECEIVER_PORT"]  # old → new
+
+if "LEFT_HAND_OCULUS_RECEIVER_PORT" in globals():
+    globals()["LEFT_HAND_RECEIVER_PORT"] = globals()["LEFT_HAND_OCULUS_RECEIVER_PORT"]  # old → new
+
 __all__ = [k for k in globals() if k.isupper()]

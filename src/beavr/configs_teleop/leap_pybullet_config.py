@@ -48,7 +48,7 @@ class LeapPybulletConfig:
     robot_name: str = 'leap_hand'
     detector: OculusVRHandDetectorCfg = OculusVRHandDetectorCfg()
     transforms: list = field(default_factory=lambda: [TransformHandPositionCoordsCfg()])
-    visualizers: list = field(default_factory=lambda: [Hand2DVisualizerCfg(display_plot='${visualize_right_2d}')])
+    visualizers: list = field(default_factory=lambda: [Hand2DVisualizerCfg(display_plot=False)])
     operators: list = field(default_factory=lambda: [LeapHandOperatorCfg()])
     robots: list = field(default_factory=lambda: [LeapHandRobotCfg(simulation_mode=False)])
     recorded_data: list = field(default_factory=lambda: [["joint_states", "commanded_joint_states"]])
