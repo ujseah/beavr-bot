@@ -21,6 +21,7 @@ class XArm7RobotCfg:
     robot_ip: str = '192.168.1.197'
     simulation_mode: bool = False
     state_publish_port: int = 10011
+    teleoperation_state_port: int = 8089
     recorder_config: dict[str, Any] = field(
         default_factory=lambda: {
             "robot_identifier": "right_xarm7",
@@ -45,6 +46,7 @@ class XArm7RobotCfg:
             is_right_arm=self.is_right_arm,
             simulation_mode=self.simulation_mode,
             state_publish_port=self.state_publish_port,
+            teleoperation_state_port=self.teleoperation_state_port,
             recorder_config=self.recorder_config,
         )
 
@@ -91,7 +93,7 @@ class XArm7RightOperatorCfg:
     endeff_subscribe_port: int = 10010
     moving_average_limit: int = 1
     use_filter: bool = False
-    teleoperation_reset_port: int = 8089
+    teleoperation_state_port: int = 8089
     logging_config: dict[str, Any] = field(
         default_factory=lambda: {
             "enabled": False,
@@ -111,7 +113,7 @@ class XArm7RightOperatorCfg:
             endeff_subscribe_port=self.endeff_subscribe_port,
             moving_average_limit=self.moving_average_limit,
             use_filter=self.use_filter,
-            teleoperation_reset_port=self.teleoperation_reset_port,
+            teleoperation_state_port=self.teleoperation_state_port,
             logging_config=self.logging_config,
         )
 
@@ -198,6 +200,7 @@ class LeapXarmRightConfig(TeleopRobotConfig):
                 robot_ip='192.168.1.197',
                 simulation_mode=False,
                 state_publish_port=10011,
+                teleoperation_state_port=8089,
                 recorder_config={
                     "robot_identifier":
                         "right_xarm7",
@@ -243,7 +246,7 @@ class LeapXarmRightConfig(TeleopRobotConfig):
                 endeff_subscribe_port=10010,
                 moving_average_limit=1,
                 use_filter=False,
-                teleoperation_reset_port=8089,
+                teleoperation_state_port=8089,
                 logging_config={
                     "enabled": False,
                     "log_dir": "logs",

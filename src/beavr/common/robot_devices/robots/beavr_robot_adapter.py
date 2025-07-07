@@ -4,7 +4,7 @@ import numpy as np
 import torch
 from concurrent.futures import ThreadPoolExecutor
 
-from beavr.constants import LEAP_HOME_JS, ROBOT_HOME_JS, ARM_TELEOP_CONT, ARM_TELEOP_STOP, TELEOP_HANDSHAKE_PORT
+from beavr.constants import LEAP_HOME_JS, ROBOT_HOME_JS, ARM_TELEOP_CONT, ARM_TELEOP_STOP
 from beavr.common.robot_devices.robots.utils import Robot
 from beavr.common.datasets.utils import Frame
 from beavr.common.robot_devices.cameras.configs import CameraConfig, OpenCVCameraConfig
@@ -14,9 +14,9 @@ from beavr.common.robot_devices.cameras.opencv import OpenCVCamera
 from beavr.utils.network import (
     ZMQKeypointSubscriber,
     ZMQPublisherManager,
-    cleanup_zmq_resources,
+    HandshakeCoordinator,
+    publish_with_guaranteed_delivery,
 )
-from beavr.utils.handshake import HandshakeClient
 
 
 class MultiRobotAdapter(Robot):
@@ -31,7 +31,7 @@ class MultiRobotAdapter(Robot):
         cameras: dict[str, CameraConfig],
         robot_type: str = "multi_robot_adapter",
         *,
-        teleop_port: int = 8089,
+        op_state_port: int = 8089,
         handshake_host: str = "127.0.0.1",
     ):
         """Initialize the multi-robot adapter.
@@ -144,14 +144,15 @@ class MultiRobotAdapter(Robot):
             )
 
         # Tele-operation control channel (pause/resume)
-        self.teleop_publish_info = dict(
+        self.op_state_publish_info = dict(
             host=cfg["host"],
-            port=teleop_port,
+            port=op_state_port,
             topic="pause",
         )
+        print(f"Teleop publish info: {self.op_state_publish_info}")
 
         # Pre-bind teleop socket
-        self.pub_manager.get_publisher(self.teleop_publish_info["host"], self.teleop_publish_info["port"])
+        self.pub_manager.get_publisher(self.op_state_publish_info["host"], self.op_state_publish_info["port"])
 
         # Thread pool for asynchronous publishing
         # We keep a small pool (<= #robots) so that PUB sends never block the
@@ -160,6 +161,13 @@ class MultiRobotAdapter(Robot):
 
         self._last_quaternions: dict[str, np.ndarray] = {}
         self.handshake_host = handshake_host
+        
+        # Initialize handshake coordinator
+        self.handshake_coordinator = HandshakeCoordinator.get_instance()
+        
+        # Register subscribers for handshake coordination
+        # These should be registered by the actual robot/operator instances
+        # but we can provide a method to register them dynamically
 
 
     def _build_features(self) -> dict:
@@ -300,6 +308,7 @@ class MultiRobotAdapter(Robot):
                 # Get the most recent data sample (subscriber stores the
                 # latest message internally and returns it on demand).
                 latest_data = subscriber.recv_keypoints()
+                # print(f"latest_data: {name} {latest_data}\n")
 
                 if latest_data is not None:
                     self.robot_state_caches[name] = latest_data
@@ -370,6 +379,7 @@ class MultiRobotAdapter(Robot):
         # Attach error flags if any
         if missing_robots:
             observation["error.missing_states"] = missing_robots
+            logging.warning(f"Missing states for robots: {missing_robots}")
 
         # Convert to torch tensor and store
         if combined_state:
@@ -434,47 +444,83 @@ class MultiRobotAdapter(Robot):
     def teleop_stop(self):
         """Send a stop signal to all operators to pause teleoperation.
         """
-        print(f"[{self.robot_type}] teleop_stop() sent at {time.time():.3f}")
-        self.pub_manager.publish(
-            self.teleop_publish_info["host"],
-            self.teleop_publish_info["port"],
-            self.teleop_publish_info["topic"],
-            ARM_TELEOP_STOP,
+        # Use guaranteed delivery for critical teleop stop
+        registered_subscribers = self.handshake_coordinator.get_registered_subscribers()
+        
+        success = publish_with_guaranteed_delivery(
+            host=self.op_state_publish_info["host"],
+            port=self.op_state_publish_info["port"],
+            topic=self.op_state_publish_info["topic"],
+            data=ARM_TELEOP_STOP,
+            subscriber_ids=registered_subscribers,
+            handshake_timeout=3.0,
+            require_all_acks=False  # Allow partial success for robustness
         )
-
- 
-        ok = HandshakeClient(host=self.handshake_host, port=TELEOP_HANDSHAKE_PORT).request(timeout=2.0)
-        if ok:
-            print("Operator acknowledged pause (handshake OK)")
+        
+        if success:
+            logging.info("Teleop stop acknowledged by subscribers")
         else:
-            print("WARNING: No handshake ACK from operator – proceeding anyway")
+            logging.warning("WARNING: Not all subscribers acknowledged teleop stop – proceeding anyway")
 
-        print("Paused teleoperation")
-
+        # Send home signals
         for _, home_info in self.home_publishers.items():
-
             self.pub_manager.publish(
                 home_info["host"],
                 home_info["port"],
                 home_info["topic"],
-                1,
-            )  # 1st attempt (may drop)
-            # time.sleep(0.1)  # allow SUB sockets to connect
-            # home_info["publisher"].pub_keypoints(1, "home")  # 2nd attempt
+                ARM_TELEOP_STOP,
+            )
 
 
     def teleop_resume(self):
         """Send a resume signal to all operators to resume teleoperation.
         """
-        print(f"[{self.robot_type}] teleop_resume() sent at {time.time():.3f}")
-        self.pub_manager.publish(
-            self.teleop_publish_info["host"],
-            self.teleop_publish_info["port"],
-            self.teleop_publish_info["topic"],
-            ARM_TELEOP_CONT,
+        # Use guaranteed delivery for critical teleop resume
+        registered_subscribers = self.handshake_coordinator.get_registered_subscribers()
+        
+        success = publish_with_guaranteed_delivery(
+            host=self.op_state_publish_info["host"],
+            port=self.op_state_publish_info["port"],
+            topic=self.op_state_publish_info["topic"],
+            data=ARM_TELEOP_CONT,
+            subscriber_ids=registered_subscribers,
+            handshake_timeout=3.0,
+            require_all_acks=False  # Allow partial success for robustness
         )
-        print("Resumed teleoperation")
+        
+        if success:
+            logging.info("Teleop resume acknowledged by subscribers")
+        else:
+            logging.warning("WARNING: Not all subscribers acknowledged teleop resume – proceeding anyway")
 
+        # Send home signals
+        for _, home_info in self.home_publishers.items():
+            self.pub_manager.publish(
+                home_info["host"],
+                home_info["port"],
+                home_info["topic"],
+                ARM_TELEOP_CONT,
+            )
+
+    def register_handshake_subscriber(self, subscriber_id: str, host: str, port: int) -> None:
+        """Register a subscriber for handshake coordination.
+        
+        Args:
+            subscriber_id: Unique identifier for the subscriber
+            host: Host address of the subscriber  
+            port: Port number for handshake communication
+        """
+        self.handshake_coordinator.register_subscriber(subscriber_id, host, port)
+        logging.info(f"Registered handshake subscriber '{subscriber_id}' at {host}:{port}")
+    
+    def unregister_handshake_subscriber(self, subscriber_id: str) -> None:
+        """Unregister a subscriber from handshake coordination.
+        
+        Args:
+            subscriber_id: Unique identifier of the subscriber to remove
+        """
+        self.handshake_coordinator.unregister_subscriber(subscriber_id)
+        logging.info(f"Unregistered handshake subscriber '{subscriber_id}'")
 
     def run_calibration(self):
         """No calibration needed for this adapter."""
@@ -559,7 +605,6 @@ class MultiRobotAdapter(Robot):
 
             # Submit non-blocking publish via manager --------------------
             self._publish_pool.submit(self._publish_async, pub_info, payload)
-
             sent_segments.append(segment_np)
 
         # Concatenate the segments back into a single tensor for return
@@ -568,6 +613,7 @@ class MultiRobotAdapter(Robot):
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
+    @staticmethod
     def _publish_async(pub_info: dict, payload):
         """Publish *payload* using ZMQPublisherManager.
 
@@ -581,6 +627,7 @@ class MultiRobotAdapter(Robot):
                 pub_info["topic"],
                 payload,
             )
+            logging.debug("PUBLISH  → %s:%s %s", pub_info["host"], pub_info["port"], pub_info["topic"])
         except Exception as e:
             logging.error(
                 "Async publish error to tcp://%s:%s topic '%s': %s",
@@ -589,6 +636,3 @@ class MultiRobotAdapter(Robot):
                 pub_info["topic"],
                 e,
             )
-
-    def __del__(self):
-        cleanup_zmq_resources()

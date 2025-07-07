@@ -157,11 +157,46 @@ def run_teleop(configs):
     teleop = TeleOperator(configs)
     processes = teleop.get_processes()
 
-    for process in processes:
-        process.start()
+    try:
+        # Start all processes
+        for process in processes:
+            process.start()
 
-    for process in processes:
-        process.join()
+        # Wait for all processes to complete
+        while any(p.is_alive() for p in processes):
+            for p in processes:
+                p.join(timeout=0.1)  # Short timeout to allow checking KeyboardInterrupt
+
+    except KeyboardInterrupt:
+        print("\nShutdown requested...")
+        
+        # First send stop signal to all processes
+        for p in processes:
+            if p.is_alive():
+                p.terminate()
+        
+        # Then wait for them to finish with timeout
+        for p in processes:
+            p.join(timeout=2.0)
+            
+        # Force kill any remaining processes
+        for p in processes:
+            if p.is_alive():
+                print(f"Process {p.name} did not terminate gracefully - force killing")
+                p.kill()
+                p.join(timeout=1.0)
+    
+    finally:
+        # Final cleanup
+        for p in processes:
+            if p.is_alive():
+                try:
+                    p.terminate()
+                    p.join(timeout=0.5)
+                except Exception as e:
+                    print(f"Error cleaning up process {p.name}: {e}")
+        
+        print("Teleop shutdown complete")
 
 # -----------------------------------------------------------------------------
 # CLI entry-point using Draccus

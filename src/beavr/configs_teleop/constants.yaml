@@ -80,4 +80,23 @@ robot:
   # Scaling factors / misc
   leap_finger_scale_factor: 1.8
   leap_thumb_scale_factor: 1.7
-  xarm_scale_factor: 1000 
+  xarm_scale_factor: 1000
+
+# -----------------------------------------------------------------------------
+# Robot constants for teleop that serve either for cartesian control or joint control
+# -----------------------------------------------------------------------------
+# The following describe the topics where the robot and operator receive messages
+# cartesian:
+#   robot: # For the robot interface
+#     topics:
+#       cartesian_cmd: "endeff_coords"
+#       joint_cmd: "joint"
+#       reset: "reset"
+#       home: "home"
+#       teleop_state: "pause"
+#   operator: # For the operator interface
+#     topics:
+#       transformed_hand_keypoints: "transformed_hand_frame"
+#       resolution: "button"
+#       teleop_state: "pause"
+#       endeff_homo: "endeff_homo"

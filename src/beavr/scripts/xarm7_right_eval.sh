@@ -13,4 +13,4 @@ python src/beavr/scripts/control_robot.py \
   --control.single_task="Move the right xarm7 to the target position" \
   --teleop.robot_name=leap_xarm_right \
   --teleop.operate=false \
-  --control.resume=true
+  --control.resume=false

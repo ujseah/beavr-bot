@@ -11,7 +11,6 @@ from beavr.utils.network import (
     ZMQPublisherManager,
     cleanup_zmq_resources,
 )
-import zmq
 from beavr.utils.registry import GlobalRegistry
 
 class LeapHandRobot(RobotWrapper):
@@ -50,22 +49,12 @@ class LeapHandRobot(RobotWrapper):
         print(f"LeapHandRobot '{self.name}' initialized with command frequency: {self._data_frequency}Hz")
         print(f"  Publishing state dictionary on tcp://{host}:{state_publish_port} with topic '{self.name}'")
 
+        # Subscribers
         self._joint_angle_subscriber = ZMQKeypointSubscriber(
             host = host,
             port = joint_angle_subscribe_port,
             topic = 'joint_angles'
         )
-
-        # Centralized publisher manager (new pub/sub structure)
-        self._publisher_manager = ZMQPublisherManager.get_instance()
-        self._publisher_host = host
-        self._joint_angle_publish_port = joint_angle_publish_port
-        self._state_publish_port = state_publish_port
-
-        # Pre-bind sockets so that subscribers can connect early
-        self._publisher_manager.get_publisher(self._publisher_host, self._joint_angle_publish_port)
-        self._publisher_manager.get_publisher(self._publisher_host, self._state_publish_port)
-
         self._reset_subscriber = ZMQKeypointSubscriber(
             host = host,
             port = reset_subscribe_port,
@@ -77,6 +66,22 @@ class LeapHandRobot(RobotWrapper):
             port = home_subscribe_port,
             topic = 'home'
         )
+
+        self._subscribers = {
+            'joint_angles': self._joint_angle_subscriber,
+            'reset': self._reset_subscriber,
+            'home': self._home_subscriber
+        }
+
+        # Centralized publisher manager (new pub/sub structure)
+        self._publisher_manager = ZMQPublisherManager.get_instance()
+        self._publisher_host = host
+        self._joint_angle_publish_port = joint_angle_publish_port
+        self._state_publish_port = state_publish_port
+
+        # Pre-bind sockets so that subscribers can connect early
+        self._publisher_manager.get_publisher(self._publisher_host, self._joint_angle_publish_port)
+        self._publisher_manager.get_publisher(self._publisher_host, self._state_publish_port)
 
         # Add recording control
         self._is_recording_enabled = False
@@ -321,6 +326,7 @@ class LeapHandRobot(RobotWrapper):
             )
         except Exception as e:
             print(f"Error publishing state dictionary for robot '{self.name}': {e}")
-
     def __del__(self):
+        for subscriber in self._subscribers.values():
+            subscriber.stop()
         cleanup_zmq_resources()

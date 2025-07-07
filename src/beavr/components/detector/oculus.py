@@ -83,15 +83,7 @@ class OculusVRHandDetector(Component):
             self.last_received[socket_name] = time.time()
             return data
         except zmq.Again:
-            now = time.time()
-            last_time = self.last_received[socket_name]
-            gap = now - last_time if last_time > 0 else float('inf')
-            logger.debug(f"No data on {socket_name} socket for {gap:.2f} seconds")
             return None
-        except Exception as e:
-            logger.error(f"Error receiving from {socket_name} socket: {e}")
-            return None
-
             
     def stream(self):
         """Main streaming loop for VR hand detection."""

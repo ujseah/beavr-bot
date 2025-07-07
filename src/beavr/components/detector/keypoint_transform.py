@@ -13,11 +13,10 @@ from beavr.constants import (
     TRANSFORMED_HAND_COORDS, TRANSFORMED_HAND_FRAME)
 
 from beavr.utils.vectorops import normalize_vector, moving_average
-from beavr.utils.network import ZMQKeypointSubscriber, ZMQPublisherManager
+from beavr.utils.network import ZMQKeypointSubscriber, ZMQPublisherManager, cleanup_zmq_resources
 from beavr.utils.timer import FrequencyTimer
 from enum import IntEnum
 import logging
-import time
 
 logger = logging.getLogger(__name__)
 
@@ -232,4 +231,5 @@ class TransformHandPositionCoords(Component):
                 break
         
         self.original_keypoint_subscriber.stop()
+        cleanup_zmq_resources()
         logger.info('Stopping the keypoint position transform process.')

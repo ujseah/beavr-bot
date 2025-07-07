@@ -40,7 +40,7 @@ class XArm7LeftOperator(XArmOperator):
         moving_average_limit: int,
         use_filter: bool = True,
         arm_resolution_port: Optional[int] = None,
-        teleoperation_reset_port: Optional[int] = None,
+        teleoperation_state_port: Optional[int] = None,
         logging_config: Optional[Dict[str, Any]] = None,
     ):
         """
@@ -56,7 +56,7 @@ class XArm7LeftOperator(XArmOperator):
             moving_average_limit: Number of samples for moving average filter.
             use_filter: Whether to enable the complementary state filter.
             arm_resolution_port: Optional port for arm resolution control messages.
-            teleoperation_reset_port: Optional port for teleoperation reset/pause messages.
+            teleoperation_state_port: Optional port for teleoperation reset/pause messages.
             logging_config: Optional configuration dictionary for pose logging.
         """
         # Call the base class constructor with left-arm specific parameters
@@ -73,7 +73,7 @@ class XArm7LeftOperator(XArmOperator):
             h_t_v=H_T_V_LEFT, # Pass the left arm's H_T_V
             use_filter=use_filter,
             arm_resolution_port=arm_resolution_port,
-            teleoperation_reset_port=teleoperation_reset_port,
+            teleoperation_state_port=teleoperation_state_port,
             logging_config=logging_config,
         )
 

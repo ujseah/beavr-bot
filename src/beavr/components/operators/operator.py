@@ -1,5 +1,9 @@
 from abc import ABC, abstractmethod
 from beavr.components import Component
+from beavr.utils.network import cleanup_zmq_resources
+import logging
+
+logger = logging.getLogger(__name__)
 
 class Operator(Component, ABC):
     @property
@@ -30,33 +34,53 @@ class Operator(Component, ABC):
     def _apply_retargeted_angles(self):
         pass
 
+    def cleanup(self):
+        """Clean up resources before shutdown."""
+        logger.info(f'Cleaning up {self.__class__.__name__}...')
+        try:
+            # Stop subscribers in a safe way
+            if hasattr(self, 'transformed_arm_keypoint_subscriber') and self.transformed_arm_keypoint_subscriber:
+                try:
+                    self.transformed_arm_keypoint_subscriber.stop()
+                except Exception as e:
+                    logger.error(f"Error stopping arm subscriber: {e}")
+
+            if hasattr(self, 'transformed_hand_keypoint_subscriber') and self.transformed_hand_keypoint_subscriber:
+                try:
+                    self.transformed_hand_keypoint_subscriber.stop()
+                except Exception as e:
+                    logger.error(f"Error stopping hand subscriber: {e}")
+
+            # Clean up any ZMQ resources
+            cleanup_zmq_resources()
+            
+            logger.info(f'{self.__class__.__name__} cleanup complete')
+        except Exception as e:
+            logger.error(f"Error during {self.__class__.__name__} cleanup: {e}")
+
     #This function applies the retargeted angles to the robot
     def stream(self):
-        self.notify_component_start('{} control'.format(self.robot))
-        print("Start controlling the robot hand using the Oculus Headset.\n")
+        """Main operator loop with proper cleanup."""
+        try:
+            self.notify_component_start('{} control'.format(self.robot))
+            logger.info("Start controlling the robot hand using the Oculus Headset.\n")
 
-        while True:
+            while True:
                 try:
                     if self.return_real() is True:
                         if self.robot.get_joint_position() is not None:
-                            #print("######")
                             self.timer.start_loop()
-                            
-                            # Retargeting function
                             self._apply_retargeted_angles()
-
                             self.timer.end_loop()
                     else:
                         self.timer.start_loop()
-                        
-                        # Retargeting function
                         self._apply_retargeted_angles()
-
                         self.timer.end_loop()
 
                 except KeyboardInterrupt:
                     break
-        
-        self.transformed_arm_keypoint_subscriber.stop()
-        self.transformed_hand_keypoint_subscriber.stop()
-        print('Stopping the teleoperator!')
+                except Exception as e:
+                    logger.error(f"Error in operator loop: {e}")
+                    break
+        finally:
+            self.cleanup()

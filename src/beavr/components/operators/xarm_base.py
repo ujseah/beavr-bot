@@ -18,11 +18,11 @@ from beavr.utils.timer import FrequencyTimer
 from beavr.utils.network import (
     ZMQKeypointSubscriber,
     ZMQPublisherManager,
+    HandshakeCoordinator,
     get_global_context,
     cleanup_zmq_resources,
     SerializationError,
 )
-from beavr.utils.handshake import HandshakeServer
 from .operator import Operator
 
 from beavr.utils.logger import PoseLogger
@@ -135,7 +135,7 @@ class XArmOperator(Operator):
         h_t_v: np.ndarray, # Transformation matrix Hand Tracking base to VR base
         use_filter: bool = True,
         arm_resolution_port: Optional[int] = None,
-        teleoperation_reset_port: Optional[int] = None,
+        teleoperation_state_port: Optional[int] = None,
         logging_config: Optional[Dict[str, Any]] = None,
     ):
         """
@@ -154,7 +154,7 @@ class XArmOperator(Operator):
             h_t_v: 4x4 Homogeneous transformation matrix from Hand Tracking base frame to VR base frame.
             use_filter: Whether to enable the complementary state filter.
             arm_resolution_port: Optional port for arm resolution control messages.
-            teleoperation_reset_port: Optional port for teleoperation reset/pause messages.
+            teleoperation_state_port: Optional port for teleoperation reset/pause messages.
             logging_config: Optional configuration dictionary for pose logging.
         """
         # Basic initialization
@@ -188,10 +188,10 @@ class XArmOperator(Operator):
                 )
 
             self._arm_teleop_state_subscriber = None
-            if teleoperation_reset_port:
+            if teleoperation_state_port:
                 self._arm_teleop_state_subscriber = ZMQKeypointSubscriber(
                     host=host,
-                    port=teleoperation_reset_port,
+                    port=teleoperation_state_port,
                     topic='pause',
                     context=self._context
                 )
@@ -203,6 +203,12 @@ class XArmOperator(Operator):
                 context=self._context
             )
 
+            self._subscribers = {
+                'endeff_homo': self.endeff_homo_subscriber,
+                'teleop_state': self._arm_teleop_state_subscriber,
+                'resolution_scale': self._arm_resolution_subscriber
+            }
+
             # Using the centralized publisher manager
             self._publisher_manager = ZMQPublisherManager.get_instance(self._context)
             self._publisher_host = host
@@ -210,7 +216,7 @@ class XArmOperator(Operator):
 
         except (zmq.ZMQError, ConnectionError) as e:
             logger.error(f"Failed to initialize ZMQ sockets for {operator_name}: {e}")
-            self._cleanup()
+            self.cleanup()
             raise
 
         self._stream_oculus = stream_oculus
@@ -263,7 +269,24 @@ class XArmOperator(Operator):
             self.pose_logger = None
 
         
-        self._handshake_server = HandshakeServer(host="*", port=TELEOP_HANDSHAKE_PORT)
+        # Initialize handshake coordination for this operator
+        self._handshake_coordinator = HandshakeCoordinator.get_instance()
+        self._handshake_server_id = f"{operator_name}_handshake"
+        
+        # Start handshake server for this operator with unique port
+        # Use operator name hash to avoid port conflicts
+        operator_port_offset = hash(operator_name) % 100
+        handshake_port = TELEOP_HANDSHAKE_PORT + operator_port_offset
+        
+        try:
+            self._handshake_coordinator.start_server(
+                subscriber_id=self._handshake_server_id,
+                bind_host="*",
+                port=handshake_port
+            )
+            print(f"Handshake server started for {operator_name} on port {handshake_port}")
+        except Exception as e:
+            logger.warning(f"Failed to start handshake server for {operator_name}: {e}")
 
     @property
     def timer(self) -> FrequencyTimer:
@@ -515,7 +538,7 @@ class XArmOperator(Operator):
 
         self.is_first_frame = False # Reset successful
         self.comp_filter = None # Reset filter, will be initialized on first _apply call
-        logger.info(f"****** {self.operator_name}: TELEOP RESET COMPLETE ******")
+        logger.info(f"{self.operator_name}: TELEOP RESET COMPLETE")
         logger.info(f"[{self.operator_name}] hand_init_h\n{self.hand_init_h}")
         return first_hand_frame # Return the frame used for initialization
 
@@ -553,9 +576,6 @@ class XArmOperator(Operator):
         Handles state changes (reset, pause/resume), applies transformations,
         filters the result, and publishes the command.
         """
-        # Service potential handshake request (non-blocking, very cheap)
-        if self._handshake_server:
-            self._handshake_server.poll_once(timeout_ms=0)
 
         # 1. Check for state changes (Pause/Resume, Resolution)
         new_arm_teleop_state = self._get_arm_teleop_state()
@@ -756,29 +776,24 @@ class XArmOperator(Operator):
         except KeyboardInterrupt:
             logger.info(f"{self.operator_name} received KeyboardInterrupt. Cleaning up...")
         finally:
-            self._cleanup()
+            self.cleanup()
 
     def __del__(self):
         """Destructor ensures cleanup is called."""
-        self._cleanup()
-
-    def _cleanup(self):
-        """Performs cleanup actions like closing log files and ZMQ resources."""
-        logger.info(f"Cleaning up {self.operator_name}...")
+        # Safely clean up subscribers if they were initialized
+        if hasattr(self, '_subscribers') and self._subscribers:
+            for subscriber in self._subscribers.values():
+                if subscriber:  # Check if subscriber is not None
+                    try:
+                        subscriber.stop()
+                    except Exception as e:
+                        logger.warning(f"Error stopping subscriber in {getattr(self, 'operator_name', 'unknown')}: {e}")
         
-        # Close pose logger if it exists
-        if self.pose_logger:
-            logger.info(f"Closing pose logger for {self.operator_name}.")
-            self.pose_logger.close()
-            self.pose_logger = None
-
-        cleanup_zmq_resources()
-
-        # Close handshake server if it exists
-        if hasattr(self, '_handshake_server') and self._handshake_server:
+        # Stop handshake server if it exists
+        if hasattr(self, '_handshake_coordinator') and hasattr(self, '_handshake_server_id'):
             try:
-                self._handshake_server.close()
+                self._handshake_coordinator.stop_server(self._handshake_server_id)
             except Exception as e:
-                logger.error(f"Error closing handshake server: {e}")
-
-        logger.info(f"{self.operator_name} cleanup complete.") 
+                logger.warning(f"Error stopping handshake server: {e}")
+        
+        cleanup_zmq_resources()

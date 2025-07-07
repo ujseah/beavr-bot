@@ -3,18 +3,20 @@ from .robot import RobotWrapper
 from beavr.utils.network import (
     ZMQKeypointSubscriber,
     ZMQPublisherManager,
+    HandshakeCoordinator,
     cleanup_zmq_resources,
 )
 import numpy as np
 import time
-from beavr.constants import VR_FREQ
+from beavr.constants import VR_FREQ, ARM_TELEOP_STOP, ARM_TELEOP_CONT, TELEOP_HANDSHAKE_PORT
 import logging
+from beavr.utils.ops import Ops
 
 logger = logging.getLogger(__name__)
 
 class XArm7Robot(RobotWrapper):
     def __init__(self, host, endeff_subscribe_port, joint_subscribe_port, home_subscribe_port,
-                 reset_subscribe_port, robot_ip, is_right_arm=True,
+                 reset_subscribe_port, teleoperation_state_port, robot_ip, is_right_arm=True,
                  # Port for publishing general data (e.g., end effector pose for viz)
                  endeff_publish_port: int = 10009, # Default, check config
                  # Port specifically for publishing the state dictionary for recording
@@ -54,7 +56,7 @@ class XArm7Robot(RobotWrapper):
             port = joint_subscribe_port,
             topic = 'joint'
         )
-        
+
         # Dedicated RESET subscriber -------------------------------------------------
         self._reset_subscriber = ZMQKeypointSubscriber(
             host = host,
@@ -68,6 +70,24 @@ class XArm7Robot(RobotWrapper):
             port = home_subscribe_port,
             topic = 'home'
         )
+
+        # Ops state subscriber --------------------------------------------------------
+        # Checks if operation is stopped or continued.
+        self._arm_teleop_state_subscriber = Ops(
+            arm_teleop_state_subscriber=ZMQKeypointSubscriber(
+                host=host,
+                port=teleoperation_state_port,
+                topic='pause',
+            )
+        )
+
+        self._subscribers = {
+            'cartesian_coords': self._cartesian_coords_subscriber,
+            'joint_state': self._joint_state_subscriber,
+            'reset': self._reset_subscriber,
+            'home': self._home_subscriber,
+            'teleop_state': self._arm_teleop_state_subscriber.get_arm_teleop_state
+        }
 
         # Centralized publisher manager and publishing configuration
         self._publisher_manager    = ZMQPublisherManager.get_instance()
@@ -87,6 +107,22 @@ class XArm7Robot(RobotWrapper):
         # Add cache for the last valid commanded cartesian position received
         self._latest_commanded_cartesian_position = None
         self._latest_commanded_cartesian_timestamp = 0.0
+
+        # Add handshake coordination between operator and robot ----------------------
+        self._handshake_coordinator = HandshakeCoordinator.get_instance()
+        self._handshake_server_id = f"{self.name}_handshake"
+        
+        # Start handshake server for this robot
+        try:
+            self._handshake_coordinator.start_server(
+                subscriber_id=self._handshake_server_id,
+                bind_host="*", 
+                port=TELEOP_HANDSHAKE_PORT + (1 if self._is_right_arm else 2)  # Unique ports
+            )
+            print(f"Handshake server started for {self.name}")
+        except Exception as e:
+            logging.warning(f"Failed to start handshake server for {self.name}: {e}")
+
 
     @property
     def recorder_functions(self):
@@ -128,6 +164,13 @@ class XArm7Robot(RobotWrapper):
 
     def reset(self):
         return self._controller._init_xarm_control()
+    
+    def get_teleop_state(self):
+        """
+        Checks if operation is stopped or continued.
+        Handshake coordination is now handled automatically by the coordinator.
+        """
+        return self._arm_teleop_state_subscriber.get_arm_teleop_state()
     
     def get_pose(self):
         return self._controller.get_arm_pose()
@@ -209,7 +252,13 @@ class XArm7Robot(RobotWrapper):
 
     def check_home(self):
         home_bool = self._home_subscriber.recv_keypoints()
-        return home_bool is not None
+
+        if home_bool == ARM_TELEOP_STOP:
+            return True
+        elif home_bool == ARM_TELEOP_CONT:
+            return False
+
+        return False
 
     # Modified stream method with automatic recording start after reset
     def stream(self):
@@ -239,19 +288,20 @@ class XArm7Robot(RobotWrapper):
                 if self.check_reset():
                     self.send_robot_pose()
 
-                if msg := self._cartesian_coords_subscriber.recv_keypoints():
+                # Check operation state --------------------------------------------------
+                if self.get_teleop_state() == ARM_TELEOP_STOP:
+                    # Stop the robot from moving and wait until we operate again.
+                    continue
+
+                msg = self._cartesian_coords_subscriber.recv_keypoints()
+                if msg is not None:
                     self._latest_commanded_cartesian_position = np.concatenate(
                         [np.asarray(msg["position"], dtype=np.float32),
                          np.asarray(msg["orientation"], dtype=np.float32)]
                     )
                     self._latest_commanded_cartesian_timestamp = msg["timestamp"]
                     self.move_coords(self._latest_commanded_cartesian_position)
-                else:
-                    continue
 
-                # -------------------------------------------------------------
-                # Instantaneous and average command frequency diagnostics.
-                # -------------------------------------------------------------
                 now = time.time()
 
                 msg_counter += 1
@@ -304,6 +354,15 @@ class XArm7Robot(RobotWrapper):
             )
         except Exception as e:
             logging.error(f"Error publishing state dictionary for robot '{self.name}': {e}")
-
+    
     def __del__(self):
+        # Stop handshake server for this robot
+        if hasattr(self, '_handshake_coordinator') and hasattr(self, '_handshake_server_id'):
+            try:
+                self._handshake_coordinator.stop_server(self._handshake_server_id)
+            except Exception as e:
+                logging.warning(f"Error stopping handshake server for {self.name}: {e}")
+        
+        for subscriber in self._subscribers.values():
+            subscriber.stop()
         cleanup_zmq_resources()
