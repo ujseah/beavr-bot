@@ -4,7 +4,7 @@ import numpy as np
 import torch
 from concurrent.futures import ThreadPoolExecutor
 
-from beavr.teleop.constants import LEAP_HOME_JS, ROBOT_HOME_JS, ARM_TELEOP_CONT, ARM_TELEOP_STOP
+from beavr.teleop.configs.constants import robots
 from beavr.lerobot.common.robot_devices.robots.utils import Robot
 from beavr.lerobot.common.datasets.utils import Frame
 from beavr.lerobot.common.robot_devices.cameras.configs import CameraConfig, OpenCVCameraConfig
@@ -372,9 +372,9 @@ class MultiRobotAdapter(Robot):
             missing_robots.append(name)
 
             if config["robot_type"] == "arm":
-                combined_state.extend(np.array(ROBOT_HOME_JS, dtype=np.float32))
+                combined_state.extend(np.array(robots.ROBOT_HOME_JS, dtype=np.float32))
             elif config["robot_type"] == "hand":
-                combined_state.extend(np.array(LEAP_HOME_JS, dtype=np.float32))
+                combined_state.extend(np.array(robots.LEAP_HOME_JS, dtype=np.float32))
 
         # Attach error flags if any
         if missing_robots:
@@ -451,7 +451,7 @@ class MultiRobotAdapter(Robot):
             host=self.op_state_publish_info["host"],
             port=self.op_state_publish_info["port"],
             topic=self.op_state_publish_info["topic"],
-            data=ARM_TELEOP_STOP,
+            data=robots.ARM_TELEOP_STOP,
             subscriber_ids=registered_subscribers,
             handshake_timeout=3.0,
             require_all_acks=False  # Allow partial success for robustness
@@ -468,7 +468,7 @@ class MultiRobotAdapter(Robot):
                 home_info["host"],
                 home_info["port"],
                 home_info["topic"],
-                ARM_TELEOP_STOP,
+                robots.ARM_TELEOP_STOP,
             )
 
 
@@ -482,7 +482,7 @@ class MultiRobotAdapter(Robot):
             host=self.op_state_publish_info["host"],
             port=self.op_state_publish_info["port"],
             topic=self.op_state_publish_info["topic"],
-            data=ARM_TELEOP_CONT,
+            data=robots.ARM_TELEOP_CONT,
             subscriber_ids=registered_subscribers,
             handshake_timeout=3.0,
             require_all_acks=False  # Allow partial success for robustness
@@ -499,7 +499,7 @@ class MultiRobotAdapter(Robot):
                 home_info["host"],
                 home_info["port"],
                 home_info["topic"],
-                ARM_TELEOP_CONT,
+                robots.ARM_TELEOP_CONT,
             )
 
     def register_handshake_subscriber(self, subscriber_id: str, host: str, port: int) -> None:

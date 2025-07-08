@@ -4,17 +4,7 @@ import numpy as np
 from get_xela_values import XelaSensorControl , XelaCurvedSensorControl 
 from beavr.teleop.components import Component 
 from beavr.teleop.utils.timer import FrequencyTimer
-from beavr.teleop.constants import(
-    XELA_NUM_SENSORS,
-    XELA_NUM_TAXELS,
-    XELA_FPS,
-    XELA_PALM_NUM_SENSORS,
-    XELA_PALM_NUM_TAXELS,
-    XELA_FINGERTIP_NUM_SENSORS,
-    XELA_FINGERTIP_NUM_TAXELS,
-    XELA_FINGER_NUM_SENSORS,
-    XELA_FINGER_NUM_TAXELS
-)
+from beavr.teleop.configs.constants import robots
 
 import logging
 
@@ -24,9 +14,9 @@ logger = logging.getLogger(__name__)
 class XelaSensors(Component):
     def __init__(self, init_duration):
         self._controller = XelaSensorControl()
-        self._bias_values = np.zeros((XELA_NUM_SENSORS, XELA_NUM_TAXELS, 3))
+        self._bias_values = np.zeros((robots.XELA_NUM_SENSORS, robots.XELA_NUM_TAXELS, 3))
         self._bias_duration = init_duration # Wait 3 seconds for finding the average
-        self.timer = FrequencyTimer(XELA_FPS)
+        self.timer = FrequencyTimer(robots.XELA_FPS)
         self._set_bias()
 
     # The bias should be received for the first 2-3 seconds
@@ -51,7 +41,7 @@ class XelaSensors(Component):
                     loop_index += 1
                 self.timer.end_loop()
 
-                if loop_index >= self._bias_duration * XELA_FPS:
+                if loop_index >= self._bias_duration * robots.XELA_FPS:
                     self._bias_values /= loop_index
                     # self.debug_component('found bias_values: {}'.format(self._bias_values))
                     break
@@ -91,11 +81,11 @@ class XelaSensors(Component):
 class XelaCurvedSensors(Component):
     def __init__(self, init_duration):
         self._controller = XelaCurvedSensorControl()
-        self._palm_bias_values = np.zeros((XELA_PALM_NUM_SENSORS, XELA_PALM_NUM_TAXELS, 3))
-        self._fingertip_bias_values = np.zeros((XELA_FINGERTIP_NUM_SENSORS, XELA_FINGERTIP_NUM_TAXELS, 3))
-        self._finger_bias_values = np.zeros((XELA_FINGER_NUM_SENSORS, XELA_FINGER_NUM_TAXELS,3))
+        self._palm_bias_values = np.zeros((robots.XELA_PALM_NUM_SENSORS, robots.XELA_PALM_NUM_TAXELS, 3))
+        self._fingertip_bias_values = np.zeros((robots.XELA_FINGERTIP_NUM_SENSORS, robots.XELA_FINGERTIP_NUM_TAXELS, 3))
+        self._finger_bias_values = np.zeros((robots.XELA_FINGER_NUM_SENSORS, robots.XELA_FINGER_NUM_TAXELS,3))
         self._bias_duration = init_duration # Wait 3 seconds for finding the average
-        self.timer = FrequencyTimer(XELA_FPS)
+        self.timer = FrequencyTimer(robots.XELA_FPS)
         self._set_bias()
 
     # The bias should be received for the first 2-3 seconds
@@ -125,7 +115,7 @@ class XelaCurvedSensors(Component):
                         loop_index += 1
                     self.timer.end_loop()
 
-                    if loop_index >= self._bias_duration * XELA_FPS:
+                    if loop_index >= self._bias_duration * robots.XELA_FPS:
                         self._palm_bias_values /= loop_index
                         self._finger_bias_values /= loop_index
                         self._fingertip_bias_values /= loop_index

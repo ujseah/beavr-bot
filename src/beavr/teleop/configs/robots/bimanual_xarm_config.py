@@ -4,15 +4,15 @@ from dataclasses import dataclass, field
 from typing import Any
 from beavr.teleop.components.operators.xarm7_left import XArm7LeftOperator
 from beavr.teleop.components.operators.xarm7_right import XArm7RightOperator
-from beavr.teleop.configs_teleop.shared_components import (
+from beavr.teleop.configs.robots.shared_components import (
     TransformHandPositionCoordsCfg,
     Hand2DVisualizerCfg,
 )
 from beavr.teleop.interfaces.xarm7_robot import XArm7Robot
-from beavr.teleop.configs_teleop import constants as CONST
+from beavr.teleop.configs.robots import constants as CONST
 from beavr.teleop.components.detector.left_keypoint_transform import TransformLeftHandPositionCoords
 from beavr.teleop.components.detector.oculusbimanual import OculusVRTwoHandDetector
-from beavr.teleop.configs_teleop import TeleopRobotConfig
+from beavr.teleop.configs.robots import TeleopRobotConfig
 from beavr.teleop.components.detector.keypoint_transform import TransformHandPositionCoords
 from beavr.teleop.components.visualizers.visualizer_2d import Hand2DVisualizer
 

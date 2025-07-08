@@ -1,7 +1,7 @@
 import numpy as np
 from .plotters.plotter_2d import PlotHand2D
 from beavr.teleop.components import Component
-from beavr.teleop.constants import OCULUS_NUM_KEYPOINTS
+from beavr.teleop.configs.constants import robots
 from beavr.teleop.utils.network import ZMQKeypointSubscriber
 
 import logging
@@ -22,7 +22,7 @@ class Hand2DVisualizer(Component):
 
     def _get_keypoints(self):
         raw_keypoints = self.subscriber.recv_keypoints()
-        return np.array(raw_keypoints).reshape(OCULUS_NUM_KEYPOINTS, 3)
+        return np.array(raw_keypoints).reshape(robots.OCULUS_NUM_KEYPOINTS, 3)
 
     def stream(self):
         while True:

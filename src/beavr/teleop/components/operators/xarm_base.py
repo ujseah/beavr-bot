@@ -6,14 +6,7 @@ import time
 from typing import Dict, Any, Optional
 import logging
 
-from beavr.teleop.constants import (
-    VR_FREQ,
-    ARM_TELEOP_CONT,
-    ARM_TELEOP_STOP,
-    ARM_HIGH_RESOLUTION,
-    ARM_LOW_RESOLUTION,
-    TELEOP_HANDSHAKE_PORT,
-)
+from beavr.teleop.configs.constants import robots
 from beavr.teleop.utils.timer import FrequencyTimer
 from beavr.teleop.utils.network import (
     ZMQKeypointSubscriber,
@@ -223,10 +216,10 @@ class XArmOperator(Operator):
         self.stream_configs = stream_configs
 
         # State initialization
-        self.arm_teleop_state = ARM_TELEOP_CONT
+        self.arm_teleop_state = robots.ARM_TELEOP_CONT
         self.resolution_scale = 1.0
         self.is_first_frame = True
-        self._timer = FrequencyTimer(VR_FREQ)
+        self._timer = FrequencyTimer(robots.VR_FREQ)
         self._robot = None # Placeholder for potential robot interface object
         self.real = False # Placeholder, potentially indicating simulation vs real robot
 
@@ -276,7 +269,7 @@ class XArmOperator(Operator):
         # Start handshake server for this operator with unique port
         # Use operator name hash to avoid port conflicts
         operator_port_offset = hash(operator_name) % 100
-        handshake_port = TELEOP_HANDSHAKE_PORT + operator_port_offset
+        handshake_port = robots.TELEOP_HANDSHAKE_PORT + operator_port_offset
         
         try:
             self._handshake_coordinator.start_server(
@@ -451,9 +444,9 @@ class XArmOperator(Operator):
         try:
             scale_mode = np.asanyarray(data).reshape(1)[0]
             # Update internal resolution scale based on mode
-            if scale_mode == ARM_HIGH_RESOLUTION:
+            if scale_mode == robots.ARM_HIGH_RESOLUTION:
                 self.resolution_scale = 1.0
-            elif scale_mode == ARM_LOW_RESOLUTION:
+            elif scale_mode == robots.ARM_LOW_RESOLUTION:
                 self.resolution_scale = 0.6
 
 
@@ -466,7 +459,7 @@ class XArmOperator(Operator):
         """Gets the arm teleoperation state (STOP/CONT) from the subscriber."""
         if not self._arm_teleop_state_subscriber:
             # Default to CONT if no subscriber, assuming continuous operation unless stopped externally
-            return ARM_TELEOP_CONT
+            return robots.ARM_TELEOP_CONT
 
         # Use NOBLOCK to avoid waiting
         data = self._arm_teleop_state_subscriber.recv_keypoints()
@@ -474,7 +467,7 @@ class XArmOperator(Operator):
             return self.arm_teleop_state # Return current state if no new message
         try:
             state = int(np.asanyarray(data).reshape(1)[0])
-            if state in [ARM_TELEOP_STOP, ARM_TELEOP_CONT]:
+            if state in [robots.ARM_TELEOP_STOP, robots.ARM_TELEOP_CONT]:
                 return state
             else:
                 return self.arm_teleop_state # Return current state if unknown value
@@ -583,13 +576,13 @@ class XArmOperator(Operator):
 
         # Determine if a reset is needed
         needs_reset = self.is_first_frame or \
-                      (self.arm_teleop_state == ARM_TELEOP_STOP and new_arm_teleop_state == ARM_TELEOP_CONT)
+                      (self.arm_teleop_state == robots.ARM_TELEOP_STOP and new_arm_teleop_state == robots.ARM_TELEOP_CONT)
 
         # Update state *after* checking for transition
         self.arm_teleop_state = new_arm_teleop_state
 
         # Decide whether we should publish commands this cycle
-        publish_commands = (self.arm_teleop_state == ARM_TELEOP_CONT)
+        publish_commands = (self.arm_teleop_state == robots.ARM_TELEOP_CONT)
 
         # 2. Handle Reset Condition
         if needs_reset:

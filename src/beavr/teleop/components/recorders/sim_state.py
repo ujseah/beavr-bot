@@ -4,7 +4,7 @@ import h5py
 import numpy as np
 from .recorder import Recorder
 from beavr.teleop.utils.timer import FrequencyTimer
-from beavr.teleop.constants import VR_FREQ
+from beavr.teleop.configs.constants import robots
 from beavr.teleop.utils.network import ZMQKeypointSubscriber 
 
 import logging
@@ -67,7 +67,7 @@ class SimInformationRecord(Recorder):
     
 
         
-        self.timer = FrequencyTimer(VR_FREQ)
+        self.timer = FrequencyTimer(robots.VR_FREQ)
         self.timestampsubscribeport= timestampsubscribeport
         self.recorder_function_key = recorder_function_key
         # Storage path for file

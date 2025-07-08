@@ -1,5 +1,5 @@
 import numpy as np
-from beavr.teleop.constants import ARM_TELEOP_CONT, ARM_TELEOP_STOP
+from beavr.teleop.configs.constants import robots
 import logging
 from beavr.teleop.utils.network import ZMQKeypointSubscriber
 
@@ -9,7 +9,7 @@ class Ops:
     """
     Class to handle operations for the robot. Checks if operation is stopped or continued.
     """
-    def __init__(self, arm_teleop_state_subscriber: ZMQKeypointSubscriber, arm_teleop_state: int = ARM_TELEOP_CONT):
+    def __init__(self, arm_teleop_state_subscriber: ZMQKeypointSubscriber, arm_teleop_state: int = robots.ARM_TELEOP_CONT):
         self._arm_teleop_state_subscriber = arm_teleop_state_subscriber
         self.arm_teleop_state = arm_teleop_state
 
@@ -21,7 +21,7 @@ class Ops:
         """
         if not self._arm_teleop_state_subscriber:
             # Default to CONT if no subscriber, assuming continuous operation unless stopped externally
-            return ARM_TELEOP_CONT
+            return robots.ARM_TELEOP_CONT
 
         # Use NOBLOCK to avoid waiting
         data = self._arm_teleop_state_subscriber.recv_keypoints()
@@ -29,7 +29,7 @@ class Ops:
             return self.arm_teleop_state # Return current state if no new message
         try:
             state = int(np.asanyarray(data).reshape(1)[0])
-            if state in [ARM_TELEOP_STOP, ARM_TELEOP_CONT]:
+            if state in [robots.ARM_TELEOP_STOP, robots.ARM_TELEOP_CONT]:
                 return state
             else:
                 return self.arm_teleop_state # Return current state if unknown value

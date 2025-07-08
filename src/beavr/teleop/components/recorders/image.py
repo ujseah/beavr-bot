@@ -4,7 +4,7 @@ import time
 import h5py
 import numpy as np
 from .recorder import Recorder
-from beavr.teleop.constants import CAM_FPS,DEPTH_RECORD_FPS,IMAGE_RECORD_RESOLUTION,CAM_FPS_SIM,IMAGE_RECORD_RESOLUTION_SIM
+from beavr.teleop.configs.constants import cameras
 from beavr.teleop.utils.files import store_pickle_data
 from beavr.teleop.utils.network import ZMQCameraSubscriber
 from beavr.teleop.utils.timer import FrequencyTimer
@@ -36,9 +36,9 @@ class RGBImageRecorder(Recorder):
         self.sim = sim
         # Timer
         if self.sim==True:
-            self.timer = FrequencyTimer(CAM_FPS_SIM)
+            self.timer = FrequencyTimer(cameras.CAM_FPS_SIM)
         else:
-            self.timer = FrequencyTimer(CAM_FPS)
+            self.timer = FrequencyTimer(cameras.CAM_FPS)
 
         # Storage path for file
         self._filename = filename
@@ -50,15 +50,15 @@ class RGBImageRecorder(Recorder):
             self.recorder = cv2.VideoWriter(
                 self._recorder_file_name, 
                 cv2.VideoWriter_fourcc(*'XVID'), 
-                CAM_FPS_SIM, 
-                IMAGE_RECORD_RESOLUTION_SIM
+                cameras.CAM_FPS_SIM, 
+                cameras.IMAGE_RECORD_RESOLUTION_SIM
             )
         else:
             self.recorder = cv2.VideoWriter(
                 self._recorder_file_name, 
                 cv2.VideoWriter_fourcc(*'XVID'), 
-                CAM_FPS, 
-                IMAGE_RECORD_RESOLUTION
+                cameras.CAM_FPS, 
+                cameras.IMAGE_RECORD_RESOLUTION
             )
         self.timestamps = []
 
@@ -120,7 +120,7 @@ class DepthImageRecorder(Recorder):
         )
 
         # Timer
-        self.timer = FrequencyTimer(DEPTH_RECORD_FPS)
+        self.timer = FrequencyTimer(cameras.DEPTH_RECORD_FPS)
 
         # Storage path for file
         self._filename = filename
@@ -196,7 +196,7 @@ class FishEyeImageRecorder(Recorder):
         )
 
         # Timer
-        self.timer = FrequencyTimer(CAM_FPS)
+        self.timer = FrequencyTimer(cameras.CAM_FPS)
 
         # Storage path for file
         self._filename = filename
@@ -208,8 +208,8 @@ class FishEyeImageRecorder(Recorder):
         self.recorder = cv2.VideoWriter(
             self._recorder_file_name, 
             cv2.VideoWriter_fourcc(*'XVID'), 
-            CAM_FPS, 
-            IMAGE_RECORD_RESOLUTION
+            cameras.CAM_FPS, 
+            cameras.IMAGE_RECORD_RESOLUTION
         )
         self.timestamps = []
         self.frames = []

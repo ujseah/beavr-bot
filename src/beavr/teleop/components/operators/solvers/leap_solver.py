@@ -9,7 +9,7 @@ import pybullet as p
 import numpy as np
 import os
 
-from beavr.teleop.constants import LEAP_FINGER_SCALE_FACTOR, LEAP_THUMB_SCALE_FACTOR
+from beavr.teleop.configs.constants import robots
 
 import logging
 
@@ -74,7 +74,7 @@ class LeapHandIKSolver:
         self.all_indices = self.fingertip_indices + self.tip_head_indices
         
         # Scale factor for transformations (moved to constants)
-        self.scale_factor = LEAP_FINGER_SCALE_FACTOR
+        self.scale_factor = robots.LEAP_FINGER_SCALE_FACTOR
         
         # Store last calculated joint angles to use as seed for next calculation
         self.last_joint_angles = None
@@ -115,7 +115,7 @@ class LeapHandIKSolver:
         ]
 
         # Use different scale for thumb if needed
-        scale_factor = LEAP_THUMB_SCALE_FACTOR if is_thumb else self.scale_factor
+        scale_factor = robots.LEAP_THUMB_SCALE_FACTOR if is_thumb else self.scale_factor
         
         # Rotate 90° around z-axis and scale
         pos_transformed = [

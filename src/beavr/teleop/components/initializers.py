@@ -6,7 +6,7 @@ from .recorders.sim_state import SimInformationRecord
 from .recorders.sensors import XelaSensorRecorder
 from .sensors import RealsenseCamera, FishEyeCamera
 from multiprocessing import Process
-from beavr.teleop.constants import DEPTH_PORT_OFFSET
+from beavr.teleop.configs.constants import cameras
 from omegaconf import ListConfig # Import ListConfig for type checking
 from beavr.teleop.utils.instantiator import instantiate_from_target
 
@@ -21,7 +21,7 @@ class ProcessInstantiator(ABC):
         self.processes = []
 
     def _start_component(self,configs):
-        raise NotImplementedError('Function not implemented!')
+        raise NotImplementedError(f"Function not implemented! {configs}")
 
     def get_processes(self):
         return self.processes
@@ -40,18 +40,24 @@ class RealsenseCameras(ProcessInstantiator):
     def _start_component(self, cam_idx):
         component = RealsenseCamera(
             stream_configs = dict(
-                host = self.configs.host_address,
-                port = self.configs.cam_port_offset + cam_idx
+                host = self.configs.teleop.network.host_address,
+                port = self.configs.teleop.ports.cam_port_offset + cam_idx
             ),
-            cam_serial_num = self.configs.robot_cam_serial_numbers[cam_idx],
+            cam_serial_num = self.configs.teleop.camera.robot_cam_serial_numbers[cam_idx],
             cam_id = cam_idx + 1,
-            cam_configs = self.configs.cam_configs,
-            stream_oculus = True if self.configs.oculus_cam == cam_idx else False
+            cam_configs = {
+                'width': self.configs.teleop.camera.cam_configs_width,
+                'height': self.configs.teleop.camera.cam_configs_height,
+                'fps': self.configs.teleop.camera.cam_configs_fps,
+                'processing_preset': self.configs.teleop.camera.cam_configs_processing_preset,
+                'rotation_angle': self.configs.teleop.camera.cam_configs_rotation_angle,
+            },
+            stream_oculus = True if self.configs.teleop.camera.oculus_cam == cam_idx else False
         )
         component.stream()
 
     def _init_camera_processes(self):
-        for cam_idx in range(len(self.configs.robot_cam_serial_numbers)):
+        for cam_idx in range(len(self.configs.teleop.camera.robot_cam_serial_numbers)):
             self.processes.append(Process(
                 target = self._start_component,
                 args = (cam_idx, )
@@ -68,22 +74,26 @@ class FishEyeCameras(ProcessInstantiator):
         self._init_camera_processes()
 
     def _start_component(self, cam_idx):
-        logger.info('cam_idx: {}, stream_oculus: {}'.format(cam_idx, True if self.configs.oculus_cam == cam_idx else False))
+        # Get fisheye camera numbers from config, default to empty list if not configured
+        fisheye_cam_numbers = getattr(self.configs.teleop.camera, 'fisheye_cam_numbers', [])
+        
+        logger.info('cam_idx: {}, stream_oculus: {}'.format(cam_idx, True if self.configs.teleop.camera.oculus_cam == cam_idx else False))
         component = FishEyeCamera(
-            cam_index=self.configs.fisheye_cam_numbers[cam_idx],
+            cam_index=fisheye_cam_numbers[cam_idx],
             stream_configs = dict(
-                host = self.configs.host_address,
-                port = self.configs.fish_eye_cam_port_offset+ cam_idx,
-                set_port_offset = self.configs.fish_eye_cam_port_offset 
+                host = self.configs.teleop.network.host_address,
+                port = self.configs.teleop.ports.fish_eye_cam_port_offset + cam_idx,
+                set_port_offset = self.configs.teleop.ports.fish_eye_cam_port_offset 
             ),
             
-            stream_oculus = True if self.configs.stream_oculus and self.configs.oculus_cam == cam_idx else False,
+            stream_oculus = True if self.configs.teleop.flags.stream_oculus and self.configs.teleop.camera.oculus_cam == cam_idx else False,
             
         )
         component.stream()
 
     def _init_camera_processes(self):
-        for cam_idx in range(len(self.configs.fisheye_cam_numbers)):
+        fisheye_cam_numbers = getattr(self.configs.teleop.camera, 'fisheye_cam_numbers', [])
+        for cam_idx in range(len(fisheye_cam_numbers)):
             self.processes.append(Process(
                 target = self._start_component,
                 args = (cam_idx, )
@@ -94,12 +104,25 @@ class TeleOperator(ProcessInstantiator):
     """
     Returns all the teleoperation processes. Start the list of processes 
     to run the teleop.
+    
+    Now uses only the structured MainConfig format.
     """
-    def __init__(self, configs):
-        super().__init__(configs)
+    def __init__(self, main_config):
+        """
+        Initialize TeleOperator with structured MainConfig.
+        
+        Args:
+            main_config: MainConfig instance with teleop and robot sections
+        """
+        self.main_config = main_config
+        self.teleop_config = main_config.teleop
+        self.robot_config = main_config.robot
+        self.processes = []
       
+        logger.info("🔧 Initializing TeleOperator with structured configuration")
+        
         # For Simulation environment start the environment as well
-        if configs.sim_env:
+        if self.teleop_config.flags.sim_env:
             self._init_sim_environment()
         # Start the Hand Detector
         self._init_detector()
@@ -107,12 +130,12 @@ class TeleOperator(ProcessInstantiator):
         self._init_keypoint_transform()
         self._init_visualizers()
 
-        if configs.robot_interface:
+        if self.teleop_config.flags.robot_interface:
             self._init_robot_interface()
 
-        if configs.operate: 
+        if self.teleop_config.flags.operate: 
             self._init_operator()
-        
+    
     # Function to start the components
     def _start_component(self, configs):    
         try:
@@ -122,57 +145,55 @@ class TeleOperator(ProcessInstantiator):
             logger.error(f"Error starting component: {e}")
             raise
 
-    #Function to start the detector component
+    # Function to start the detector component
     def _init_detector(self):
         self.processes.append(Process(
             target = self._start_component,
-            args = (self.configs.robot.detector, )
+            args = (self.robot_config.detector, )
         ))
 
-    #Function to start the sim environment
+    # Function to start the sim environment
     def _init_sim_environment(self):
-         for env_config in self.configs.robot.environment:
+         for env_config in self.robot_config.environment:
             self.processes.append(Process(
                 target = self._start_component,
                 args = (env_config, )
             ))
 
-    #Function to start the keypoint transform
+    # Function to start the keypoint transform
     def _init_keypoint_transform(self):
-        for transform_config in self.configs.robot.transforms:
+        for transform_config in self.robot_config.transforms:
             self.processes.append(Process(
                 target = self._start_component,
                 args = (transform_config, )
             ))
 
-    #Function to start the visualizers
+    # Function to start the visualizers
     def _init_visualizers(self):
-       
-        for visualizer_config in self.configs.robot.visualizers:
+        for visualizer_config in self.robot_config.visualizers:
             self.processes.append(Process(
                 target = self._start_component,
                 args = (visualizer_config, )
             ))
         # XELA visualizer
-        if self.configs.run_xela:
-            for visualizer_config in self.configs.xela_visualizers:
+        if self.teleop_config.flags.run_xela:
+            xela_visualizers = getattr(self.robot_config, 'xela_visualizers', [])
+            for visualizer_config in xela_visualizers:
                 self.processes.append(Process(
                     target = self._start_component,
                     args = (visualizer_config, )
                 ))
 
-    #Function to start the operator
+    # Function to start the operator
     def _init_operator(self):
-        for operator_config in self.configs.robot.operators:
-            
+        for operator_config in self.robot_config.operators:
             self.processes.append(Process(
                 target = self._start_component,
                 args = (operator_config, )
-
             ))
     
     def _init_robot_interface(self):
-        for robot_config in self.configs.robot.robots:
+        for robot_config in self.robot_config.robots:
             # Derive a human-readable robot name from the dataclass type.
             # Instantiate the robot config in a separate process.
             # This is where the ``build()`` method is called.
@@ -217,25 +238,39 @@ class Collector(ProcessInstantiator):
     Returns all the recorder processes. Start the list of processes 
     to run the record data.
     """
-    def __init__(self, configs, demo_num):
-        super().__init__(configs)
+    def __init__(self, main_config, demo_num):
+        """
+        Initialize Collector with structured MainConfig.
+        
+        Args:
+            main_config: MainConfig instance with teleop and robot sections
+            demo_num: Demonstration number for storage path
+        """
+        self.main_config = main_config
+        self.teleop_config = main_config.teleop
+        self.robot_config = main_config.robot
+        self.processes = []
         self.demo_num = demo_num
+        
+        # Get storage path from config - may need to be added to config structure
+        storage_path = getattr(main_config, 'storage_path', 'data/recordings')
         self._storage_path = os.path.join(
-            self.configs.storage_path, 
+            storage_path, 
             'demonstration_{}'.format(self.demo_num)
         )
        
         self._create_storage_dir()
         self._init_camera_recorders()
         # Initializing the recorders
-        if self.configs.sim_env is True:
+        if self.teleop_config.flags.sim_env is True:
             self._init_sim_recorders()
         else:
             logger.info("Initialising robot recorders")
             self._init_robot_recorders()
         
-        
-        if self.configs.is_xela is True:
+        # Check for XELA flag - may need to be added to flags if not present
+        is_xela = getattr(self.teleop_config.flags, 'run_xela', False)
+        if is_xela is True:
             self._init_sensor_recorders()
 
     def _create_storage_dir(self):
@@ -252,38 +287,38 @@ class Collector(ProcessInstantiator):
     def _start_rgb_component(self, cam_idx=0):
         # This part has been isolated and made different for the sim and real robot
         # If using simulation and real robot on the same network, only one of them will stream into the VR. Close the real robot realsense camera stream before launching simulation.
-        if self.configs.sim_env is False:
+        if self.teleop_config.flags.sim_env is False:
             logger.info("RGB function")
             component = RGBImageRecorder(
-                host = self.configs.host_address,
-                image_stream_port = self.configs.cam_port_offset + cam_idx,
+                host = self.teleop_config.network.host_address,
+                image_stream_port = self.teleop_config.ports.cam_port_offset + cam_idx,
                 storage_path = self._storage_path,
                 filename = 'cam_{}_rgb_video'.format(cam_idx)
             )
         else:
             logger.info("Reaching correct function")
             component = RGBImageRecorder(
-            host = self.configs.host_address,
-            image_stream_port = self.configs.sim_image_port+ cam_idx,
-            storage_path = self._storage_path,
-            filename = 'cam_{}_rgb_video'.format(cam_idx),
-            sim = True
-        )
+                host = self.teleop_config.network.host_address,
+                image_stream_port = self.teleop_config.ports.sim_image_port + cam_idx,
+                storage_path = self._storage_path,
+                filename = 'cam_{}_rgb_video'.format(cam_idx),
+                sim = True
+            )
         component.stream()
 
     # Record the depth components
     def _start_depth_component(self, cam_idx):
-        if self.configs.sim_env is not True:
+        if self.teleop_config.flags.sim_env is not True:
             component = DepthImageRecorder(
-                host = self.configs.host_address,
-                image_stream_port = self.configs.cam_port_offset + cam_idx + DEPTH_PORT_OFFSET,
+                host = self.teleop_config.network.host_address,
+                image_stream_port = self.teleop_config.ports.cam_port_offset + cam_idx + cameras.DEPTH_PORT_OFFSET,
                 storage_path = self._storage_path,
                 filename = 'cam_{}_depth'.format(cam_idx)
             )
         else:
             component = DepthImageRecorder(
-                host = self.configs.host_address,
-                image_stream_port = self.configs.sim_image_port + cam_idx + DEPTH_PORT_OFFSET,
+                host = self.teleop_config.network.host_address,
+                image_stream_port = self.teleop_config.ports.sim_image_port + cam_idx + cameras.DEPTH_PORT_OFFSET,
                 storage_path = self._storage_path,
                 filename = 'cam_{}_depth'.format(cam_idx)
             )
@@ -291,9 +326,9 @@ class Collector(ProcessInstantiator):
 
     #Function to start the camera recorders
     def _init_camera_recorders(self):
-        if self.configs.sim_env is not True:
+        if self.teleop_config.flags.sim_env is not True:
             logger.info("Camera recorder starting")
-            for cam_idx in range(len(self.configs.robot_cam_serial_numbers)):
+            for cam_idx in range(len(self.teleop_config.camera.robot_cam_serial_numbers)):
                 self.processes.append(Process(
                     target = self._start_rgb_component,
                     args = (cam_idx, )
@@ -304,8 +339,7 @@ class Collector(ProcessInstantiator):
                     args = (cam_idx, )
                 ))
         else:
-          
-            for cam_idx in range(self.configs.num_cams):
+            for cam_idx in range(self.teleop_config.camera.num_cams):
                 self.processes.append(Process(
                     target = self._start_rgb_component,
                     args = (cam_idx, )
@@ -318,8 +352,8 @@ class Collector(ProcessInstantiator):
 
     #Function to start the sim recorders
     def _init_sim_recorders(self):
-        port_configs = self.configs.robot.port_configs
-        for key in self.configs.robot.recorded_data[0]:
+        port_configs = self.robot_config.port_configs
+        for key in self.robot_config.recorded_data[0]:
             self.processes.append(Process(
                         target = self._start_sim_component,
                         args = (port_configs[0],key)))
@@ -339,7 +373,8 @@ class Collector(ProcessInstantiator):
         """
         For the XELA sensors or any other sensors
         """
-        for controller_config in self.configs.robot.xela_controllers:
+        xela_controllers = getattr(self.robot_config, 'xela_controllers', [])
+        for controller_config in xela_controllers:
             self.processes.append(Process(
                 target = self._start_xela_component,
                 args = (controller_config, )
@@ -348,8 +383,8 @@ class Collector(ProcessInstantiator):
     #Function to start the fish eye recorders
     def _start_fish_eye_component(self, cam_idx):
         component = FishEyeImageRecorder(
-            host = self.configs.host_address,
-            image_stream_port = self.configs.fish_eye_cam_port_offset + cam_idx,
+            host = self.teleop_config.network.host_address,
+            image_stream_port = self.teleop_config.ports.fish_eye_cam_port_offset + cam_idx,
             storage_path = self._storage_path,
             filename = 'cam_{}_fish_eye_video'.format(cam_idx)
         )
@@ -359,7 +394,7 @@ class Collector(ProcessInstantiator):
     def _init_robot_recorders(self):
         """
         Initializes RobotInformationRecord processes based on configuration
-        found within each robot's definition in `configs.robot.robots`.
+        found within each robot's definition in `robot_config.robots`.
 
         Expects each robot config block to have:
         - state_publish_port: The port the robot publishes its state dict on.
@@ -369,21 +404,21 @@ class Collector(ProcessInstantiator):
         - Information to derive the ZMQ topic (e.g., '_target_', 'is_right_arm').
         """
         # Safety checks for config structure
-        if not hasattr(self.configs, 'robot') or not hasattr(self.configs.robot, 'robots'):
-            logger.warning("'configs.robot.robots' not found in configuration. Skipping robot recorder initialization.")
+        if not hasattr(self.robot_config, 'robots'):
+            logger.warning("'robot_config.robots' not found in configuration. Skipping robot recorder initialization.")
             return
-        if not isinstance(self.configs.robot.robots, (list, ListConfig)):
-             logger.warning("'configs.robot.robots' is not a list. Skipping robot recorder initialization.")
+        if not isinstance(self.robot_config.robots, (list, ListConfig)):
+             logger.warning("'robot_config.robots' is not a list. Skipping robot recorder initialization.")
              return
         if not hasattr(self, '_storage_path') or not self._storage_path:
             logger.error("FATAL ERROR: Collector._storage_path is not set! Cannot initialize robot recorders.")
             return
 
-        host_address = getattr(self.configs, 'host_address', 'localhost') # Get host address safely
+        host_address = self.teleop_config.network.host_address
 
         logger.info("Initializing Robot Recorders...")
         # Iterate through each robot defined in the configuration
-        for robot_index, robot_config in enumerate(self.configs.robot.robots):
+        for robot_index, robot_config in enumerate(self.robot_config.robots):
             try:
                 # --- 1. Extract Configuration ---
                 if not hasattr(robot_config, 'state_publish_port'):

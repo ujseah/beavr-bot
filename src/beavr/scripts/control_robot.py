@@ -197,7 +197,7 @@ def start_teleop_process(
         return
 
     # Lazy imports to avoid the heavy dependency cost when teleop is not needed.
-    from beavr.teleop import TeleopConfig  # pylint: disable=import-error
+    from beavr.teleop.main import MainConfig  # pylint: disable=import-error
     from beavr.teleop.components import TeleOperator
 
     # ------------------------------------------------------------------
@@ -237,11 +237,13 @@ def start_teleop_process(
         operate,
     )
 
-    # Build the configuration for the selected robot combo.
-    teleop_cfg = TeleopConfig(operate=operate, robot_name=robot_name)
+    # Build the configuration for the selected robot combo using the new structured config.
+    # Create MainConfig with robot_name and set operate flag in teleop.flags
+    main_config = MainConfig(robot_name=robot_name)
+    main_config.teleop.flags.operate = operate
 
     logging.info("Instantiating TeleOperator (Draccus version)…")
-    teleop = TeleOperator(teleop_cfg)
+    teleop = TeleOperator(main_config)
     _teleop_processes = teleop.get_processes()
 
     # Start all sub-processes.

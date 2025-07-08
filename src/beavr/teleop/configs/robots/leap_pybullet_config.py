@@ -4,27 +4,27 @@ from dataclasses import dataclass, field
 from typing import Any
 
 # Shared component configs driven by `configs.constants`
-from beavr.teleop.configs_teleop.shared_components import (
+from beavr.teleop.configs.robots.shared_components import (
     OculusVRHandDetectorCfg,
     TransformHandPositionCoordsCfg,
     Hand2DVisualizerCfg,
 )
 
 # Constants (host address, port numbers, …)
-from beavr.teleop.configs_teleop import constants as CONST
 
 from beavr.teleop.components.operators.leap_pybullet import LeapHandOperator
 from beavr.teleop.interfaces.leap_robot import LeapHandRobot
-from beavr.teleop.configs_teleop import TeleopRobotConfig
+from beavr.teleop.configs.robots import TeleopRobotConfig
+from beavr.teleop.configs.constants import ports, network
 
 
 @dataclass
 class LeapHandOperatorCfg:
-    host: str = CONST.HOST_ADDRESS
-    transformed_keypoints_port: int | str = CONST.KEYPOINT_TRANSFORM_PORT
-    joint_angle_subscribe_port: int | str = CONST.JOINT_PUBLISHER_PORT
-    joint_angle_publish_port: int | str = CONST.CARTESIAN_COMMAND_PUBLISHER_PORT  # keeps original order
-    reset_publish_port: int | str = CONST.TELEOP_RESET_PUBLISH_PORT
+    host: str = network.HOST_ADDRESS
+    transformed_keypoints_port: int | str = ports.KEYPOINT_TRANSFORM_PORT
+    joint_angle_subscribe_port: int | str = ports.JOINT_PUBLISHER_PORT
+    joint_angle_publish_port: int | str = ports.CARTESIAN_COMMAND_PUBLISHER_PORT  # keeps original order
+    reset_publish_port: int | str = ports.TELEOP_RESET_PUBLISH_PORT
     finger_configs: dict[str, Any] = field(default_factory=lambda: {"freeze_index": False, "freeze_middle": False, "freeze_ring": False, "freeze_thumb": False, "no_index": False, "no_middle": False, "no_ring": False, "no_thumb": False, "three_dim": True})
     logging_config: dict[str, Any] = field(default_factory=lambda: {"enabled": False, "log_dir": "logs", "log_poses": True, "log_prefix": "leap"})
 
@@ -33,10 +33,10 @@ class LeapHandOperatorCfg:
 
 @dataclass
 class LeapHandRobotCfg:
-    host: str = CONST.HOST_ADDRESS
-    joint_angle_subscribe_port: int | str = CONST.CARTESIAN_COMMAND_PUBLISHER_PORT
-    joint_angle_publish_port: int | str = CONST.JOINT_PUBLISHER_PORT
-    reset_subscribe_port: int | str = CONST.TELEOP_RESET_PUBLISH_PORT
+    host: str = network.HOST_ADDRESS
+    joint_angle_subscribe_port: int | str = ports.CARTESIAN_COMMAND_PUBLISHER_PORT
+    joint_angle_publish_port: int | str = ports.JOINT_PUBLISHER_PORT
+    reset_subscribe_port: int | str = ports.TELEOP_RESET_PUBLISH_PORT
     simulation_mode: bool = False
 
     def build(self):

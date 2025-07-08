@@ -8,7 +8,7 @@ from beavr.teleop.utils.network import (
 )
 import numpy as np
 import time
-from beavr.teleop.constants import VR_FREQ, ARM_TELEOP_STOP, ARM_TELEOP_CONT, TELEOP_HANDSHAKE_PORT
+from beavr.teleop.configs.constants import robots
 import logging
 from beavr.teleop.utils.ops import Ops
 
@@ -42,7 +42,7 @@ class XArm7Robot(RobotWrapper):
         self._controller = DexArmControl(ip=robot_ip)
         self._is_right_arm = is_right_arm
         
-        self._data_frequency = VR_FREQ
+        self._data_frequency = robots.VR_FREQ
         
         # Subscribers
         self._cartesian_coords_subscriber = ZMQKeypointSubscriber(
@@ -117,11 +117,13 @@ class XArm7Robot(RobotWrapper):
             self._handshake_coordinator.start_server(
                 subscriber_id=self._handshake_server_id,
                 bind_host="*", 
-                port=TELEOP_HANDSHAKE_PORT + (1 if self._is_right_arm else 2)  # Unique ports
+                port=robots.TELEOP_HANDSHAKE_PORT + (1 if self._is_right_arm else 2)  # Unique ports
             )
             logger.info(f"Handshake server started for {self.name}")
         except Exception as e:
             logging.warning(f"Failed to start handshake server for {self.name}: {e}")
+
+        self._is_homed = False
 
 
     @property
@@ -253,9 +255,9 @@ class XArm7Robot(RobotWrapper):
     def check_home(self):
         home_bool = self._home_subscriber.recv_keypoints()
 
-        if home_bool == ARM_TELEOP_STOP:
+        if home_bool == robots.ARM_TELEOP_STOP:
             return True
-        elif home_bool == ARM_TELEOP_CONT:
+        elif home_bool == robots.ARM_TELEOP_CONT:
             return False
 
         return False
@@ -280,16 +282,19 @@ class XArm7Robot(RobotWrapper):
                 # Calculate next frame time
                 next_frame_time = current_time + target_interval
 
-                if self.check_home():
+                if self.check_home() and not self._is_homed:
                     # Execute the homing motion.
                     self.home()
+                    self._is_homed = True
                     self.send_robot_pose()
+                elif not self.check_home() and self._is_homed:
+                    self._is_homed = False
 
                 if self.check_reset():
                     self.send_robot_pose()
 
                 # Check operation state --------------------------------------------------
-                if self.get_teleop_state() == ARM_TELEOP_STOP:
+                if self.get_teleop_state() == robots.ARM_TELEOP_STOP:
                     # Stop the robot from moving and wait until we operate again.
                     continue
 

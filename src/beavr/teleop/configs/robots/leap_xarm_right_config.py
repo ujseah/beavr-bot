@@ -5,8 +5,8 @@ from beavr.teleop.components.operators.leap_pybullet import LeapHandOperator
 from beavr.teleop.components.operators.xarm7_right import XArm7RightOperator
 from beavr.teleop.interfaces.leap_robot import LeapHandRobot
 from beavr.teleop.interfaces.xarm7_robot import XArm7Robot
-from beavr.teleop.configs_teleop import TeleopRobotConfig
-from beavr.teleop.configs_teleop.shared_components import OculusVRHandDetectorCfg, TransformHandPositionCoordsCfg, Hand2DVisualizerCfg
+from beavr.teleop.configs.robots import TeleopRobotConfig
+from beavr.teleop.configs.robots.shared_components import OculusVRHandDetectorCfg, TransformHandPositionCoordsCfg, Hand2DVisualizerCfg
 
 
 @dataclass

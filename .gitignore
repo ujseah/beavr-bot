@@ -91,3 +91,9 @@ env/
 
 # Egg
 *.egg-info/
+
+# Environment-specific configuration files
+config/
+
+# Outputs
+outputs/

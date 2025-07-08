@@ -5,7 +5,7 @@ from xarm import XArmAPI
 from enum import Enum
 import math
 
-from beavr.teleop.constants import XARM_SCALE_FACTOR, ROBOT_HOME_JS, VR_FREQ
+from beavr.teleop.configs.constants import robots
 from scipy.spatial.transform import Rotation as R
 from beavr.teleop.utils.orientation import quat_positive, quat_to_axis_angle
 
@@ -25,7 +25,7 @@ class Robot(XArmAPI):
         # Add these attributes to the Robot class
         self._max_step_distance = 50.0  # Maximum allowed movement in mm
         self._last_command_time = 0     # Fix for the attribute error
-        self._command_interval = 1.0 / VR_FREQ  # Use VR_FREQ constant (50Hz = 0.02s)
+        self._command_interval = 1.0 / robots.VR_FREQ  # Use VR_FREQ constant (50Hz = 0.02s)
 
         # Add performance metrics
         self._metrics = {
@@ -75,7 +75,7 @@ class Robot(XArmAPI):
         time.sleep(0.5)  # Longer wait between mode setting and movement
         
         # Move to home position
-        status = self.set_servo_angle(angle=ROBOT_HOME_JS, wait=True, 
+        status = self.set_servo_angle(angle=robots.ROBOT_HOME_JS, wait=True, 
                                    is_radian=True, speed=math.radians(30))
         if status != 0:
             print(f"Warning: Failed to home robot via joint angles, status={status}")
@@ -313,7 +313,7 @@ class Robot(XArmAPI):
 
             # Assemble 6-D pose in *millimetres* for the SDK call
             pose_mm = np.zeros(6, dtype=np.float32)
-            pose_mm[0:3] = pos_m * XARM_SCALE_FACTOR
+            pose_mm[0:3] = pos_m * robots.XARM_SCALE_FACTOR
             pose_mm[3:6] = aa
 
             # ------------------------------------------------------------------
@@ -347,7 +347,7 @@ class Robot(XArmAPI):
         """
         try:
             # Convert ROBOT_HOME_JS to numpy array
-            home_joints = np.array(ROBOT_HOME_JS, dtype=np.float32)
+            home_joints = np.array(robots.ROBOT_HOME_JS, dtype=np.float32)
             
             # Use position control mode (0) for homing
             self.set_mode_and_state(0, 0)
@@ -401,7 +401,7 @@ class Robot(XArmAPI):
         """
 
         rotation = R.from_rotvec(pose_aa[3:]).as_matrix()
-        translation = np.array(pose_aa[:3]) / XARM_SCALE_FACTOR
+        translation = np.array(pose_aa[:3]) / robots.XARM_SCALE_FACTOR
 
         return np.block([[rotation, translation[:, np.newaxis]],
                         [0, 0, 0, 1]])
@@ -464,7 +464,7 @@ class DexArmControl:
         self.robot.reset()
         
         # Configuration parameters
-        self._command_interval = 1.0 / VR_FREQ
+        self._command_interval = 1.0 / robots.VR_FREQ
         self._last_command_time = 0
     
     def _init_xarm_control(self):

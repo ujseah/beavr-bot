@@ -3,7 +3,7 @@ from beavr.teleop.components import Component
 from beavr.teleop.utils.images import rescale_image
 from beavr.teleop.utils.timer import FrequencyTimer
 from beavr.teleop.utils.network import ZMQCameraPublisher, ZMQCompressedImageTransmitter
-from beavr.teleop.constants import CAM_FPS, VIZ_PORT_OFFSET
+from beavr.teleop.configs.constants import cameras
 import cv2
 import time
 import logging
@@ -31,12 +31,12 @@ class FishEyeCamera(Component):
         if self._stream_oculus:
             self.rgb_viz_publisher = ZMQCompressedImageTransmitter(
                 host = stream_configs['host'],
-                port = stream_configs['set_port_offset'] + VIZ_PORT_OFFSET # Oculus only reads from a set port - this shouldn't change with the camera ID
+                port = stream_configs['set_port_offset'] + cameras.VIZ_PORT_OFFSET # Oculus only reads from a set port - this shouldn't change with the camera ID
                 # port= 10005 + VIZ_PORT_OFFSET
             )
             logger.info('STREAMING HERE IN FISH EYE CAM: {}'.format(cam_index))
 
-        self.timer = FrequencyTimer(CAM_FPS) # 30 fps
+        self.timer = FrequencyTimer(cameras.CAM_FPS) # 30 fps
 
         # Starting the Fisheye pipeline
         self._start_fisheye()
@@ -69,7 +69,7 @@ class FishEyeCamera(Component):
         logger.info("Starting stream on {}:{}...\n".format(self._stream_configs['host'], self._stream_configs['port']))
         
         if self._stream_oculus:
-            logger.info('Starting oculus stream on port: {}\n'.format(self._stream_configs['port'] + VIZ_PORT_OFFSET))
+            logger.info('Starting oculus stream on port: {}\n'.format(self._stream_configs['port'] + cameras.VIZ_PORT_OFFSET))
 
         while True:
             try:

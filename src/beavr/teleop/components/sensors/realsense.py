@@ -4,7 +4,7 @@ from beavr.teleop.components import Component
 from beavr.teleop.utils.images import rotate_image, rescale_image
 from beavr.teleop.utils.timer import FrequencyTimer
 from beavr.teleop.utils.network import ZMQCameraPublisher, ZMQCompressedImageTransmitter
-from beavr.teleop.constants import VIZ_PORT_OFFSET, DEPTH_PORT_OFFSET, CAM_FPS
+from beavr.teleop.configs.constants import cameras
 
 import time
 import logging
@@ -31,15 +31,15 @@ class RealsenseCamera(Component):
         if self._stream_oculus:
             self.rgb_viz_publisher = ZMQCompressedImageTransmitter(
                 host = stream_configs['host'],
-                port = stream_configs['port'] + VIZ_PORT_OFFSET
+                port = stream_configs['port'] + cameras.VIZ_PORT_OFFSET
             )
 
         self.depth_publisher = ZMQCameraPublisher(
             host = stream_configs['host'],
-            port = stream_configs['port'] + DEPTH_PORT_OFFSET
+            port = stream_configs['port'] + cameras.DEPTH_PORT_OFFSET
         )
 
-        self.timer = FrequencyTimer(CAM_FPS)
+        self.timer = FrequencyTimer(cameras.CAM_FPS)
 
         # Starting the realsense pipeline
         self._start_realsense(self._cam_serial_num)
@@ -121,7 +121,7 @@ class RealsenseCamera(Component):
         logger.info("Starting stream on {}:{}...\n".format(self._stream_configs['host'], self._stream_configs['port']))
         
         if self._stream_oculus:
-            logger.info('Starting oculus stream on port: {}\n'.format(self._stream_configs['port'] + VIZ_PORT_OFFSET))
+            logger.info('Starting oculus stream on port: {}\n'.format(self._stream_configs['port'] + cameras.VIZ_PORT_OFFSET))
 
         while True:
             try:

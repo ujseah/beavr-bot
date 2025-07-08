@@ -2,15 +2,7 @@ import numpy as np
 from copy import deepcopy as copy
 from beavr.teleop.components import Component
 
-from beavr.teleop.constants import (
-    OCULUS_NUM_KEYPOINTS,
-    OCULUS_JOINTS, 
-    VR_FREQ, 
-    KEYPOINT_POSITION_TRANSFORM, 
-    RIGHT, 
-    ABSOLUTE, 
-    RELATIVE, 
-    TRANSFORMED_HAND_COORDS, TRANSFORMED_HAND_FRAME)
+from beavr.teleop.configs.constants import robots
 
 from beavr.teleop.utils.vectorops import normalize_vector, moving_average
 from beavr.teleop.utils.network import ZMQKeypointSubscriber, ZMQPublisherManager, cleanup_zmq_resources
@@ -27,7 +19,7 @@ class HandMode(IntEnum):
 
 class TransformHandPositionCoords(Component):
     def __init__(self, host, keypoint_sub_port, keypoint_transform_pub_port, moving_average_limit = 5):
-        self.notify_component_start(KEYPOINT_POSITION_TRANSFORM)
+        self.notify_component_start(robots.KEYPOINT_POSITION_TRANSFORM)
         
         # Store connection info
         self.host = host
@@ -35,18 +27,18 @@ class TransformHandPositionCoords(Component):
         self.keypoint_transform_pub_port = keypoint_transform_pub_port
         
         # Initializing the subscriber for right hand keypoints
-        self.original_keypoint_subscriber = ZMQKeypointSubscriber(host, keypoint_sub_port, RIGHT)
+        self.original_keypoint_subscriber = ZMQKeypointSubscriber(host, keypoint_sub_port, robots.RIGHT)
         
         # Initialize publisher manager
         self.publisher_manager = ZMQPublisherManager.get_instance()
         
         # Timer
-        self.timer = FrequencyTimer(VR_FREQ)
+        self.timer = FrequencyTimer(robots.VR_FREQ)
         # Define key landmark indices for stable frame calculation
         self.wrist_idx = 0  # Wrist is typically the first point
-        self.index_knuckle_idx = OCULUS_JOINTS['knuckles'][0]  # Index finger knuckle
-        self.middle_knuckle_idx = OCULUS_JOINTS['knuckles'][1]  # Middle finger knuckle
-        self.pinky_knuckle_idx = OCULUS_JOINTS['knuckles'][-1]  # Pinky finger knuckle
+        self.index_knuckle_idx = robots.OCULUS_JOINTS['knuckles'][0]  # Index finger knuckle
+        self.middle_knuckle_idx = robots.OCULUS_JOINTS['knuckles'][1]  # Middle finger knuckle
+        self.pinky_knuckle_idx = robots.OCULUS_JOINTS['knuckles'][-1]  # Pinky finger knuckle
         # Moving average queue
         self.moving_average_limit = moving_average_limit
         # Create a queue for moving average
@@ -66,10 +58,10 @@ class TransformHandPositionCoords(Component):
                 return None, None
                         
             if data[0] == HandMode.ABSOLUTE:
-                data_type = ABSOLUTE
+                data_type = robots.ABSOLUTE
             else:
-                data_type = RELATIVE
-            return data_type, np.asanyarray(data[1:]).reshape(OCULUS_NUM_KEYPOINTS, 3)
+                data_type = robots.RELATIVE
+            return data_type, np.asanyarray(data[1:]).reshape(robots.OCULUS_NUM_KEYPOINTS, 3)
         except Exception as e:
             logger.error(f"Error receiving keypoints: {e}")
             return None, None
@@ -214,16 +206,16 @@ class TransformHandPositionCoords(Component):
                 self.publisher_manager.publish(
                     host=self.host, 
                     port=self.keypoint_transform_pub_port, 
-                    topic=TRANSFORMED_HAND_COORDS, 
+                    topic=robots.TRANSFORMED_HAND_COORDS, 
                     data=self.averaged_hand_coords
                 )
 
                 # Only publish the frame in absolute mode
-                if data_type == ABSOLUTE:
+                if data_type == robots.ABSOLUTE:
                     self.publisher_manager.publish(
                         host=self.host, 
                         port=self.keypoint_transform_pub_port, 
-                        topic=TRANSFORMED_HAND_FRAME, 
+                        topic=robots.TRANSFORMED_HAND_FRAME, 
                         data=self.averaged_hand_frame
                     )
                 self.timer.end_loop()

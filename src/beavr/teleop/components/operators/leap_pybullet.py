@@ -6,7 +6,7 @@ from beavr.teleop.utils.network import (
 )
 from .operator import Operator
 from beavr.teleop.utils.timer import FrequencyTimer
-from beavr.teleop.constants import VR_FREQ, OCULUS_JOINTS, LEAP_JOINTS_PER_FINGER, LEAP_JOINT_OFFSETS
+from beavr.teleop.configs.constants import robots
 import time
 from concurrent.futures import ThreadPoolExecutor
 import threading
@@ -70,7 +70,7 @@ class LeapHandOperator(Operator):
         }
 
         self._robot = None
-        self._timer = FrequencyTimer(VR_FREQ)
+        self._timer = FrequencyTimer(robots.VR_FREQ)
 
         # Create thread pool for parallel processing if needed
         self.thread_pool = ThreadPoolExecutor(max_workers=1)  # Single thread as PyBullet handles all fingers at once
@@ -124,10 +124,10 @@ class LeapHandOperator(Operator):
             
         try:
             return dict(
-                index = np.vstack([raw_keypoints[0], raw_keypoints[OCULUS_JOINTS['index']]]),
-                middle = np.vstack([raw_keypoints[0], raw_keypoints[OCULUS_JOINTS['middle']]]),
-                ring = np.vstack([raw_keypoints[0], raw_keypoints[OCULUS_JOINTS['ring']]]),
-                thumb = np.vstack([raw_keypoints[0], raw_keypoints[OCULUS_JOINTS['thumb']]])
+                index = np.vstack([raw_keypoints[0], raw_keypoints[robots.OCULUS_JOINTS['index']]]),
+                middle = np.vstack([raw_keypoints[0], raw_keypoints[robots.OCULUS_JOINTS['middle']]]),
+                ring = np.vstack([raw_keypoints[0], raw_keypoints[robots.OCULUS_JOINTS['ring']]]),
+                thumb = np.vstack([raw_keypoints[0], raw_keypoints[robots.OCULUS_JOINTS['thumb']]])
             )
         except (IndexError, TypeError) as e:
             logger.error(f"Error processing keypoints: {e}")
@@ -136,11 +136,11 @@ class LeapHandOperator(Operator):
     
     # Generate frozen angles for the fingers
     def _generate_frozen_angles(self, joint_angles, finger_type):
-        for idx in range(LEAP_JOINTS_PER_FINGER):
+        for idx in range(robots.LEAP_JOINTS_PER_FINGER):
             if idx > 0:
-                joint_angles[idx + LEAP_JOINT_OFFSETS[finger_type]] = 0.05
+                joint_angles[idx + robots.LEAP_JOINT_OFFSETS[finger_type]] = 0.05
             else:
-                joint_angles[idx + LEAP_JOINT_OFFSETS[finger_type]] = 0
+                joint_angles[idx + robots.LEAP_JOINT_OFFSETS[finger_type]] = 0
 
         return joint_angles
 
@@ -216,10 +216,10 @@ class LeapHandOperator(Operator):
             # Prepare finger data for logging
             finger_data = {}
             for finger_type in ['thumb', 'index', 'middle', 'ring']:
-                offset = LEAP_JOINT_OFFSETS[finger_type]
+                offset = robots.LEAP_JOINT_OFFSETS[finger_type]
                 finger_data[finger_type] = {
                     'input_positions': hand_keypoints[finger_type],
-                    'computed_angles': desired_joint_angles[offset:offset + LEAP_JOINTS_PER_FINGER]
+                    'computed_angles': desired_joint_angles[offset:offset + robots.LEAP_JOINTS_PER_FINGER]
                 }
                 
         except Exception as e:

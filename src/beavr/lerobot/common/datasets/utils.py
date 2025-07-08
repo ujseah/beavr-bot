@@ -658,7 +658,7 @@ def create_lerobot_dataset_card(
         ],
     )
 
-    card_template = (importlib.resources.files("beavr.common.datasets") / "card_template.md").read_text()
+    card_template = (importlib.resources.files("beavr.lerobot.common.datasets") / "card_template.md").read_text()
 
     return DatasetCard.from_template(
         card_data=card_data,

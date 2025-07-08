@@ -11,6 +11,7 @@ class Component(ABC):
         raise NotImplementedError()
 
     def notify_component_start(self, component_name):
-        logger.info("***************************************************************")
-        logger.info("     Starting {} component".format(component_name))
-        logger.info("***************************************************************")
+        if component_name:
+            logger.info("***************************************************************")
+            logger.info(f"     Starting {component_name} component")
+            logger.info("***************************************************************")

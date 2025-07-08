@@ -5,7 +5,7 @@ import zmq
 import numpy as np
 from .recorder import Recorder
 from beavr.teleop.utils.timer import FrequencyTimer
-from beavr.teleop.constants import RECORDER_FREQ
+from beavr.teleop.configs.constants import robots
 import logging
 
 from beavr.teleop.utils.network import ZMQKeypointSubscriber
@@ -53,7 +53,7 @@ class RobotInformationRecord(Recorder):
         self.buffer_limit = 1000 # Save every N data points (adjust as needed)
 
         # Timer for frequency estimation (optional)
-        self.timer = FrequencyTimer(RECORDER_FREQ) # Or a different default/config value
+        self.timer = FrequencyTimer(robots.RECORDER_FREQ) # Or a different default/config value
 
     def stream(self):
         """

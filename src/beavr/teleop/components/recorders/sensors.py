@@ -5,7 +5,7 @@ from beavr.teleop.utils.instantiator import instantiate_from_target
 import numpy as np
 from .recorder import Recorder
 from beavr.teleop.utils.timer import FrequencyTimer
-from beavr.teleop.constants import XELA_FPS
+from beavr.teleop.configs.constants import robots
 import logging
 
 logger = logging.getLogger(__name__)
@@ -22,7 +22,7 @@ class XelaSensorRecorder(Recorder):
         self.sensor = instantiate_from_target(controller_configs)
 
         # Timer 
-        self.timer = FrequencyTimer(XELA_FPS)
+        self.timer = FrequencyTimer(robots.XELA_FPS)
 
         # Create the storage path for file
         self._filename = 'touch_sensor_values'

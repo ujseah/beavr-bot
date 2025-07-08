@@ -322,7 +322,7 @@ class OpenCVCamera:
             if self.camera_index not in available_cam_ids:
                 raise ValueError(
                     f"`camera_index` is expected to be one of these available cameras {available_cam_ids}, but {self.camera_index} is provided instead. "
-                    "To find the camera index you should use, run `python src/beavr/common/robot_devices/cameras/opencv.py`."
+                    "To find the camera index you should use, run `python src/beavr/lerobot/common/robot_devices/cameras/opencv.py`."
                 )
 
             raise OSError(f"Can't access OpenCVCamera({camera_idx}).")

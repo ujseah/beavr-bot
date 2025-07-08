@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from .plotter import Plotter
 from beavr.teleop.utils.network import ZMQCompressedImageTransmitter
 from beavr.teleop.utils.files import check_file, get_npz_data, make_dir
-from beavr.teleop.constants import VR_DISPLAY_THUMB_BOUNDS_PATH, VR_THUMB_BOUND_VERTICES, OCULUS_JOINTS, VR_2D_PLOT_SAVE_PATH, CALIBRATION_FILES_PATH
+from beavr.teleop.configs.constants import robots, cameras
 
 import logging
 
@@ -33,12 +33,12 @@ class PlotHand2D(Plotter):
 
         # Thumb bound info
         self.thumb_bounds = None
-        self.thumb_bounds_path = VR_DISPLAY_THUMB_BOUNDS_PATH
+        self.thumb_bounds_path = robots.VR_DISPLAY_THUMB_BOUNDS_PATH
         self.bound_update_counter = 0
         self._check_thumb_bounds()
 
         # Checking image storage path
-        make_dir(os.path.join(CALIBRATION_FILES_PATH))
+        make_dir(os.path.join(robots.CALIBRATION_FILES_PATH))
 
         # Figure settings
         self.fig = plt.figure(figsize=(6, 6), dpi=60)
@@ -54,12 +54,12 @@ class PlotHand2D(Plotter):
         plt.axis([-0.12, 0.12, -0.02, 0.2])
 
     def _draw_thumb_bounds(self):
-        for idx in range(VR_THUMB_BOUND_VERTICES):
+        for idx in range(robots.VR_THUMB_BOUND_VERTICES):
             plot_line(
                 self.thumb_bounds[idx][0], 
-                self.thumb_bounds[(idx + 1) % VR_THUMB_BOUND_VERTICES][0], 
+                self.thumb_bounds[(idx + 1) % robots.VR_THUMB_BOUND_VERTICES][0], 
                 self.thumb_bounds[idx][1], 
-                self.thumb_bounds[(idx + 1) % VR_THUMB_BOUND_VERTICES][1]
+                self.thumb_bounds[(idx + 1) % robots.VR_THUMB_BOUND_VERTICES][1]
             )
         
     def draw_hand(self, X, Y):
@@ -69,17 +69,17 @@ class PlotHand2D(Plotter):
             self._draw_thumb_bounds()
 
         # Drawing connections fromn the wrist - 0
-        for idx in OCULUS_JOINTS['metacarpals']:
+        for idx in robots.OCULUS_JOINTS['metacarpals']:
             plot_line(X[0], X[idx], Y[0], Y[idx])
 
         # Drawing knuckle to knuckle connections and knuckle to finger connections
         for key in ['knuckles', 'thumb', 'index', 'middle', 'ring', 'pinky']:
-            for idx in range(len(OCULUS_JOINTS[key]) - 1):
+            for idx in range(len(robots.OCULUS_JOINTS[key]) - 1):
                 plot_line(
-                    X[OCULUS_JOINTS[key][idx]], 
-                    X[OCULUS_JOINTS[key][idx + 1]], 
-                    Y[OCULUS_JOINTS[key][idx]], 
-                    Y[OCULUS_JOINTS[key][idx + 1]]
+                    X[robots.OCULUS_JOINTS[key][idx]], 
+                    X[robots.OCULUS_JOINTS[key][idx + 1]], 
+                    Y[robots.OCULUS_JOINTS[key][idx]], 
+                    Y[robots.OCULUS_JOINTS[key][idx + 1]]
                 )
 
     def draw(self, X, Y):
@@ -97,8 +97,8 @@ class PlotHand2D(Plotter):
         self.draw_hand(X, Y)
 
         # Saving and obtaining the plot
-        plt.savefig(VR_2D_PLOT_SAVE_PATH)
-        plot = cv2.imread(VR_2D_PLOT_SAVE_PATH)
+        plt.savefig(robots.VR_2D_PLOT_SAVE_PATH)
+        plot = cv2.imread(robots.VR_2D_PLOT_SAVE_PATH)
         self.socket.send_image(plot)
 
         # Resetting and pausing the 3D plot
