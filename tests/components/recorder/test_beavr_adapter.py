@@ -11,6 +11,7 @@ from beavr.common.robot_devices.cameras.configs import OpenCVCameraConfig
 from beavr.common.robot_devices.cameras.opencv import OpenCVCamera
 from beavr.common.datasets.lerobot_dataset import LeRobotDataset
 
+
 # Setup logging for tests
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

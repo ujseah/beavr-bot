@@ -6,6 +6,7 @@ import glob
 import os
 from datetime import datetime
 
+
 def find_matching_log(timestamp_str, log_type="sim"):
     """Find the closest matching log file based on timestamp."""
     # Ensure we're looking in the logs directory
@@ -155,4 +156,4 @@ def main():
     plot_data(operator_data, sim_data, series=series)
 
 if __name__ == "__main__":
-    main() 
+    main()

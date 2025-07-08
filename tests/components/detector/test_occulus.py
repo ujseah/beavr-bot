@@ -1,5 +1,4 @@
 from unittest.mock import patch
-import pytest
 
 from beavr.components.detector.oculus import OculusVRHandDetector
 from beavr.constants import ARM_LOW_RESOLUTION, ARM_TELEOP_CONT

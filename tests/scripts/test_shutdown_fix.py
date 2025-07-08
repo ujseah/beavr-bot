@@ -11,6 +11,7 @@ import threading
 from beavr.utils.network import cleanup_zmq_resources, request_shutdown, is_shutdown_requested
 from beavr.utils.timer import FrequencyTimer
 
+
 def signal_handler(signum, frame):
     """Handle Ctrl+C gracefully"""
     print("\nReceived interrupt signal, starting graceful shutdown...")
@@ -97,4 +98,4 @@ def main():
         print("Cleanup complete")
 
 if __name__ == "__main__":
-    main() 
+    main()

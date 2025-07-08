@@ -134,15 +134,15 @@ from dataclasses import asdict
 from pprint import pformat
 
 # from safetensors.torch import load_file, save_file
-from beavr.common.datasets.lerobot_dataset import LeRobotDataset
-from beavr.common.policies.factory import make_policy
-from beavr.common.robot_devices.control_configs import (
+from beavr.lerobot.common.datasets.lerobot_dataset import LeRobotDataset
+from beavr.lerobot.common.policies.factory import make_policy
+from beavr.lerobot.common.robot_devices.control_configs import (
     ControlPipelineConfig,
     RecordControlConfig,
     ReplayControlConfig,
     TeleoperateControlConfig,
 )
-from beavr.common.robot_devices.control_utils import (
+from beavr.lerobot.common.robot_devices.control_utils import (
     init_keyboard_listener,
     log_control_info,
     record_episode,
@@ -152,10 +152,10 @@ from beavr.common.robot_devices.control_utils import (
     stop_recording,
     warmup_record,
 )
-from beavr.common.robot_devices.robots.utils import Robot, make_robot_from_config
-from beavr.common.robot_devices.utils import busy_wait, safe_disconnect
-from beavr.common.utils.utils import init_logging, log_say
-from beavr.configs import parser
+from beavr.lerobot.common.robot_devices.robots.utils import Robot, make_robot_from_config
+from beavr.lerobot.common.robot_devices.utils import busy_wait, safe_disconnect
+from beavr.lerobot.common.utils.utils import init_logging, log_say
+from beavr.lerobot.configs import parser
 
 
 ########################################################################################
@@ -198,7 +198,7 @@ def start_teleop_process(
 
     # Lazy imports to avoid the heavy dependency cost when teleop is not needed.
     from beavr.teleop import TeleopConfig  # pylint: disable=import-error
-    from beavr.components import TeleOperator
+    from beavr.teleop.components import TeleOperator
 
     # ------------------------------------------------------------------
     # Resolve *robot_name*

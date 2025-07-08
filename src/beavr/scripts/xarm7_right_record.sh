@@ -1,5 +1,5 @@
 python src/beavr/scripts/control_robot.py \
-    --robot.type=xarm7_only_adapter \
+    --robot.type=multi_robot_adapter \
     --control.type=record \
     --control.video=true \
     --control.fps=30 \
@@ -7,6 +7,6 @@ python src/beavr/scripts/control_robot.py \
     --control.warmup_time_s=5 \
     --control.episode_time_s=30 \
     --control.reset_time_s=5 \
-    --control.repo_id=aposadasn/test_network_teleop \
+    --control.repo_id=aposadasn/test_new \
     --control.single_task="Move the right xarm7 to the target position" \
     --control.resume=false

@@ -1,4 +1,5 @@
-from beavr.teleop import TeleopConfig, run_teleop, main 
+from beavr.teleop import TeleopConfig, run_teleop, main
+
 
 __all__ = [
     "TeleopConfig",

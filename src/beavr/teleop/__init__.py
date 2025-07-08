@@ -3,9 +3,14 @@ import logging
 
 from dataclasses import dataclass, field
 from typing import Any
-from beavr.configs_teleop import constants as CONST
-from beavr.configs_teleop import TeleopRobotConfig
-_CONFIGS_PKG = "beavr.configs_teleop"
+from beavr.teleop.configs_teleop import constants as CONST
+from beavr.teleop.configs_teleop import TeleopRobotConfig
+import importlib
+
+logger = logging.getLogger(__name__)
+
+
+_CONFIGS_PKG = "beavr.teleop.configs_teleop"
 
 
 # -----------------------------------------------------------------------------
@@ -95,7 +100,6 @@ class TeleopConfig:
         asking `TeleopRobotConfig` for the class.
         """
 
-        import importlib
 
         # Import the auto-generated config module (e.g. ``configs/leap_xarm_right_config.py``).
         try:
@@ -152,7 +156,7 @@ def run_teleop(configs):
     _setup_root_logger(logging.DEBUG)
 
     # Lazy-import to avoid incurring heavy dependencies during mere CLI parsing
-    from beavr.components import TeleOperator  # pylint: disable=import-error,cyclic-import
+    from beavr.teleop.components import TeleOperator  # pylint: disable=import-error,cyclic-import
 
     teleop = TeleOperator(configs)
     processes = teleop.get_processes()
@@ -168,7 +172,7 @@ def run_teleop(configs):
                 p.join(timeout=0.1)  # Short timeout to allow checking KeyboardInterrupt
 
     except KeyboardInterrupt:
-        print("\nShutdown requested...")
+        logger.info("\nShutdown requested...")
         
         # First send stop signal to all processes
         for p in processes:
@@ -182,7 +186,7 @@ def run_teleop(configs):
         # Force kill any remaining processes
         for p in processes:
             if p.is_alive():
-                print(f"Process {p.name} did not terminate gracefully - force killing")
+                logger.info(f"Process {p.name} did not terminate gracefully - force killing")
                 p.kill()
                 p.join(timeout=1.0)
     
@@ -194,9 +198,9 @@ def run_teleop(configs):
                     p.terminate()
                     p.join(timeout=0.5)
                 except Exception as e:
-                    print(f"Error cleaning up process {p.name}: {e}")
+                    logger.error(f"Error cleaning up process {p.name}: {e}")
         
-        print("Teleop shutdown complete")
+        logger.info("Teleop shutdown complete")
 
 # -----------------------------------------------------------------------------
 # CLI entry-point using Draccus
@@ -211,4 +215,4 @@ __all__ = [
     "NetworkConfig",
     "run_teleop",
     "main",
-] 
+]

@@ -19,6 +19,7 @@ import logging
 from beavr.utils.network import HandshakeCoordinator, publish_with_guaranteed_delivery
 from beavr.constants import ARM_TELEOP_STOP, ARM_TELEOP_CONT
 
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -140,4 +141,4 @@ def main():
         sys.exit(1)
 
 if __name__ == "__main__":
-    main() 
+    main()

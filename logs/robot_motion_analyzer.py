@@ -1,8 +1,7 @@
 import json
 import numpy as np
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-from scipy.spatial.transform import Rotation
+
 
 class RobotMotionAnalyzer:
     def __init__(self):
@@ -104,4 +103,4 @@ def main():
     analyzer.plot_final_stats(trans_stats, rot_stats)
 
 if __name__ == "__main__":
-    main() 
+    main()

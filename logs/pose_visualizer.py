@@ -1,10 +1,8 @@
 import json
 import numpy as np
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-from scipy.spatial.transform import Rotation
-from datetime import datetime
 import math
+
 
 def load_pose_log(log_file):
     log_file = f'logs/{log_file}'
@@ -342,4 +340,4 @@ def main():
     # plot_data(data, delta, series, "Original vs Calculated")
 
 if __name__ == "__main__":
-    main() 
+    main()

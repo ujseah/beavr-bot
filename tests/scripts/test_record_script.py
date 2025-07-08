@@ -1,4 +1,3 @@
-import pytest
 import numpy as np
 import time
 import pickle
@@ -12,6 +11,7 @@ from beavr.common.robot_devices.cameras.configs import OpenCVCameraConfig
 from beavr.common.robot_devices.control_configs import RecordControlConfig
 from beavr.common.robot_devices.robots.utils import make_robot_from_config
 import logging
+
 
 # Setup logging for tests
 logger = logging.getLogger(__name__)

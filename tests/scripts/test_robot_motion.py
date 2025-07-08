@@ -26,6 +26,9 @@ import numpy as np
 from beavr.controllers.xarm7_control import DexArmControl
 
 
+import json
+
+
 def parse_args() -> argparse.Namespace:
     """Return CLI arguments."""
     parser = argparse.ArgumentParser(
@@ -75,7 +78,6 @@ def main() -> None:
     # Action-file mode
     # ------------------------------------------------------------------
     if args.num_actions > 0:
-        import json
         # Load action list
         with open(args.actions_file, "r") as f:
             actions = json.load(f)

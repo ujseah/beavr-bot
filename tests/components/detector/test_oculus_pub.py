@@ -2,6 +2,7 @@ import time
 import argparse
 from beavr.utils.network import ZMQKeypointSubscriber
 
+
 def monitor_oculus_data(host='localhost', port=5556, timeout=None):
     """
     Monitor data published by OculusVRHandDetector.
@@ -64,4 +65,4 @@ if __name__ == '__main__':
     parser.add_argument('--timeout', type=float, help='Timeout in seconds (default: None)')
     
     args = parser.parse_args()
-    monitor_oculus_data(host=args.host, port=args.port, timeout=args.timeout) 
+    monitor_oculus_data(host=args.host, port=args.port, timeout=args.timeout)

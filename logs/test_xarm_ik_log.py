@@ -6,6 +6,7 @@ import os
 import json
 from scipy.spatial.transform import Rotation
 
+
 def homo2cart(homo_mat):
     # Here we will use the resolution scale to set the translation resolution
     t = homo_mat[:3, 3]

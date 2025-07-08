@@ -12,6 +12,7 @@ import time
 import argparse
 from openteach.ros_links.leap_control import DexArmControl
 
+
 def load_ik_solutions(filename):
     """Load IK solutions from a JSON file."""
     with open(filename, 'r') as f:
@@ -112,4 +113,4 @@ def main():
         print("Done.")
 
 if __name__ == "__main__":
-    main() 
+    main()
