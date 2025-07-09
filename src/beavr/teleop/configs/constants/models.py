@@ -336,4 +336,4 @@ class TeleopConfig:
     flags: TeleopFlags = field(default_factory=TeleopFlags)
     control: TeleopControlConfig = field(default_factory=TeleopControlConfig)
     operate: bool = robots.OPERATE
-    robot_name: str = robots.ROBOT_NAME
+    robot_name: str = robots.ROBOT_NAME_XARM7

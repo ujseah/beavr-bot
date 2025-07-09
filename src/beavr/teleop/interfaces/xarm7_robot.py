@@ -15,13 +15,14 @@ from beavr.teleop.utils.ops import Ops
 logger = logging.getLogger(__name__)
 
 class XArm7Robot(RobotWrapper):
-    def __init__(self, host, endeff_subscribe_port, joint_subscribe_port, home_subscribe_port,
-                 reset_subscribe_port, teleoperation_state_port, robot_ip, is_right_arm=True,
-                 # Port for publishing general data (e.g., end effector pose for viz)
-                 endeff_publish_port: int = 10009, # Default, check config
-                 # Port specifically for publishing the state dictionary for recording
-                 state_publish_port: int = 10010, # Default, check config
-                 **kwargs): # Allow extra args
+    def __init__(
+            self, host, endeff_subscribe_port, joint_subscribe_port, home_subscribe_port,
+            reset_subscribe_port, teleoperation_state_port, robot_ip,
+            is_right_arm=True,
+            endeff_publish_port: int = 10009,
+            state_publish_port: int = 10010,
+            **kwargs,
+        ):
         """
         Args:
             host: Network host address
@@ -138,7 +139,7 @@ class XArm7Robot(RobotWrapper):
 
     @property
     def name(self):
-        return 'right_xarm7' if self._is_right_arm else 'left_xarm7'
+        return f"{robots.ROBOT_NAME_XARM7}_{'right' if self._is_right_arm else 'left'}"
 
     @property
     def data_frequency(self):
@@ -170,7 +171,6 @@ class XArm7Robot(RobotWrapper):
     def get_teleop_state(self):
         """
         Checks if operation is stopped or continued.
-        Handshake coordination is now handled automatically by the coordinator.
         """
         return self._arm_teleop_state_subscriber.get_arm_teleop_state()
     

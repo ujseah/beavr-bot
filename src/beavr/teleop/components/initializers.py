@@ -140,7 +140,12 @@ class TeleOperator(ProcessInstantiator):
     def _start_component(self, configs):    
         try:
             component = instantiate_from_target(configs)
-            component.stream()
+            # Handle both single component and list of components
+            if isinstance(component, list):
+                for comp in component:
+                    comp.stream()
+            else:
+                component.stream()
         except Exception as e:
             logger.error(f"Error starting component: {e}")
             raise
@@ -281,7 +286,12 @@ class Collector(ProcessInstantiator):
 
     #Function to start the components
     def _start_component(self, component):
-        component.stream()
+        # Handle both single component and list of components
+        if isinstance(component, list):
+            for comp in component:
+                comp.stream()
+        else:
+            component.stream()
 
     # Record the rgb components
     def _start_rgb_component(self, cam_idx=0):

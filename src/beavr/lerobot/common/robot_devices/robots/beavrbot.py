@@ -19,9 +19,9 @@ from beavr.teleop.utils.network import (
 )
 
 
-class MultiRobotAdapter(Robot):
+class BeavrBot(Robot):
     """
-    General robot adapter that can handle any combination of robots (arms, hands, etc.)
+    BeavrBot is a robot adapter that can handle any combination of robots (arms, hands, etc.)
     based purely on configuration. No need to create new classes for each combo.
     """
     
@@ -265,6 +265,7 @@ class MultiRobotAdapter(Robot):
                 logging.error(f"Failed to connect to camera {name}: {e}")
                 raise
 
+        # TODO: Add a simple test to see if the robot is connected
         self._is_connected = True
         logging.info(f"MultiRobotAdapter ({self.robot_type}) connected successfully")
 

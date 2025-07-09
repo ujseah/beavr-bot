@@ -1,4 +1,4 @@
-from beavr.teleop.configs.constants import robots, ports, network
+from beavr.teleop.configs.constants import robots, network
 from beavr.teleop.components import Component
 from beavr.teleop.utils.timer import FrequencyTimer
 from beavr.teleop.utils.network import create_pull_socket, ZMQPublisherManager
@@ -10,7 +10,20 @@ import logging
 logger = logging.getLogger(__name__)
 
 class OculusVRHandDetector(Component):
+    """
+    OculusVRHandDetector is a component that detects the hand of the user using the Oculus VR headset.
+    """
     def __init__(self, host, oculus_hand_port, oculus_pub_port, button_port, teleop_reset_port):
+        """
+        Initialize the OculusVRHandDetector component.
+
+        Args:
+            host: The host address of the Oculus VR headset.
+            oculus_hand_port: The port number of the Oculus VR headset.
+            oculus_pub_port: The port number of the Oculus VR headset.
+            button_port: The port number of the Oculus VR headset.
+            teleop_reset_port: The port number of the Oculus VR headset.
+        """
         self.notify_component_start(robots.VR_DETECTOR)
         
         # Socket configuration

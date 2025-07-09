@@ -21,7 +21,7 @@ from beavr.lerobot.common.robot_devices.robots.configs import (
     LeKiwiRobotConfig,
     ManipulatorRobotConfig,
     MossRobotConfig,
-    MultiRobotAdapterConfig,
+    BeavrBotConfig,
     RobotConfig,
     So100RobotConfig,
     So101RobotConfig,
@@ -67,7 +67,7 @@ def make_robot_config(robot_type: str, **kwargs) -> RobotConfig:
     elif robot_type == "lekiwi":
         return LeKiwiRobotConfig(**kwargs)
     elif robot_type == "multi_robot_adapter":
-        return MultiRobotAdapterConfig(**kwargs)
+        return BeavrBotConfig(**kwargs)
     else:
         raise ValueError(f"Robot type '{robot_type}' is not available.")
 
@@ -79,10 +79,10 @@ def make_robot_from_config(config: RobotConfig):
     elif isinstance(config, LeKiwiRobotConfig):
         from beavr.lerobot.common.robot_devices.robots.mobile_manipulator import MobileManipulator
         return MobileManipulator(config)
-    elif isinstance(config, MultiRobotAdapterConfig):
-        from beavr.lerobot.common.robot_devices.robots.beavr_robot_adapter import MultiRobotAdapter
+    elif isinstance(config, BeavrBotConfig):
+        from beavr.lerobot.common.robot_devices.robots.beavrbot import BeavrBot
 
-        return MultiRobotAdapter(
+        return BeavrBot(
             robot_configs=config.robot_configs,
             cameras=config.cameras,
             robot_type=config.robot_type,

@@ -35,7 +35,7 @@ class RGBImageRecorder(Recorder):
         )
         self.sim = sim
         # Timer
-        if self.sim==True:
+        if self.sim:
             self.timer = FrequencyTimer(cameras.CAM_FPS_SIM)
         else:
             self.timer = FrequencyTimer(cameras.CAM_FPS)
@@ -46,7 +46,7 @@ class RGBImageRecorder(Recorder):
         self._metadata_filename = os.path.join(storage_path, filename + '.metadata')
 
         # Initializing the recorder
-        if self.sim==True:
+        if self.sim:
             self.recorder = cv2.VideoWriter(
                 self._recorder_file_name, 
                 cv2.VideoWriter_fourcc(*'XVID'), 

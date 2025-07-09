@@ -134,7 +134,7 @@ class TeleopOverrides:
 
     The dotted CLI style is supported automatically.  Example:
 
-    ``--teleop.robot_name=leap_xarm_right  --teleop.operate=false``
+    ``--teleop.robot_name=leap,xarm7  --teleop.operate=false``
     """
 
     robot_name: str | None = None

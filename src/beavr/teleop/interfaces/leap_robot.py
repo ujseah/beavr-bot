@@ -4,7 +4,7 @@ import numpy as np
 import threading
 import time
 from queue import Queue
-import traceback
+from beavr.teleop.utils.ops import Ops
 
 from beavr.teleop.utils.network import (
     ZMQKeypointSubscriber,
@@ -12,15 +12,26 @@ from beavr.teleop.utils.network import (
     cleanup_zmq_resources,
 )
 from beavr.teleop.utils.registry import GlobalRegistry
-
+from beavr.teleop.configs.constants import robots
 import logging
 
 logger = logging.getLogger(__name__)
 
 
 class LeapHandRobot(RobotWrapper):
-    def __init__(self, host, joint_angle_subscribe_port, joint_angle_publish_port, reset_subscribe_port, 
-                 state_publish_port=10008, home_subscribe_port=10007, simulation_mode=False, **kwargs):
+    def __init__(
+        self,
+        host,
+        joint_angle_subscribe_port,
+        joint_angle_publish_port,
+        reset_subscribe_port,
+        state_publish_port=10008,
+        home_subscribe_port=10007,
+        simulation_mode=False,
+        is_right_arm=True,
+        teleoperation_state_port=8089,
+        **kwargs,
+    ):
         """Initialize the robot adapter for data acquisition.
         
         Args:
@@ -36,6 +47,10 @@ class LeapHandRobot(RobotWrapper):
         if not state_publish_port:
             raise ValueError("LeapHandRobot requires a 'state_publish_port'")
 
+        # Set arm side first (needed for name property)
+        self._is_right_arm = is_right_arm
+        self._is_homed = False
+        
         # Store recorder config if provided
         self.recorder_config = kwargs.get('recorder_config', {})
         self.robot_identifier = self.recorder_config.get('robot_identifier', self.name)
@@ -45,7 +60,7 @@ class LeapHandRobot(RobotWrapper):
         else:
             self._controller = DexArmControl()  # Only init hardware in real mode
         
-        self._data_frequency = 60
+        self._data_frequency = robots.VR_FREQ
         self._command_queue = Queue(maxsize=1)
         self._last_command = None
         self._movement_thread = threading.Thread(target=self._execute_movement_loop, daemon=True)
@@ -78,6 +93,16 @@ class LeapHandRobot(RobotWrapper):
             'home': self._home_subscriber
         }
 
+        # Ops state subscriber --------------------------------------------------------
+        # Checks if operation is stopped or continued.
+        self._arm_teleop_state_subscriber = Ops(
+            arm_teleop_state_subscriber=ZMQKeypointSubscriber(
+                host=host,
+                port=teleoperation_state_port,
+                topic='pause',
+            )
+        )
+
         # Centralized publisher manager (new pub/sub structure)
         self._publisher_manager = ZMQPublisherManager.get_instance()
         self._publisher_host = host
@@ -102,7 +127,7 @@ class LeapHandRobot(RobotWrapper):
 
     @property
     def name(self):
-        return 'leap'
+        return f"{robots.ROBOT_NAME_LEAP}_{'right' if self._is_right_arm else 'left'}"
 
     @property
     def recorder_functions(self):
@@ -212,78 +237,94 @@ class LeapHandRobot(RobotWrapper):
         """Check if a reset message was received"""
         reset_bool = self._reset_subscriber.recv_keypoints()
         if reset_bool is not None:
-            logger.info(f"Received reset signal for {self.name}")
             return True
         return False
 
     def check_home(self):
         """Check if a home message was received"""
         home_bool = self._home_subscriber.recv_keypoints()
-        if home_bool is not None:
-            logger.info(f"Received home signal for {self.name}")
+
+        if home_bool == robots.ARM_TELEOP_STOP:
             return True
+        elif home_bool == robots.ARM_TELEOP_CONT:
+            return False
+
         return False
+    
+    def get_teleop_state(self):
+        """Get the teleop state"""
+        return self._arm_teleop_state_subscriber.get_arm_teleop_state()
     
     def stream(self):
         """Stream loop for LeapHand"""
-        frame_count = 0
-        start_time = time.time()
-        last_fps_print = start_time
+        self.home()
+        
+        target_interval = 1.0 / self._data_frequency
+        next_frame_time = time.time()
+
+        avg_start_time  = time.time() # window start for average frequency
+        msg_counter     = 0           # how many commands arrived in this window
         
         while True:
-            try:
-                # Get joint angles with non-blocking receive
-                joint_angles = self._joint_angle_subscriber.recv_keypoints()
-                self._action = joint_angles
-                
-                if joint_angles is not None:
-                    frame_count += 1
-                    current_time = time.time()
-                    
-                    # Print FPS every 5 seconds
-                    if current_time - last_fps_print >= 5.0:
-                        fps = frame_count / (current_time - last_fps_print)
-                        # logger.info(f"Average FPS over last 5 seconds: {fps:.2f}")
-                        frame_count = 0
-                        last_fps_print = current_time
-                    
-                    # Process the command
-                    self.move(joint_angles)
-                
-                # Update the joint state cache if recording is enabled
-                if self._is_recording_enabled:
-                    current_joint_position = self._controller.get_hand_position()
-                    self._latest_joint_angles = current_joint_position
-                    self._latest_joint_angles_timestamp = time.time()
-                
-                # Publish current state regardless of recording state
-                self._publisher_manager.publish(
-                    self._publisher_host,
-                    self._joint_angle_publish_port,
-                    'joint_angles',
-                    self.get_joint_position(),
-                )
-                self._state = self.get_joint_position()
-                
-                # Publish comprehensive state data for recording
-                self.publish_current_state()
-                
-                # Check for reset signal
-                if self.check_reset():
-                    # Automatically start recording after reset
-                    self.start_recording()
+            current_time = time.time()
 
-                # Check for home signal and send robot to home position
-                # if self.check_home():
-                #     self.home()
-                #     pass
+            # Only process at the target frequency
+            if current_time >= next_frame_time:
+                # Calculate next frame time
+                next_frame_time = current_time + target_interval
+
+            if self.check_home() and not self._is_homed:
+                # Execute the homing motion.
+                self.home()
+                self._is_homed = True
+            elif not self.check_home() and self._is_homed:
+                self._is_homed = False
+
+            if self.get_teleop_state() == robots.ARM_TELEOP_STOP:
+                # Stop the robot from moving and wait until we operate again.
+                continue
+
+            # Get joint angles with non-blocking receive
+            msg = self._joint_angle_subscriber.recv_keypoints()
+            self._action = msg
                 
-                time.sleep(1/self._data_frequency)
+            if msg is not None:
+                # Process the command
+                self.move(msg)
                 
-            except Exception as e:
-                logger.error(f"Stream error: {e}")
-                traceback.print_exc()
-                time.sleep(1/self._data_frequency)
+            # Update the joint state cache if recording is enabled
+            if self._is_recording_enabled:
+                current_joint_position = self._controller.get_hand_position()
+                self._latest_joint_angles = current_joint_position
+                self._latest_joint_angles_timestamp = time.time()
+                
+            # Publish current state regardless of recording state
+            self._publisher_manager.publish(
+                self._publisher_host,
+                self._joint_angle_publish_port,
+                'joint_angles',
+                self.get_joint_position(),
+            )
+            self._state = self.get_joint_position()
+
+            now = time.time()
+
+            msg_counter += 1
+            if now - avg_start_time >= 1.0:
+                avg_freq = msg_counter / (now - avg_start_time)
+                # logger.info(f"Average cmd freq over last second: {avg_freq:6.2f} Hz")
+                avg_start_time = now
+                msg_counter = 0
+                
+            # Publish comprehensive state data for recording
+            self.publish_current_state()
+                
+            # Check for reset signal
+            if self.check_reset():
+                # Automatically start recording after reset
+                self.start_recording()
+                
+            time.sleep(1/self._data_frequency)
 
     def _get_operator(self):
         """Get or retrieve the operator reference"""
