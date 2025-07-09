@@ -5,7 +5,9 @@
 import numpy as np
 import os
 
-ROBOT_NAME = "leap_xarm_right"
+ROBOT_NAME_LEAP = "leap"
+ROBOT_NAME_XARM7 = "xarm7"
+
 # -----------------------------------------------------------------------------
 # VR detector constants
 # -----------------------------------------------------------------------------
@@ -103,6 +105,7 @@ BUTTON = 'button'
 PAUSE = 'pause'
 RIGHT = 'right'
 LEFT = 'left'
+BIMANUAL = 'bimanual'
 
 # -----------------------------------------------------------------------------
 # Keypoint transform constants
@@ -142,6 +145,8 @@ VISUALIZE_RIGHT_DIR = False
 # -----------------------------------------------------------------------------
 ROBOT_IDENTIFIER_RIGHT_XARM7 = "right_xarm7"
 ROBOT_IDENTIFIER_LEFT_XARM7 = "left_xarm7"
+ROBOT_IDENTIFIER_RIGHT_LEAP_HAND = "right_leap"
+ROBOT_IDENTIFIER_LEFT_LEAP_HAND = "left_leap"
 ROBOT_IDENTIFIER_LEAP = "leap"
 
 # -----------------------------------------------------------------------------

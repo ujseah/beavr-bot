@@ -313,3 +313,18 @@ def synchronize_logs(log_files, output_file):
     # Save synchronized data
     with open(output_file, 'w') as f:
         json.dump(synced_data, f, indent=2) 
+
+def setup_root_logger(level: int = logging.DEBUG):
+    """Configure the root logger only once (no-op if already configured)."""
+    root = logging.getLogger()
+    if root.handlers:
+        # Configuration already exists – just raise the level if needed
+        if root.level > level:
+            root.setLevel(level)
+        return
+
+    logging.basicConfig(
+        level=level,
+        format="[%(levelname)s] %(asctime)s %(processName)s %(name)s: %(message)s",
+        datefmt="%H:%M:%S",
+    )

@@ -3,13 +3,16 @@ import pickle
 from beavr.teleop.components import Component
 from beavr.teleop.utils.network import create_response_socket
 from beavr.teleop.utils.timer import FrequencyTimer
-from beavr.constants import DEPLOY_FREQ
+from beavr.teleop.configs.constants import network
 from beavr.teleop.utils.instantiator import instantiate_from_target
 import logging
 
 logger = logging.getLogger(__name__)
 
 class DeployServer(Component):
+    """
+    DeployServer is a component that deploys the robot to the desired state.
+    """
     def __init__(self, configs):
         self.configs = configs
         
@@ -25,7 +28,7 @@ class DeployServer(Component):
             port = self.configs.deployment_port
         )
 
-        self.timer = FrequencyTimer(DEPLOY_FREQ)
+        self.timer = FrequencyTimer(network.DEPLOY_FREQ)
 
     def _init_robot_subscribers(self):
         robot_controllers = instantiate_from_target(self.configs.robot.controllers)

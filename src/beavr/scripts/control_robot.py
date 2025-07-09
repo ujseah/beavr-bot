@@ -175,10 +175,10 @@ def start_teleop_process(
     Parameters
     ----------
     robot_name : str | None
-        Identifier of the robot combo to load (e.g. ``leap_xarm_right``).
+        Identifier of the robot combo to load (e.g. ``leap,xarm7`` or ``leap``).
         If *None*, we will attempt to read `--teleop_robot_name` from the CLI
         (via ``beavr.configs.parser``).  If that is also missing the function
-        falls back to the historical default "leap_xarm_right".
+        falls back to the default "leap,xarm7".
 
     operate : bool | None
         Whether to start the *Operator* processes that listen to the VR
@@ -212,9 +212,8 @@ def start_teleop_process(
         robot_name = parser.parse_arg("teleop.robot_name")
 
     if robot_name is None:
-        # Ultimate fallback – keep previous hard-coded default so existing
-        # scripts continue to run.
-        robot_name = "leap_xarm_right"
+        # Ultimate fallback – use new multi-robot syntax
+        robot_name = "leap,xarm7"
 
     # ------------------------------------------------------------------
     # Resolve *operate*
@@ -421,6 +420,7 @@ def control_robot(cfg: ControlPipelineConfig):
         logging.info(
             "Waiting 5s for teleoperation system to initialize before robot connection..."
         )
+        # TODO: Improve this logic shouldn't need sleep
         time.sleep(5)
 
     # Pass the controller to the robot adapter

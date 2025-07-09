@@ -29,6 +29,8 @@ from beavr.lerobot.common.robot_devices.motors.configs import (
     MotorsBusConfig,
 )
 
+from beavr.teleop.configs.constants import ports, robots, network
+
 
 @dataclass
 class RobotConfig(draccus.ChoiceRegistry, abc.ABC):
@@ -677,7 +679,7 @@ class LeKiwiRobotConfig(RobotConfig):
 
 @RobotConfig.register_subclass("multi_robot_adapter")
 @dataclass
-class MultiRobotAdapterConfig(RobotConfig):
+class BeavrBotConfig(RobotConfig):
     """General robot adapter configuration that can handle any combination of robots.
     Just add robot configs - no need to create new adapter classes!"""
     
@@ -688,13 +690,13 @@ class MultiRobotAdapterConfig(RobotConfig):
     cameras: dict[str, CameraConfig] = field(
         default_factory=lambda: {
             "front": OpenCVCameraConfig(
-                camera_index=4,
+                camera_index=6,
                 fps=30,
                 width=640,
                 height=480,
             ),
             "overhead": OpenCVCameraConfig(
-                camera_index=10,
+                camera_index=4,
                 fps=30,
                 width=640,
                 height=480,
@@ -713,10 +715,10 @@ class MultiRobotAdapterConfig(RobotConfig):
             # Default to XArm7 + Leap combo for backward compatibility
             self.robot_configs = [
                 {
-                    "name": "right_xarm7",
-                    "host": "10.31.152.148",
-                    "state_port": 10011,
-                    "state_topic": "right_xarm7",
+                    "name": robots.ROBOT_NAME_XARM7,
+                    "host": network.HOST_ADDRESS,
+                    "state_port": ports.XARM_STATE_PUBLISH_PORT,
+                    "state_topic": f"{robots.ROBOT_NAME_XARM7}_right",
                     "robot_type": "arm",
                     "observation_key": "arm_state",
                     "action_key": "arm_action", 
@@ -724,16 +726,16 @@ class MultiRobotAdapterConfig(RobotConfig):
                     "joint_state_path": ["joint_states", "joint_position"],
                     "command_state_path": ["commanded_cartesian_state", "commanded_cartesian_position"],
                     # Port and topic information for action publishing (use 10009, see comment above)
-                    "endeff_publish_port": 10009,
+                    "endeff_publish_port": ports.XARM_ENDEFF_SUBSCRIBE_PORT,
                     "command_topic": "endeff_coords",
-                    "home_subscribe_port": 10007,
-                    "teleop_port": 8089,
+                    "home_subscribe_port": ports.XARM_HOME_SUBSCRIBE_PORT,
+                    "teleop_port": ports.XARM_TELEOPERATION_STATE_PORT,
                 },
                 {
-                    "name": "leap",
-                    "host": "10.31.152.148", 
-                    "state_port": 10012,
-                    "state_topic": "leap",
+                    "name": robots.ROBOT_NAME_LEAP,
+                    "host": network.HOST_ADDRESS, 
+                    "state_port": ports.LEAP_STATE_PUBLISH_PORT,
+                    "state_topic": f"{robots.ROBOT_NAME_LEAP}_right",
                     "robot_type": "hand",
                     "observation_key": "hand_state",
                     "action_key": "hand_action",
@@ -741,17 +743,16 @@ class MultiRobotAdapterConfig(RobotConfig):
                     "joint_state_path": ["joint_states", "position"],
                     "command_state_path": ["commanded_joint_states", "position"],
                     # Publish joint commands on the port the Leap hand operator expects (8120).
-                    "joint_angle_publish_port": 8120,
+                    "joint_angle_publish_port": ports.LEAP_JOINT_ANGLE_SUBSCRIBE_PORT,
                     "command_topic": "joint_angles",
-                    "home_subscribe_port": 10007,
-                    "teleop_port": 8089,
+                    "home_subscribe_port": ports.LEAP_HOME_SUBSCRIBE_PORT,
                 }
             ]
 
 
 @RobotConfig.register_subclass("xarm7_only_adapter")
 @dataclass  
-class XArm7OnlyAdapterConfig(MultiRobotAdapterConfig):
+class XArm7OnlyAdapterConfig(BeavrBotConfig):
     """XArm7 arm only configuration - demonstrates single robot setup."""
     
     robot_type: str = "xarm7_only"
@@ -760,10 +761,10 @@ class XArm7OnlyAdapterConfig(MultiRobotAdapterConfig):
         """Configure for XArm7 only."""
         self.robot_configs = [
             {
-                "name": "right_xarm7",
-                "host": "10.31.152.148",
-                "state_port": 10011,
-                "state_topic": "right_xarm7", 
+                "name": f"{robots.ROBOT_NAME_XARM7}_right",
+                "host": network.HOST_ADDRESS,
+                "state_port": ports.XARM_STATE_PUBLISH_PORT,
+                "state_topic": f"{robots.ROBOT_NAME_XARM7}_right", 
                 "robot_type": "arm",
                 "observation_key": "arm_state",
                 "action_key": "arm_action",
@@ -771,17 +772,17 @@ class XArm7OnlyAdapterConfig(MultiRobotAdapterConfig):
                 "joint_state_path": ["joint_states", "joint_position"],
                 "command_state_path": ["commanded_cartesian_state", "commanded_cartesian_position"],
                 # Port and topic information for action publishing (use 10009, see comment above)
-                "endeff_publish_port": 10009,
+                "endeff_publish_port": ports.XARM_ENDEFF_SUBSCRIBE_PORT,
                 "command_topic": "endeff_coords",
-                "home_subscribe_port": 10007,
-                "teleop_port": 8089,
+                "home_subscribe_port": ports.XARM_HOME_SUBSCRIBE_PORT,
+                "teleop_port": ports.XARM_TELEOPERATION_STATE_PORT,
             }
         ]
 
 
 @RobotConfig.register_subclass("leap_only_adapter")
 @dataclass
-class LeapOnlyAdapterConfig(MultiRobotAdapterConfig):
+class LeapOnlyAdapterConfig(BeavrBotConfig):
     """Leap hand only configuration - demonstrates single robot setup."""
     
     robot_type: str = "leap_only"
@@ -790,10 +791,10 @@ class LeapOnlyAdapterConfig(MultiRobotAdapterConfig):
         """Configure for Leap hand only."""
         self.robot_configs = [
             {
-                "name": "leap",
-                "host": "10.31.152.148",
-                "state_port": 10012, 
-                "state_topic": "leap",
+                "name": f"{robots.ROBOT_NAME_LEAP}_right",
+                "host": network.HOST_ADDRESS,
+                "state_port": ports.LEAP_STATE_PUBLISH_PORT,
+                "state_topic": f"{robots.ROBOT_NAME_LEAP}_right",
                 "robot_type": "hand",
                 "observation_key": "hand_state",
                 "action_key": "hand_action",
@@ -801,9 +802,9 @@ class LeapOnlyAdapterConfig(MultiRobotAdapterConfig):
                 "joint_state_path": ["joint_states", "position"],
                 "command_state_path": ["commanded_joint_states", "position"],
                 # Publish joint commands on the port the Leap hand operator expects (8120).
-                "joint_angle_publish_port": 8120,
+                "joint_angle_publish_port": ports.LEAP_JOINT_ANGLE_SUBSCRIBE_PORT,
                 "command_topic": "joint_angles",
-                "home_subscribe_port": 10007,
-                "teleop_port": 8089,
+                "home_subscribe_port": ports.LEAP_HOME_SUBSCRIBE_PORT,
+                "teleop_port": ports.XARM_TELEOPERATION_STATE_PORT,
             }
         ]

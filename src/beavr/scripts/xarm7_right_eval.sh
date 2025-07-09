@@ -11,6 +11,6 @@ python src/beavr/scripts/control_robot.py \
   --control.push_to_hub=false \
   --control.policy.path=aposadasn/lx7r5_model \
   --control.single_task="Move the right xarm7 to the target position" \
-  --teleop.robot_name=leap_xarm_right \
+  --teleop.robot_name=leap,xarm7 \
   --teleop.operate=false \
   --control.resume=false

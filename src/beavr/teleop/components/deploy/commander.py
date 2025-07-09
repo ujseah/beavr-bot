@@ -1,5 +1,5 @@
 import pickle
-from beavr.constants import DEPTH_PORT_OFFSET
+from beavr.teleop.configs.constants import ports
 from beavr.teleop.utils.network import ZMQCameraSubscriber, create_request_socket
 
 class DeployAPI(object):
@@ -38,7 +38,7 @@ class DeployAPI(object):
 
                 self._depth_streams.append(ZMQCameraSubscriber(
                     host = self.configs.host_address,
-                    port = self.configs.cam_port_offset + idx + DEPTH_PORT_OFFSET,
+                    port = self.configs.cam_port_offset + idx + ports.DEPTH_PORT_OFFSET,
                     topic_type = 'Depth'
                 ))
 
