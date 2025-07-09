@@ -35,7 +35,7 @@ dependencies = [
     "pyzmq==25.1.1",
     "scipy==1.15.2",
     "six==1.16.0",
-    "tqdm==4.66.1",
+    "tqdm>=4.67.1",
     "tzdata==2023.3",
     "zmq==0.0.0",
     "ikpy",
@@ -46,6 +46,20 @@ dependencies = [
     "dynamixel-sdk",
     "pybullet",
     "hydra-core",
+    "draccus",
+    "datasets",
+    "jsonlines",
+    "av",
+    "einops",
+    "diffusers",
+    "transformers",
+    "imageio",
+    "torch>=2.7.1",
+    "gymnasium",
+    "deepdiff",
+    "termcolor",
+    "rerun",
+    "pynput"
 ]
 
 # Note: PyTorch and torchvision are not included here as they're typically

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+
 import pybullet as p
 import numpy as np
 import json
@@ -6,9 +7,8 @@ import os
 import pybullet_data
 import time
 import zmq
-from typing import List, Dict, Tuple, Optional, Union, Any
+from typing import List, Dict, Optional, Any
 from dataclasses import dataclass
-from pathlib import Path
 from datetime import datetime
 from enum import Enum, auto
 

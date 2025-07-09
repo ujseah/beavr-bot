@@ -3,31 +3,33 @@
 Script to visualize recorded joint movements of the LEAP hand in PyBullet
 and optionally replay them on the physical hand.
 """
+
 import pybullet as p
 import time
 import os
 import argparse
 import sys
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional
 import numpy as np
 from dataclasses import dataclass
-import json
+
+    from logs.leap_hand.visualize_ik_pybullet import (
+        LogHandler, VisualMarkerManager, HandVisualizer, CoordinateTransformer, JointMapUtility
+)
+    from logs.leap_hand.visualize_ik_pybullet import (
+        LogHandler, VisualMarkerManager, HandVisualizer, JointMapUtility
+)
+from openteach.ros_links.leap_control import DexArmControl
+
 
 # Import shared components from visualize_ik_pybullet.py
 try:
-    from logs.leap_hand.visualize_ik_pybullet import (
-        LogHandler, VisualMarkerManager, HandVisualizer, CoordinateTransformer, JointMapUtility
-    )
 except ImportError:
     # Fallback for direct execution
     sys.path.append(os.getcwd())
-    from logs.leap_hand.visualize_ik_pybullet import (
-        LogHandler, VisualMarkerManager, HandVisualizer, CoordinateTransformer, JointMapUtility
-    )
 
 # Import DexArmControl for physical hand control
 try:
-    from openteach.ros_links.leap_control import DexArmControl
 except ImportError:
     print("Warning: DexArmControl not available. Physical hand replay will not be possible.")
     DexArmControl = None
@@ -261,7 +263,7 @@ class JointPlaybackVisualizer:
         
         # Setup PyBullet and load the hand model
         if not self.hand_visualizer.setup_environment():
-            print(f"Error: Failed to set up environment")
+            print("Error: Failed to set up environment")
             return
             
         self.hand_id = self.hand_visualizer.hand_id

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+
 import pybullet as p
 import numpy as np
 import json
@@ -6,6 +7,7 @@ import os
 import pybullet_data
 import time
 from datetime import datetime
+
 
 def load_log(log_file):
     with open(log_file, 'r') as f:

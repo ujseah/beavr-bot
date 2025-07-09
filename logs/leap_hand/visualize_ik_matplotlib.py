@@ -1,14 +1,11 @@
 import os
 import json
-import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
-from mpl_toolkits.mplot3d import Axes3D
 import pybullet as p
 import pybullet_data
-import time
-from datetime import datetime
 from matplotlib.widgets import Slider, Button
+
 
 class HandVisualizer:
     """Visualizer for leap hand IK solutions using PyBullet for kinematics."""
@@ -443,4 +440,4 @@ def main():
     visualizer.show()
 
 if __name__ == "__main__":
-    main() 
+    main()
