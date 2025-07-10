@@ -258,11 +258,13 @@ def _load_single_robot(robot_name: str, laterality: Laterality) -> Any:
     
     # Retrieve and instantiate the registered robot config
     cfg_cls = TeleopRobotConfig.get_choice_class(robot_name)
-    robot_config = cfg_cls()
     
-    # Set the enum laterality for robot configs that need it
-    if hasattr(robot_config, 'laterality'):
-        robot_config.laterality = laterality
+    # Build kwargs dynamically to ensure compatibility with robot config __init__ signature
+    cfg_kwargs = {}
+    if 'laterality' in getattr(cfg_cls, '__dataclass_fields__', {}):
+        cfg_kwargs['laterality'] = laterality
+    
+    robot_config = cfg_cls(**cfg_kwargs)
     
     logger.info(f"✅ Loaded robot configuration: {robot_name} with laterality: {laterality.value}")
     return robot_config

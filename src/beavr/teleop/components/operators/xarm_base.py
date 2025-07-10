@@ -130,6 +130,7 @@ class XArmOperator(Operator):
         arm_resolution_port: Optional[int] = None,
         teleoperation_state_port: Optional[int] = None,
         logging_config: Optional[Dict[str, Any]] = None,
+        hand_side: str = robots.RIGHT,
     ):
         """
         Initializes the XArmOperator.
@@ -149,9 +150,11 @@ class XArmOperator(Operator):
             arm_resolution_port: Optional port for arm resolution control messages.
             teleoperation_state_port: Optional port for teleoperation reset/pause messages.
             logging_config: Optional configuration dictionary for pose logging.
+            hand_side: Hand side ('left' or 'right') to determine the correct topic for keypoint subscription.
         """
         # Basic initialization
         self.operator_name = operator_name
+        self.hand_side = hand_side
         self.notify_component_start(self.operator_name)
         self._host, self._port = host, transformed_keypoints_port
 
@@ -162,11 +165,17 @@ class XArmOperator(Operator):
         # Initialize ZMQ context and subscribers
         self._context = get_global_context()
         
+        # Determine the correct topic based on hand side
+        if hand_side == robots.RIGHT:
+            frame_topic = robots.TRANSFORMED_HAND_FRAME
+        else:  # LEFT
+            frame_topic = f"{robots.LEFT}_{robots.TRANSFORMED_HAND_FRAME}"
+        
         try:
             self._arm_transformed_keypoint_subscriber = ZMQKeypointSubscriber(
                 host=host,
                 port=transformed_keypoints_port,
-                topic='transformed_hand_frame',
+                topic=frame_topic,
                 context=self._context
             )
 

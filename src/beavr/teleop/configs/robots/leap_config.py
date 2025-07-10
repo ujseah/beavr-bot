@@ -140,6 +140,7 @@ class LeapHandConfig:
 
     def __post_init__(self):
         """Configure components based on laterality setting."""
+        # Configuration is done here after laterality is properly set
         log_laterality_configuration(self.laterality, robots.ROBOT_NAME_LEAP)
         self._configure_for_laterality()
     

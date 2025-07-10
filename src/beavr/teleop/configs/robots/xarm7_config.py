@@ -132,9 +132,14 @@ class XArm7OperatorCfg:
 
     def build(self):
         # Import here to avoid circular imports
-        from beavr.teleop.components.operators.xarm7_right import XArm7RightOperator
+        if self.hand_side == robots.RIGHT:
+            from beavr.teleop.components.operators.xarm7_right import XArm7RightOperator
+            operator_class = XArm7RightOperator
+        else:  # LEFT
+            from beavr.teleop.components.operators.xarm7_left import XArm7LeftOperator
+            operator_class = XArm7LeftOperator
         
-        return XArm7RightOperator(
+        return operator_class(
             host=self.host,
             transformed_keypoints_port=self.transformed_keypoints_port,
             stream_configs=self.stream_configs,
@@ -164,6 +169,7 @@ class XArm7Config:
 
     def __post_init__(self):
         """Configure components based on laterality setting."""
+        # Configuration is done here after laterality is properly set
         log_laterality_configuration(self.laterality, robots.ROBOT_NAME_XARM7)
         self._configure_for_laterality()
     

@@ -3,6 +3,7 @@ from typing import Dict, Any, Optional
 
 # Import the base class
 from .xarm_base import XArmOperator
+from beavr.teleop.configs.constants import robots
 
 # Define the transformation matrices specific to the RIGHT arm
 # These map points/vectors from the source frame (Robot base R, Hand Tracking T)
@@ -75,4 +76,5 @@ class XArm7RightOperator(XArmOperator):
             arm_resolution_port=arm_resolution_port,
             teleoperation_state_port=teleoperation_state_port,
             logging_config=logging_config,
+            hand_side=robots.RIGHT,
         )
