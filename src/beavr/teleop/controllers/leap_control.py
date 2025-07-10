@@ -13,6 +13,8 @@ import threading
 from queue import Queue
 import logging
 
+from beavr.teleop.configs.constants import network
+
 logger = logging.getLogger(__name__)
 
 # Control table addresses (for XL330-M288)
@@ -33,7 +35,6 @@ PROTOCOL_VERSION = 2.0
 
 # Default settings
 BAUDRATE = 4000000  # 4 Mbps
-DEVICENAME = '/dev/ttyUSB0'   # Change based on your setup
 
 LEAP_HOME_VALUES = [2048] * 16  # Neutral position for all motors
 
@@ -43,7 +44,11 @@ MOTOR_IDS = [0, 1, 2, 3,        # Index
              12, 13, 14, 15 ]   # Thumb
 
 class DynamixelClient:
-    def __init__(self):
+    def __init__(self, is_right_arm: bool):
+        if is_right_arm:
+            DEVICENAME = network.RIGHT_LEAP_USB_PORT
+        else:
+            DEVICENAME = network.LEFT_LEAP_USB_PORT
         self.portHandler = PortHandler(DEVICENAME)
         self.packetHandler = PacketHandler(PROTOCOL_VERSION)
         self.motor_ids = MOTOR_IDS
@@ -197,8 +202,8 @@ class DynamixelClient:
         # ... rest of cleanup code ...
 
 class DexArmControl:
-    def __init__(self):
-        self._client = DynamixelClient()
+    def __init__(self, is_right_arm: bool = True):
+        self._client = DynamixelClient(is_right_arm=is_right_arm)
         self._last_successful_position = np.zeros(16)
         self._command_queue = Queue(maxsize=1)  # Only keep latest command
         self._movement_thread = threading.Thread(target=self._execute_movement_loop, daemon=True)

@@ -21,25 +21,43 @@ logger = logging.getLogger(__name__)
 
 
 class LeapHandOperator(Operator):
-    def __init__(self, host, transformed_keypoints_port, joint_angle_subscribe_port, joint_angle_publish_port, reset_publish_port, finger_configs, logging_config=None):
+    def __init__(self,
+        host,
+        transformed_keypoints_port,
+        joint_angle_subscribe_port,
+        joint_angle_publish_port,
+        reset_publish_port,
+        finger_configs,
+        logging_config=None,
+        hand_side=robots.RIGHT
+    ):
         self.notify_component_start('leap hand operator with PyBullet IK')
         self._host, self._port = host, transformed_keypoints_port
+        self.hand_side = hand_side
         
         # Shared ZMQ context
         self._context = get_global_context()
+
+        # Determine correct topic based on hand side
+        if hand_side == robots.RIGHT:
+            coords_topic = robots.TRANSFORMED_HAND_COORDS
+            frame_topic = robots.TRANSFORMED_HAND_FRAME
+        else:  # LEFT
+            coords_topic = f"{robots.LEFT}_{robots.TRANSFORMED_HAND_COORDS}"
+            frame_topic = f"{robots.LEFT}_{robots.TRANSFORMED_HAND_FRAME}"
 
         # Subscriber for the transformed hand keypoints
         self._transformed_hand_keypoint_subscriber = ZMQKeypointSubscriber(
             host=self._host,
             port=self._port,
-            topic='transformed_hand_coords',
+            topic=coords_topic,
             context=self._context,
         )
         # Subscriber for the transformed arm frame
         self._transformed_arm_keypoint_subscriber = ZMQKeypointSubscriber(
             host=self._host,
             port=self._port,
-            topic='transformed_hand_frame',
+            topic=frame_topic,
             context=self._context,
         )
         # Centralized publisher manager (new pub/sub structure)
@@ -53,13 +71,13 @@ class LeapHandOperator(Operator):
             port=joint_angle_subscribe_port,
             topic='joint_angles',
             context=self._context,
-        )   
+        )
 
         # Initializing the finger configs
         self.finger_configs = finger_configs
 
-        # Initialize the PyBullet IK solver
-        self.ik_solver = LeapHandIKSolver(use_gui=False)
+        # Initialize the PyBullet IK solver with hand sidedness
+        self.ik_solver = LeapHandIKSolver(use_gui=False, hand_side=hand_side)
 
         # Initialzing the moving average queues (kept for compatibility)
         self.moving_average_queues = {
@@ -123,12 +141,13 @@ class LeapHandOperator(Operator):
             return None
             
         try:
-            return dict(
+            finger_coords = dict(
                 index = np.vstack([raw_keypoints[0], raw_keypoints[robots.OCULUS_JOINTS['index']]]),
                 middle = np.vstack([raw_keypoints[0], raw_keypoints[robots.OCULUS_JOINTS['middle']]]),
                 ring = np.vstack([raw_keypoints[0], raw_keypoints[robots.OCULUS_JOINTS['ring']]]),
                 thumb = np.vstack([raw_keypoints[0], raw_keypoints[robots.OCULUS_JOINTS['thumb']]])
             )
+            return finger_coords
         except (IndexError, TypeError) as e:
             logger.error(f"Error processing keypoints: {e}")
             logger.error(f"Received keypoints shape/content: {raw_keypoints}")

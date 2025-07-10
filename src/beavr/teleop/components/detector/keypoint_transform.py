@@ -9,7 +9,7 @@ from beavr.teleop.utils.network import ZMQKeypointSubscriber, ZMQPublisherManage
 from beavr.teleop.utils.timer import FrequencyTimer
 from enum import IntEnum
 import logging
-
+import time
 
 logger = logging.getLogger(__name__)
 

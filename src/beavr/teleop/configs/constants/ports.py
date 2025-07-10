@@ -16,7 +16,7 @@ LEFT_HAND_RECEIVER_PORT = 8110                # Alias for left hand
 
 # Button and control ports
 RESOLUTION_BUTTON_PORT = 8095      # Button input (subscribe)
-RESOLUTION_BUTTON_PUBLISH_PORT = 8093  # Button input (publish)
+RESOLUTION_BUTTON_PUBLISH_PORT = 8094  # ✅ FIX: Moved to avoid conflict with left keypoint transform
 TELEOP_RESET_PORT = 8100
 TELEOP_RESET_PUBLISH_PORT = 8102
 

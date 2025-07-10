@@ -92,11 +92,10 @@ class OculusVRHandDetector(Component):
         # logger.info(f"Starting VR detector stream for {self.hand_side} hand")
         consecutive_timeouts = 0
         max_timeouts = 50  # 5 seconds of no data before stopping
-        
+
         try:
             while True:
                 self.timer.start_loop()
-                
                 # Receive keypoint data (required)
                 keypoint_data = self._receive_data(robots.KEYPOINTS)
                 if keypoint_data is None:

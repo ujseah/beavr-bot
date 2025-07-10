@@ -17,11 +17,12 @@ logger = logging.getLogger(__name__)
 
 
 class LeapHandIKSolver:
+    # TODO: Add left hand support
     """
     Minimal Inverse Kinematics solver for the LEAP hand using PyBullet.
     Eliminates all simulation aspects and focuses solely on IK calculation.
     """
-    def __init__(self, urdf_path=None, use_gui=False, smoothing_factor=0.1):
+    def __init__(self, urdf_path=None, use_gui=False, smoothing_factor=0.1, hand_side=robots.RIGHT):
         """
         Initialize the IK solver.
         
@@ -29,7 +30,11 @@ class LeapHandIKSolver:
             urdf_path: Path to the LEAP hand URDF file
             use_gui: Whether to use PyBullet GUI for visualization (for debugging)
             smoothing_factor: Smoothing factor for joint angle transitions (0.0 = no smoothing, 1.0 = ignore new solution)
+            hand_side: Whether this is for LEFT or RIGHT hand (affects coordinate transformations)
         """
+        # Store hand side for coordinate transformations
+        self.hand_side = hand_side
+        
         # Initialize PyBullet in GUI or DIRECT mode
         self.physics_client = p.connect(p.GUI if use_gui else p.DIRECT)
         

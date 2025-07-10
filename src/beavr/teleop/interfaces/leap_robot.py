@@ -58,7 +58,7 @@ class LeapHandRobot(RobotWrapper):
         if simulation_mode:
             self._controller = None  # Skip hardware initialization in sim mode
         else:
-            self._controller = DexArmControl()  # Only init hardware in real mode
+            self._controller = DexArmControl(is_right_arm=is_right_arm)  # Pass hand side to controller
         
         self._data_frequency = robots.VR_FREQ
         self._command_queue = Queue(maxsize=1)

@@ -16,7 +16,7 @@ class OculusVRHandDetectorCfg:
     oculus_port: str = '${oculus_reciever_port}'
     keypoint_pub_port: str = '${keypoint_port}'
     button_port: str = '8095'
-    button_publish_port: str = '8093'
+    button_publish_port: str = '8094'  # ✅ FIX: Updated to use new port
     teleop_reset_port: str = '8100'
     teleop_reset_publish_port: str = '8102'
 
@@ -55,7 +55,7 @@ class XArmPyBulletOperatorCfg:
     endeff_publish_port: int = 10010
     endeffpossubscribeport: int = 10009
     moving_average_limit: int = 1
-    arm_resolution_port: str = '8093'
+    arm_resolution_port: str = '8094'  # ✅ FIX: Updated to match new button publish port
     use_filter: bool = False
     teleoperation_reset_port: str = '8102'
     logging_config: dict[str, Any] = field(default_factory=lambda: {"enabled": True, "log_dir": "logs", "log_poses": True, "log_prefix": "xarm"})

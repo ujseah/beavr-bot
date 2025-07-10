@@ -73,6 +73,7 @@ class LeapHandOperatorCfg:
             reset_publish_port=self.reset_publish_port,
             finger_configs=self.finger_configs,
             logging_config=self.logging_config,
+            hand_side=self.hand_side,  # ✅ FIX: Pass hand_side to determine correct topic
         )
 
 @dataclass
@@ -115,6 +116,7 @@ class LeapHandRobotCfg:
             reset_subscribe_port=self.reset_subscribe_port,
             state_publish_port=self.state_publish_port,
             simulation_mode=self.simulation_mode,
+            is_right_arm=(self.hand_side == robots.RIGHT),  # ✅ FIX: Convert hand_side to is_right_arm boolean
         )
 
 @dataclass

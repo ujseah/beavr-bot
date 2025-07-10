@@ -11,6 +11,10 @@ RIGHT_XARM_IP = "192.168.1.197"
 LEFT_ARM_IP = "192.168.86.216"  # For Left XArm
 RIGHT_ARM_IP = "192.168.86.230"  # For Right XArm
 
+# LEAP hand USB ports
+LEFT_LEAP_USB_PORT = '/dev/ttyUSB1'
+RIGHT_LEAP_USB_PORT = '/dev/ttyUSB0'
+
 # Robot IP addresses (alternative naming)
 XARM_LEFT_IP = "192.168.1.237"
 XARM_RIGHT_IP = "192.168.1.197"
