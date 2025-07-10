@@ -83,7 +83,7 @@ class LeapHandRobotCfg:
     reset_subscribe_port: int = ports.TELEOP_RESET_PUBLISH_PORT
     simulation_mode: bool = False
     hand_side: str = robots.RIGHT  # Will be overridden based on laterality
-    state_publish_port: int = ports.LEAP_STATE_PUBLISH_PORT  # Use correct Leap state port
+    state_publish_port: int = ports.LEAP_STATE_PUBLISH_PORT_RIGHT  # Use correct Leap state port
     recorder_config: dict[str, Any] = field(
         default_factory=lambda: {
             "robot_identifier": robots.ROBOT_IDENTIFIER_RIGHT_LEAP_HAND,  # Will be overridden
@@ -149,17 +149,27 @@ class LeapHandConfig:
         
         # Create detector configurations
         self.detector = []
-        if self.laterality in [Laterality.RIGHT, Laterality.BIMANUAL]:
-            self.detector.append(SharedComponentRegistry.get_detector_config(
-                host=network.HOST_ADDRESS,
-                hand_side=robots.RIGHT
-            ))
-        
-        if self.laterality in [Laterality.LEFT, Laterality.BIMANUAL]:
-            self.detector.append(SharedComponentRegistry.get_detector_config(
-                host=network.HOST_ADDRESS,
-                hand_side=robots.LEFT
-            ))
+        if self.laterality == Laterality.BIMANUAL:
+            self.detector.append(
+                SharedComponentRegistry.get_bimanual_detector_config(
+                    host=network.HOST_ADDRESS,
+                )
+            )
+        else:
+            if self.laterality == Laterality.RIGHT:
+                self.detector.append(
+                    SharedComponentRegistry.get_detector_config(
+                        host=network.HOST_ADDRESS,
+                        hand_side=robots.RIGHT,
+                    )
+                )
+            elif self.laterality == Laterality.LEFT:
+                self.detector.append(
+                    SharedComponentRegistry.get_detector_config(
+                        host=network.HOST_ADDRESS,
+                        hand_side=robots.LEFT,
+                    )
+                )
         
         # Create transform configurations
         self.transforms = []
@@ -205,7 +215,7 @@ class LeapHandConfig:
                 joint_angle_subscribe_port=ports.CARTESIAN_COMMAND_PUBLISHER_PORT,
                 joint_angle_publish_port=ports.JOINT_PUBLISHER_PORT,
                 reset_subscribe_port=ports.TELEOP_RESET_PUBLISH_PORT,
-                state_publish_port=ports.LEAP_STATE_PUBLISH_PORT,
+                state_publish_port=ports.LEAP_STATE_PUBLISH_PORT_RIGHT,
                 simulation_mode=False,
                 hand_side=robots.RIGHT,
                 recorder_config={
@@ -223,7 +233,7 @@ class LeapHandConfig:
                 joint_angle_subscribe_port=ports.CARTESIAN_COMMAND_PUBLISHER_PORT_LEFT,
                 joint_angle_publish_port=ports.JOINT_PUBLISHER_PORT_LEFT,
                 reset_subscribe_port=ports.TELEOP_RESET_PUBLISH_PORT,
-                state_publish_port=ports.LEAP_STATE_PUBLISH_PORT,
+                state_publish_port=ports.LEAP_STATE_PUBLISH_PORT_LEFT,  # ✅ FIX: Use separate port for left hand
                 simulation_mode=False,
                 hand_side=robots.LEFT,
                 recorder_config={

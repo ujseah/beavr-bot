@@ -178,17 +178,27 @@ class XArm7Config:
         
         # Create detector configurations
         self.detector = []
-        if self.laterality in [Laterality.RIGHT, Laterality.BIMANUAL]:
-            self.detector.append(SharedComponentRegistry.get_detector_config(
-                hand_side=robots.RIGHT,
-                host=network.HOST_ADDRESS,
-            ))
-        
-        if self.laterality in [Laterality.LEFT, Laterality.BIMANUAL]:
-            self.detector.append(SharedComponentRegistry.get_detector_config(
-                hand_side=robots.LEFT,
-                host=network.HOST_ADDRESS,
-            ))
+        if self.laterality == Laterality.BIMANUAL:
+            self.detector.append(
+                SharedComponentRegistry.get_bimanual_detector_config(
+                    host=network.HOST_ADDRESS,
+                )
+            )
+        else:
+            if self.laterality == Laterality.RIGHT:
+                self.detector.append(
+                    SharedComponentRegistry.get_detector_config(
+                        hand_side=robots.RIGHT,
+                        host=network.HOST_ADDRESS,
+                    )
+                )
+            elif self.laterality == Laterality.LEFT:
+                self.detector.append(
+                    SharedComponentRegistry.get_detector_config(
+                        hand_side=robots.LEFT,
+                        host=network.HOST_ADDRESS,
+                    )
+                )
         
         # Create transform configurations
         self.transforms = []

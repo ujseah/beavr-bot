@@ -10,7 +10,7 @@ from typing import Dict, Any
 
 from beavr.teleop.configs.constants import ports, network, robots
 
-from beavr.teleop.components.detector.oculus import OculusVRHandDetector
+from beavr.teleop.components.detector.oculus import OculusVRHandDetector, BimanualOculusVRHandDetector
 from beavr.teleop.components.detector.keypoint_transform import TransformHandPositionCoords
 from beavr.teleop.components.visualizers.visualizer_2d import Hand2DVisualizer
 
@@ -63,6 +63,26 @@ class SharedComponentRegistry:
             logger.debug(f"📡 Created shared detector config for {hand_side} hand")
         
         return cls._instances['detector'][hand_side]
+    
+    @classmethod
+    def get_bimanual_detector_config(
+        cls,
+        host: str = network.HOST_ADDRESS,
+        oculus_pub_port: int = ports.KEYPOINT_STREAM_PORT,
+        button_port: int = ports.RESOLUTION_BUTTON_PORT,
+        teleop_reset_port: int = ports.TELEOP_RESET_PORT,
+    ) -> 'BimanualOculusVRHandDetectorCfg':
+        """Get or create a bimanual detector config."""
+        key = 'bimanual'
+        if key not in cls._instances['detector']:
+            cls._instances['detector'][key] = BimanualOculusVRHandDetectorCfg(
+                host=host,
+                oculus_pub_port=oculus_pub_port,
+                button_port=button_port,
+                teleop_reset_port=teleop_reset_port,
+            )
+            logger.debug("📡 Created shared bimanual detector config")
+        return cls._instances['detector'][key]
     
     @classmethod  
     def get_transform_config(
@@ -172,6 +192,28 @@ class OculusVRHandDetectorCfg:
             button_port=self.button_port,
             teleop_reset_port=self.teleop_reset_port,
         )
+    
+@dataclass
+class BimanualOculusVRHandDetectorCfg:
+    """Configuration for BimanualOculusVRHandDetector."""
+
+    host: str = network.HOST_ADDRESS
+    right_hand_port: int = ports.RIGHT_HAND_OCULUS_RECEIVER_PORT
+    left_hand_port: int = ports.LEFT_HAND_OCULUS_RECEIVER_PORT
+    oculus_pub_port: int = ports.KEYPOINT_STREAM_PORT
+    button_port: int = ports.RESOLUTION_BUTTON_PORT
+    teleop_reset_port: int = ports.TELEOP_RESET_PORT
+
+    def build(self):
+        return BimanualOculusVRHandDetector(
+            host=self.host,
+            right_hand_port=self.right_hand_port,
+            left_hand_port=self.left_hand_port,
+            oculus_pub_port=self.oculus_pub_port,
+            button_port=self.button_port,
+            teleop_reset_port=self.teleop_reset_port,
+        )
+
 
 @dataclass
 class TransformHandPositionCoordsCfg:

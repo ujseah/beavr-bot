@@ -9,6 +9,7 @@ from typing import Any, Optional, Dict, Tuple
 import logging
 from abc import ABC, abstractmethod
 import time
+import inspect
 
 logger = logging.getLogger(__name__)
 
@@ -586,8 +587,24 @@ class ZMQPublisherManager:
             socket.bind(addr)
             return socket
         except zmq.ZMQError as e:
-            logger.error(f"Failed to create PUB socket: {e}")
-            raise ConnectionError(f"Failed to create PUB socket: {e}")
+            caller = "unknown"
+            frame = inspect.currentframe()
+            if frame and frame.f_back and frame.f_back.f_back:
+                caller_frame = frame.f_back.f_back
+                module = inspect.getmodule(caller_frame)
+                mod_name = module.__name__ if module else "unknown"
+                caller = f"{mod_name}.{caller_frame.f_code.co_name}"
+
+            if e.errno == zmq.EADDRINUSE:
+                logger.error(
+                    f"Address {addr} already in use when {caller} attempted to bind. "
+                    "Check for lingering processes or other components using this port."
+                )
+            else:
+                logger.error(f"Failed to create PUB socket in {caller}: {e}")
+            
+            # ✅ FIX: Always raise the exception instead of returning None
+            raise ConnectionError(f"Failed to create publisher for {addr}: {e}")
     
     def publish(self, host: str, port: int, topic: str, data: Any) -> None:
         """Publish data to a topic with error handling and non-blocking sends.
@@ -659,6 +676,18 @@ class ZMQPublisherManager:
                 except Exception as e:
                     logger.error(f"Error closing publisher at {key[0]}:{key[1]}: {e}")
                 del self._publishers[key]
+
+    def get_bound_ports(self) -> Dict[Tuple[str, int], str]:
+        """Get the endpoint for each currently bound publisher.
+
+        Returns:
+            Mapping of ``(host, port)`` tuples to their bound endpoint strings.
+        """
+        with self._lock:
+            return {
+                key: pub.getsockopt_string(zmq.LAST_ENDPOINT)
+                for key, pub in self._publishers.items()
+            }
     
     def _start_monitor(self) -> None:
         """Start the monitoring thread for publisher health checks."""

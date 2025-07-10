@@ -98,7 +98,8 @@ class PortsConfig:
     leap_joint_angle_subscribe_port: int = ports.LEAP_JOINT_ANGLE_SUBSCRIBE_PORT
     leap_joint_angle_publish_port: int = ports.LEAP_JOINT_ANGLE_PUBLISH_PORT
     leap_reset_subscribe_port: int = ports.LEAP_RESET_SUBSCRIBE_PORT
-    leap_state_publish_port: int = ports.LEAP_STATE_PUBLISH_PORT
+    leap_state_publish_port_right: int = ports.LEAP_STATE_PUBLISH_PORT_RIGHT
+    leap_state_publish_port_left: int = ports.LEAP_STATE_PUBLISH_PORT_LEFT
     leap_home_subscribe_port: int = ports.LEAP_HOME_SUBSCRIBE_PORT
     
     # Camera port offsets

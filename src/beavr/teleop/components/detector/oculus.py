@@ -1,4 +1,4 @@
-from beavr.teleop.configs.constants import robots, network
+from beavr.teleop.configs.constants import robots, network, ports
 from beavr.teleop.components import Component
 from beavr.teleop.utils.timer import FrequencyTimer
 from beavr.teleop.utils.network import create_pull_socket, ZMQPublisherManager
@@ -149,3 +149,93 @@ class OculusVRHandDetector(Component):
                 socket.close()
                 logger.info(f"Closed {name} socket")
             logger.info('Stopped VR hand detection process.')
+
+
+class BimanualOculusVRHandDetector(Component):
+    """Single process handling both left and right hand data."""
+
+    def __init__(
+        self,
+        host: str,
+        right_hand_port: int = network.RIGHT_HAND_PORT,
+        left_hand_port: int = network.LEFT_HAND_PORT,
+        oculus_pub_port: int = ports.KEYPOINT_STREAM_PORT,
+        button_port: int = ports.RESOLUTION_BUTTON_PORT,
+        teleop_reset_port: int = ports.TELEOP_RESET_PORT,
+    ):
+        self.notify_component_start(robots.VR_DETECTOR)
+
+        self.host = host
+        self.right_hand_port = right_hand_port
+        self.left_hand_port = left_hand_port
+        self.oculus_pub_port = oculus_pub_port
+        self.button_port = button_port
+        self.teleop_reset_port = teleop_reset_port
+
+        self.sockets = {
+            'right': create_pull_socket(host, self.right_hand_port),
+            'left': create_pull_socket(host, self.left_hand_port),
+            robots.BUTTON: create_pull_socket(host, self.button_port),
+            robots.PAUSE: create_pull_socket(host, self.teleop_reset_port),
+        }
+
+        self.publisher_manager = ZMQPublisherManager.get_instance()
+        self.timer = FrequencyTimer(robots.VR_FREQ)
+
+    def _process_keypoints(self, data):
+        data_str = data.decode().strip()
+        is_relative = not data_str.startswith(robots.ABSOLUTE)
+        values = [1 if is_relative else 0]
+        coords = data_str.split(':')[1].strip().split('|')
+        for coord in coords:
+            values.extend(float(val) for val in coord.split(',')[:3])
+        return values
+
+    def _process_button(self, data):
+        return robots.ARM_LOW_RESOLUTION if data == b'Low' else robots.ARM_HIGH_RESOLUTION
+
+    def _process_pause(self, data):
+        return robots.ARM_TELEOP_CONT if data == b'Low' else robots.ARM_TELEOP_STOP
+
+    def _receive_data(self, socket_name):
+        try:
+            return self.sockets[socket_name].recv(zmq.NOBLOCK)
+        except zmq.Again:
+            return None
+
+    def stream(self):
+        try:
+            while True:
+                self.timer.start_loop()
+
+                for name, topic in [('right', robots.RIGHT), ('left', robots.LEFT)]:
+                    if data := self._receive_data(name):
+                        keypoints = self._process_keypoints(data)
+                        self.publisher_manager.publish(
+                            host=self.host,
+                            port=self.oculus_pub_port,
+                            topic=topic,
+                            data=keypoints,
+                        )
+
+                if button_data := self._receive_data(robots.BUTTON):
+                    self.publisher_manager.publish(
+                        host=self.host,
+                        port=self.oculus_pub_port,
+                        topic=robots.BUTTON,
+                        data=self._process_button(button_data),
+                    )
+
+                if pause_data := self._receive_data(robots.PAUSE):
+                    self.publisher_manager.publish(
+                        host=self.host,
+                        port=self.oculus_pub_port,
+                        topic=robots.PAUSE,
+                        data=self._process_pause(pause_data),
+                    )
+
+                self.timer.end_loop()
+        finally:
+            for socket in self.sockets.values():
+                socket.close()
+            logger.info('Stopped bimanual VR hand detection process.')
