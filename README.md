@@ -77,16 +77,9 @@ except ImportError: print('An error occurred'); sys.exit(1)"
 
 ## Documentation
 
-For detailed documentation, please refer to the following guides in the `docs` directory:
-
-- [Technical Overview and Workflow](docs/workflow.md) - Detailed system architecture and component interactions
-- [VR Setup and Configuration](docs/vr.md)
-- [Robot Controller Setup](docs/robot_controller.md)
-- [Sensor Integration](docs/sensors.md)
-- [Simulation Environment](docs/simulation.md)
-- [Teleoperation Data Collection](docs/teleop_data_collect.md)
-- [Policy Learning](docs/policy_learning.md)  <!-- Commenting out as it is not yet implemented -->
-- [Adding Your Own Robot](docs/add_your_own_robot.md)
+Full documentation lives in the [`docs`](docs) directory. Start with
+[`docs/README.md`](docs/README.md) for an overview of the available guides,
+including detailed explanations of the teleoperation and LeRobot stacks.
 
 ## Additional Features
 
