@@ -1,20 +1,21 @@
-import time
 import logging
-import numpy as np
-import torch
+import time
 from concurrent.futures import ThreadPoolExecutor
 
-from beavr.teleop.configs.constants import robots
-from beavr.lerobot.common.robot_devices.robots.utils import Robot
+import numpy as np
+import torch
+
 from beavr.lerobot.common.datasets.utils import Frame
 from beavr.lerobot.common.robot_devices.cameras.configs import CameraConfig, OpenCVCameraConfig
 from beavr.lerobot.common.robot_devices.cameras.opencv import OpenCVCamera
+from beavr.lerobot.common.robot_devices.robots.utils import Robot
+from beavr.teleop.configs.constants import robots
 
 # Network helpers
 from beavr.teleop.utils.network import (
+    HandshakeCoordinator,
     ZMQKeypointSubscriber,
     ZMQPublisherManager,
-    HandshakeCoordinator,
     publish_with_guaranteed_delivery,
 )
 
@@ -103,11 +104,11 @@ class BeavrBot(Robot):
                 continue
 
 
-            self.home_publishers[r_name] = dict(
-                host=cfg["host"],
-                port=home_port,
-                topic="home",
-            )
+            self.home_publishers[r_name] = {
+                "host": cfg["host"],
+                "port": home_port,
+                "topic": "home",
+            }
 
         # Pre-create PUB sockets so that subscribers can connect early
         for pub_info in self.home_publishers.values():
@@ -136,20 +137,19 @@ class BeavrBot(Robot):
                 continue
 
 
-            self.command_publishers[r_name] = dict(
-                host=cfg["host"],
-                port=pub_port,
-                topic=topic,
-                robot_type=r_type,
-            )
+            self.command_publishers[r_name] = {
+                "host": cfg["host"],
+                "port": pub_port,
+                "topic": topic,
+                "robot_type": r_type,
+            }
 
         # Tele-operation control channel (pause/resume)
-        self.op_state_publish_info = dict(
-            host=cfg["host"],
-            port=op_state_port,
-            topic="pause",
-        )
-        print(f"Teleop publish info: {self.op_state_publish_info}")
+        self.op_state_publish_info = {
+            "host": cfg["host"],
+            "port": op_state_port,
+            "topic": "pause",
+        }
 
         # Pre-bind teleop socket
         self.pub_manager.get_publisher(self.op_state_publish_info["host"], self.op_state_publish_info["port"])
@@ -309,7 +309,6 @@ class BeavrBot(Robot):
                 # Get the most recent data sample (subscriber stores the
                 # latest message internally and returns it on demand).
                 latest_data = subscriber.recv_keypoints()
-                # print(f"latest_data: {name} {latest_data}\n")
 
                 if latest_data is not None:
                     self.robot_state_caches[name] = latest_data
@@ -431,10 +430,7 @@ class BeavrBot(Robot):
                             joint_data = joint_data.reshape(1)
                         combined_action.extend(joint_data)
 
-        if combined_action:
-            action_dict = {"action": np.asarray(combined_action, dtype=np.float32)}
-        else:
-            action_dict = None
+        action_dict = {"action": np.asarray(combined_action, dtype=np.float32)} if combined_action else None
 
         if observation_frame is not None:
             return observation_frame, action_dict

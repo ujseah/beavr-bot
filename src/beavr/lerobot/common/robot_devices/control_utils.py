@@ -18,9 +18,13 @@
 
 
 import logging
+import queue
+
+# ---- Asynchronous inference support ----
+import threading
 import time
 import traceback
-from contextlib import nullcontext
+from contextlib import nullcontext, suppress
 from copy import copy
 from functools import cache
 
@@ -36,10 +40,6 @@ from beavr.lerobot.common.policies.pretrained import PreTrainedPolicy
 from beavr.lerobot.common.robot_devices.robots.utils import Robot
 from beavr.lerobot.common.robot_devices.utils import busy_wait
 from beavr.lerobot.common.utils.utils import get_safe_torch_device, has_method
-
-# ---- Asynchronous inference support ----
-import threading
-import queue
 
 
 def log_control_info(robot: Robot, dt_s, episode_index=None, frame_index=None, fps=None):
@@ -267,8 +267,10 @@ def control_loop(
     # =============================================================================
     # Background worker for asynchronous policy inference
     # =============================================================================
-    obs_queue = queue.Queue(maxsize=1)
+    obs_queue = queue.Queue(maxsize=2)  # Slightly larger buffer
     last_pred_action_holder = {}
+    inference_ready = threading.Event()
+    inference_ready.set()  # Initially ready for first observation
     infer_thread = None
 
     def _policy_inference_worker(
@@ -278,6 +280,7 @@ def control_loop(
         device: torch.device,
         use_amp: bool,
         events: dict,
+        ready_event: threading.Event,
     ):
         """Continuously read the most recent observation from *obs_queue*, run the
         policy to compute an action, and store it in *action_holder* under the key
@@ -318,15 +321,16 @@ def control_loop(
             try:
                 action = predict_action(observation, policy, device, use_amp)
                 action_holder["action"] = action
+                ready_event.set()  # Signal ready for next observation
             except Exception:
                 logging.exception("Policy inference failed.")
-                # Do not terminate on failure; keep trying.
+                ready_event.set()  # Still signal ready even on failure
 
     if policy is not None:
         infer_thread = threading.Thread(
             target=_policy_inference_worker,
-            args=(obs_queue, last_pred_action_holder, policy, get_safe_torch_device(policy.config.device), policy.config.use_amp, events),
-            daemon=True
+            args=(obs_queue, last_pred_action_holder, policy, get_safe_torch_device(policy.config.device), policy.config.use_amp, events, inference_ready),
+            daemon=False  # Give inference thread proper priority
         )
         infer_thread.start()
 
@@ -344,15 +348,15 @@ def control_loop(
             # send the *last* computed action (if any) to the robot.
             # -----------------------------------------------------------------
             if policy is not None:
-                # Push latest observation, discarding older ones if the queue
-                # is full (size 1) so that the worker always sees the freshest
-                # data.
-                if obs_queue.full():
-                    try:
-                        obs_queue.get_nowait()
-                    except queue.Empty:
-                        pass
-                obs_queue.put_nowait(observation)
+                # Wait for inference thread to be ready for next observation
+                if inference_ready.wait(timeout=0.1):  # 100ms max wait
+                    inference_ready.clear()  # Clear event before pushing
+                    
+                    # Push latest observation, discarding older ones if queue is full
+                    if obs_queue.full():
+                        with suppress(queue.Empty):
+                            obs_queue.get_nowait()
+                    obs_queue.put_nowait(observation)
 
                 pred_action = last_pred_action_holder.get("action")
 
@@ -385,7 +389,7 @@ def control_loop(
             busy_wait(1 / fps - dt_s)
 
         dt_s = time.perf_counter() - start_loop_t
-        # log_control_info(robot, dt_s, fps=fps) 
+        log_control_info(robot, dt_s, fps=fps) 
 
         timestamp = time.perf_counter() - start_episode_t
         if events["exit_early"]:
@@ -395,9 +399,10 @@ def control_loop(
     # ---------------------------------------------------------------------
     # Clean-up: stop the background worker if it was started.
     # ---------------------------------------------------------------------
-    if policy is not None and "infer_thread" in locals():
+    if policy is not None and infer_thread is not None:
         events["exit_early"] = True
-        infer_thread.join(timeout=1.0)
+        inference_ready.set()  # Wake up thread so it can exit
+        infer_thread.join(timeout=2.0)
 
 
 def reset_environment(robot, events, reset_time_s, fps):
