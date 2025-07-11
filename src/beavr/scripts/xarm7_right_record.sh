@@ -7,6 +7,6 @@ python src/beavr/scripts/control_robot.py \
     --control.warmup_time_s=5 \
     --control.episode_time_s=30 \
     --control.reset_time_s=5 \
-    --control.repo_id=aposadasn/test_new \
-    --control.single_task="Move the right xarm7 to the target position" \
+    --control.repo_id=arclabmit/lx7r_stack_blocks_dataset \
+    --control.single_task="Stack blocks in order from smallest to largest" \
     --control.resume=false

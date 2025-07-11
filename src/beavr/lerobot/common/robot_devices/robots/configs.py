@@ -28,8 +28,7 @@ from beavr.lerobot.common.robot_devices.motors.configs import (
     FeetechMotorsBusConfig,
     MotorsBusConfig,
 )
-
-from beavr.teleop.configs.constants import ports, robots, network
+from beavr.teleop.configs.constants import network, ports, robots
 
 
 @dataclass
@@ -690,17 +689,17 @@ class BeavrBotConfig(RobotConfig):
     cameras: dict[str, CameraConfig] = field(
         default_factory=lambda: {
             "front": OpenCVCameraConfig(
-                camera_index=6,
+                camera_index=2,
                 fps=30,
                 width=640,
                 height=480,
             ),
-            "overhead": OpenCVCameraConfig(
-                camera_index=4,
-                fps=30,
-                width=640,
-                height=480,
-            ),
+            # "overhead": OpenCVCameraConfig(
+            #     camera_index=4,
+            #     fps=30,
+            #     width=640,
+            #     height=480,
+            # ),
         }
     )
     
@@ -734,7 +733,7 @@ class BeavrBotConfig(RobotConfig):
                 {
                     "name": robots.ROBOT_NAME_LEAP,
                     "host": network.HOST_ADDRESS, 
-                    "state_port": ports.LEAP_STATE_PUBLISH_PORT,
+                    "state_port": ports.LEAP_STATE_PUBLISH_PORT_RIGHT,
                     "state_topic": f"{robots.ROBOT_NAME_LEAP}_right",
                     "robot_type": "hand",
                     "observation_key": "hand_state",
