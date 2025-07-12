@@ -1,4 +1,5 @@
 import base64
+import contextlib
 import inspect
 import logging
 import pickle
@@ -36,7 +37,7 @@ def set_global_context(context: zmq.Context) -> None:
     global _GLOBAL_ZMQ_CONTEXT
     _GLOBAL_ZMQ_CONTEXT = context
 
-class BasePublisher(ABC):
+class BasePublisher:
     """Base class for all publishers"""
     def __init__(self, host: str, port: int, socket_type: int = zmq.PUB, context: Optional[zmq.Context] = None):
         """Initialize publisher.
@@ -70,7 +71,7 @@ class BasePublisher(ABC):
             self._socket.close()
             self._socket = None
 
-class BaseSubscriber(threading.Thread, ABC):
+class BaseSubscriber(threading.Thread):
     """Base class for all subscribers with graceful shutdown support."""
     
     def __init__(self, host: str, port: int, topic: str = "", socket_type: int = zmq.SUB, 
@@ -180,9 +181,7 @@ class BaseSubscriber(threading.Thread, ABC):
                             break
                     else:
                         # Log poll timeout occasionally (every few seconds)
-                        if hasattr(self, '_last_poll_log') and time.time() - self._last_poll_log > 5:
-                            self._last_poll_log = time.time()
-                        elif not hasattr(self, '_last_poll_log'):
+                        if hasattr(self, '_last_poll_log') and time.time() - self._last_poll_log > 5 or not hasattr(self, '_last_poll_log'):
                             self._last_poll_log = time.time()
                             
                 except Exception as e:
@@ -294,9 +293,9 @@ class ZMQKeypointPublisher(BasePublisher):
             except zmq.Again:
                 logger.warning(f"High water mark reached for {topic_name}, dropping message")
             except zmq.ZMQError as e:
-                raise ConnectionError(f"Failed to send keypoints: {e}")
+                raise ConnectionError(f"Failed to send keypoints: {e}") from e
         except Exception as e:
-            raise SerializationError(f"Failed to serialize keypoints: {e}")
+            raise SerializationError(f"Failed to serialize keypoints: {e}") from e
 
 class ZMQKeypointSubscriber(BaseSubscriber):
     """Subscriber for keypoint data using multipart messaging."""
@@ -325,222 +324,6 @@ class ZMQKeypointSubscriber(BaseSubscriber):
             pass
         return data
 
-# Pub/Sub classes for storing data from Realsense Cameras
-class ZMQCameraPublisher(BasePublisher):
-    """Publisher for camera data using multipart messaging."""
-    
-    def __init__(self, host: str, port: int):
-        super().__init__(host, port, zmq.PUB)
-
-    def pub_intrinsics(self, array: Any) -> None:
-        """Publish camera intrinsics.
-        
-        Args:
-            array: The intrinsics data to publish
-            
-        Raises:
-            ConnectionError: If socket operation fails
-            SerializationError: If serialization fails
-        """
-        try:
-            buffer = pickle.dumps(array, protocol=-1)
-            try:
-                self._socket.send_multipart([
-                    b"intrinsics",
-                    buffer
-                ], zmq.NOBLOCK)
-            except zmq.Again:
-                logger.warning("High water mark reached for intrinsics, dropping message")
-            except zmq.ZMQError as e:
-                raise ConnectionError(f"Failed to send intrinsics: {e}")
-        except Exception as e:
-            raise SerializationError(f"Failed to serialize intrinsics: {e}")
-
-    def pub_rgb_image(self, rgb_image: np.ndarray, timestamp: float) -> None:
-        """Publish RGB image with timestamp.
-        
-        Args:
-            rgb_image: The RGB image array to publish
-            timestamp: The timestamp of the image
-            
-        Raises:
-            ConnectionError: If socket operation fails
-            SerializationError: If serialization fails
-        """
-        try:
-            _, buffer = cv2.imencode('.jpg', rgb_image, [int(cv2.IMWRITE_JPEG_QUALITY), 70])
-            data = {
-                'timestamp': timestamp,
-                'rgb_image': base64.b64encode(buffer)
-            }
-            try:
-                self._socket.send_multipart([
-                    b"rgb_image",
-                    pickle.dumps(data, protocol=-1)
-                ], zmq.NOBLOCK)
-            except zmq.Again:
-                logger.warning("High water mark reached for RGB image, dropping frame")
-            except zmq.ZMQError as e:
-                raise ConnectionError(f"Failed to send RGB image: {e}")
-        except Exception as e:
-            raise SerializationError(f"Failed to serialize RGB image: {e}")
-
-    def pub_depth_image(self, depth_image: np.ndarray, timestamp: float) -> None:
-        """Publish depth image with timestamp.
-        
-        Args:
-            depth_image: The depth image array to publish
-            timestamp: The timestamp of the image
-            
-        Raises:
-            ConnectionError: If socket operation fails
-            SerializationError: If serialization fails
-        """
-        try:
-            compressed_depth = bl.pack_array(depth_image, cname='zstd', clevel=1, shuffle=bl.NOSHUFFLE)
-            data = {
-                'timestamp': timestamp,
-                'depth_image': compressed_depth
-            }
-            try:
-                self._socket.send_multipart([
-                    b"depth_image",
-                    pickle.dumps(data, protocol=-1)
-                ], zmq.NOBLOCK)
-            except zmq.Again:
-                logger.warning("High water mark reached for depth image, dropping frame")
-            except zmq.ZMQError as e:
-                raise ConnectionError(f"Failed to send depth image: {e}")
-        except Exception as e:
-            raise SerializationError(f"Failed to serialize depth image: {e}")
-
-class ZMQCameraSubscriber(BaseSubscriber):
-    """Subscriber for camera data using multipart messaging."""
-    
-    def __init__(self, host: str, port: int, topic_type: str):
-        """Initialize camera subscriber.
-        
-        Args:
-            host: The host address to connect to
-            port: The port number to connect to
-            topic_type: Type of camera data ('Intrinsics', 'RGB', or 'Depth')
-        """
-        topic = {
-            'Intrinsics': "intrinsics",
-            'RGB': "rgb_image",
-            'Depth': "depth_image"
-        }.get(topic_type, "")
-        super().__init__(host, port, topic, zmq.SUB)
-        self._topic_type = topic_type
-        self._last_data: Optional[Dict[str, Any]] = None
-        self.start()  # Start the subscriber thread
-
-    def process_message(self, data: Dict[str, Any]) -> None:
-        """Process received camera data.
-        
-        Args:
-            data: Dictionary containing camera data and metadata
-        """
-        self._last_data = data
-
-    def recv_intrinsics(self) -> Optional[Any]:
-        """Get the latest intrinsics data.
-        
-        Returns:
-            Camera intrinsics data if available, None otherwise
-        """
-        return self._last_data if self._topic_type == 'Intrinsics' else None
-
-    def recv_rgb_image(self) -> Tuple[Optional[np.ndarray], Optional[float]]:
-        """Get the latest RGB image and timestamp.
-        
-        Returns:
-            Tuple of (image array, timestamp) if available, (None, None) otherwise
-        """
-        if self._topic_type != 'RGB' or self._last_data is None:
-            return None, None
-        encoded_data = np.fromstring(base64.b64decode(self._last_data['rgb_image']), np.uint8)
-        return cv2.imdecode(encoded_data, 1), self._last_data['timestamp']
-
-    def recv_depth_image(self) -> Tuple[Optional[np.ndarray], Optional[float]]:
-        """Get the latest depth image and timestamp.
-        
-        Returns:
-            Tuple of (depth array, timestamp) if available, (None, None) otherwise
-        """
-        if self._topic_type != 'Depth' or self._last_data is None:
-            return None, None
-        depth_image = bl.unpack_array(self._last_data['depth_image'])
-        return np.array(depth_image, dtype=np.int16), self._last_data['timestamp']
-
-    def stop(self):
-        logger.info('Closing the subscriber socket in {}:{}.'.format(self._host, self._port))
-        self._socket.close()
-
-# Publisher for image visualizers
-class ZMQCompressedImageTransmitter(BasePublisher):
-    """Publisher for compressed images using multipart messaging."""
-    
-    def __init__(self, host: str, port: int):
-        super().__init__(host, port, zmq.PUB)
-
-    def send_image(self, rgb_image: np.ndarray) -> None:
-        """Send a compressed RGB image.
-        
-        Args:
-            rgb_image: The RGB image array to publish
-            
-        Raises:
-            ConnectionError: If socket operation fails
-            SerializationError: If compression fails
-        """
-        try:
-            _, buffer = cv2.imencode('.jpg', rgb_image, [int(cv2.IMWRITE_WEBP_QUALITY), 10])
-            try:
-                self._socket.send_multipart([
-                    b"image",
-                    np.array(buffer).tobytes()
-                ], zmq.NOBLOCK)
-            except zmq.Again:
-                logger.warning("High water mark reached for compressed image, dropping frame")
-            except zmq.ZMQError as e:
-                raise ConnectionError(f"Failed to send compressed image: {e}")
-        except Exception as e:
-            raise SerializationError(f"Failed to compress image: {e}")
-
-class ZMQCompressedImageReceiver(BaseSubscriber):
-    """Subscriber for compressed images using multipart messaging."""
-    
-    def __init__(self, host: str, port: int):
-        """Initialize compressed image receiver.
-        
-        Args:
-            host: The host address to connect to
-            port: The port number to connect to
-        """
-        super().__init__(host, port, "image", zmq.SUB)
-        self._last_image: Optional[np.ndarray] = None
-        self.start()  # Start the subscriber thread
-
-    def process_message(self, data: bytes) -> None:
-        """Process received image data.
-        
-        Args:
-            data: Raw bytes of compressed image data
-        """
-        try:
-            encoded_data = np.fromstring(data, np.uint8)
-            self._last_image = cv2.imdecode(encoded_data, 1)
-        except Exception as e:
-            logger.error(f"Failed to process image: {e}")
-
-    def recv_image(self) -> Optional[np.ndarray]:
-        """Get the latest received image.
-        
-        Returns:
-            The latest image array if available, None otherwise
-        """
-        return self._last_image
 
 class ZMQButtonFeedbackSubscriber(BaseSubscriber):
     """Subscriber for button feedback using multipart messaging."""
@@ -607,10 +390,8 @@ class PublisherThread(threading.Thread):
         """Stop the publisher thread gracefully."""
         self._running = False
         # Put a sentinel value to unblock the queue
-        try:
+        with contextlib.suppress(queue.Full):
             self._queue.put_nowait((None, None))
-        except queue.Full:
-            pass
         self.join(timeout=2)
         if self.is_alive():
             logger.warning("Publisher thread did not stop gracefully")
@@ -736,7 +517,7 @@ class ZMQPublisherManager:
                 caller = f"{mod_name}.{caller_frame.f_code.co_name}"
 
             logger.error(f"Failed to create publisher thread in {caller}: {e}")
-            raise ConnectionError(f"Failed to create publisher for {host}:{port}: {e}")
+            raise ConnectionError(f"Failed to create publisher for {host}:{port}: {e}") from e
     
     def publish(self, host: str, port: int, topic: str, data: Any) -> None:
         """Publish data to a topic with thread-safe queue-based communication.
@@ -982,14 +763,13 @@ class HandshakeCoordinator:
             return
             
         try:
-            server_socket = self._context.socket(zmq.REP)
-            server_socket.bind(f"tcp://{bind_host}:{port}")
-            self._servers[subscriber_id] = server_socket
+            # Mark server as running (socket will be created in worker thread)
+            self._servers[subscriber_id] = None
             
-            # Start server thread
+            # Start server thread with socket creation in worker thread
             server_thread = threading.Thread(
                 target=self._run_server,
-                args=(subscriber_id, server_socket),
+                args=(subscriber_id, bind_host, port),
                 daemon=True,
                 name=f"HandshakeServer-{subscriber_id}"
             )
@@ -1012,8 +792,8 @@ class HandshakeCoordinator:
         """
         if subscriber_id in self._servers:
             try:
-                self._servers[subscriber_id].close()
-                del self._servers[subscriber_id]
+                # Mark server as stopped (socket will be closed in worker thread)
+                self._servers[subscriber_id] = None
                 
                 # Wait for server thread to finish
                 if subscriber_id in self._server_threads:
@@ -1021,43 +801,67 @@ class HandshakeCoordinator:
                     if self._server_threads[subscriber_id].is_alive():
                         logger.warning(f"Server thread for '{subscriber_id}' did not stop gracefully")
                     del self._server_threads[subscriber_id]
+                
+                # Remove from servers dict
+                del self._servers[subscriber_id]
                     
                 logger.info(f"Stopped handshake server for '{subscriber_id}'")
             except Exception as e:
                 logger.error(f"Error stopping server for '{subscriber_id}': {e}")
     
-    def _run_server(self, subscriber_id: str, server_socket: zmq.Socket) -> None:
-        """Run the handshake server loop.
+    def _run_server(self, subscriber_id: str, bind_host: str, port: int) -> None:
+        """Run the handshake server loop with socket creation in worker thread.
         
         Args:
             subscriber_id: Unique identifier for this subscriber
-            server_socket: The ZMQ REP socket to handle requests
+            bind_host: Host to bind the server to
+            port: Port to bind the server to
         """
-        poller = zmq.Poller()
-        poller.register(server_socket, zmq.POLLIN)
-        
-        while self._running and subscriber_id in self._servers:
-            try:
-                # Poll with timeout to check if we should stop
-                events = dict(poller.poll(100))  # 100ms timeout
-                
-                if server_socket in events:
-                    # Receive handshake request
-                    request = server_socket.recv(zmq.NOBLOCK)
+        server_socket = None
+        try:
+            # Create socket in the worker thread
+            server_socket = self._context.socket(zmq.REP)
+            server_socket.bind(f"tcp://{bind_host}:{port}")
+            
+            # Mark server as running with socket reference
+            self._servers[subscriber_id] = server_socket
+            
+            poller = zmq.Poller()
+            poller.register(server_socket, zmq.POLLIN)
+            
+            while self._running and subscriber_id in self._servers:
+                try:
+                    # Poll with timeout to check if we should stop
+                    events = dict(poller.poll(100))  # 100ms timeout
                     
-                    # Send acknowledgment
-                    server_socket.send(b"ACK")
-                    
-                    logger.debug(f"Handshake server '{subscriber_id}' acknowledged request")
-                    
-            except zmq.Again:
-                continue
-            except Exception as e:
-                if self._running and subscriber_id in self._servers:
-                    logger.error(f"Error in handshake server '{subscriber_id}': {e}")
-                break
-        
-        logger.debug(f"Handshake server '{subscriber_id}' stopped")
+                    if server_socket in events:
+                        # Receive handshake request
+                        server_socket.recv(zmq.NOBLOCK)
+
+                        # Send acknowledgment
+                        server_socket.send(b"ACK")
+                        
+                        logger.debug(f"Handshake server '{subscriber_id}' acknowledged request")
+                        
+                except zmq.Again:
+                    continue
+                except Exception as e:
+                    if self._running and subscriber_id in self._servers:
+                        logger.error(f"Error in handshake server '{subscriber_id}': {e}")
+                    break
+            
+            logger.debug(f"Handshake server '{subscriber_id}' stopped")
+            
+        except Exception as e:
+            logger.error(f"Failed to initialize handshake server socket for '{subscriber_id}': {e}")
+        finally:
+            # Ensure socket is closed when thread exits
+            if server_socket:
+                try:
+                    server_socket.close()
+                except Exception as e:
+                    logger.warning(f"Error closing handshake server socket for '{subscriber_id}': {e}")
+                server_socket = None
     
     def request_acknowledgments(self, subscriber_ids: list[str], timeout: float = 3.0, 
                               ping: bytes = b"PING", ack: bytes = b"ACK") -> bool:
@@ -1314,10 +1118,8 @@ class PublisherThread(threading.Thread):
         """Stop the publisher thread gracefully."""
         self._running = False
         # Put a sentinel value to unblock the queue
-        try:
+        with contextlib.suppress(queue.Full):
             self._queue.put_nowait((None, None))
-        except queue.Full:
-            pass
         self.join(timeout=2)
         if self.is_alive():
             logger.warning("Publisher thread did not stop gracefully")
