@@ -1,21 +1,23 @@
+import logging
+import queue
+import threading
+import time
+from concurrent.futures import ThreadPoolExecutor
+
+import numpy as np
+
+from beavr.teleop.components.operators.solvers.leap_solver import LeapHandIKSolver
+from beavr.teleop.configs.constants import robots
+from beavr.teleop.utils.logger import HandLogger
 from beavr.teleop.utils.network import (
     ZMQKeypointSubscriber,
     ZMQPublisherManager,
     cleanup_zmq_resources,
     get_global_context,
 )
-from .operator import Operator
 from beavr.teleop.utils.timer import FrequencyTimer
-from beavr.teleop.configs.constants import robots
-import time
-from concurrent.futures import ThreadPoolExecutor
-import threading
-import numpy as np
-from beavr.teleop.utils.logger import HandLogger
-from beavr.teleop.components.operators.solvers.leap_solver import LeapHandIKSolver
-import queue
 
-import logging
+from .operator import Operator
 
 logger = logging.getLogger(__name__)
 
@@ -141,12 +143,12 @@ class LeapHandOperator(Operator):
             return None
             
         try:
-            finger_coords = dict(
-                index = np.vstack([raw_keypoints[0], raw_keypoints[robots.OCULUS_JOINTS['index']]]),
-                middle = np.vstack([raw_keypoints[0], raw_keypoints[robots.OCULUS_JOINTS['middle']]]),
-                ring = np.vstack([raw_keypoints[0], raw_keypoints[robots.OCULUS_JOINTS['ring']]]),
-                thumb = np.vstack([raw_keypoints[0], raw_keypoints[robots.OCULUS_JOINTS['thumb']]])
-            )
+            finger_coords = {
+                'index': np.vstack([raw_keypoints[0], raw_keypoints[robots.OCULUS_JOINTS['index']]]),
+                'middle': np.vstack([raw_keypoints[0], raw_keypoints[robots.OCULUS_JOINTS['middle']]]),
+                'ring': np.vstack([raw_keypoints[0], raw_keypoints[robots.OCULUS_JOINTS['ring']]]),
+                'thumb': np.vstack([raw_keypoints[0], raw_keypoints[robots.OCULUS_JOINTS['thumb']]])
+            }
             return finger_coords
         except (IndexError, TypeError) as e:
             logger.error(f"Error processing keypoints: {e}")

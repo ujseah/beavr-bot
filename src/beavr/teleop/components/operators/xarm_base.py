@@ -1,24 +1,25 @@
+import logging
+import time
+from copy import deepcopy as copy
+from typing import Any, Dict, Optional
+
 import numpy as np
 import zmq
-from copy import deepcopy as copy
 from scipy.spatial.transform import Rotation, Slerp
-import time
-from typing import Dict, Any, Optional
-import logging
 
 from beavr.teleop.configs.constants import robots
-from beavr.teleop.utils.timer import FrequencyTimer
+from beavr.teleop.utils.logger import PoseLogger
 from beavr.teleop.utils.network import (
+    HandshakeCoordinator,
+    SerializationError,
     ZMQKeypointSubscriber,
     ZMQPublisherManager,
-    HandshakeCoordinator,
-    get_global_context,
     cleanup_zmq_resources,
-    SerializationError,
+    get_global_context,
 )
-from .operator import Operator
+from beavr.teleop.utils.timer import FrequencyTimer
 
-from beavr.teleop.utils.logger import PoseLogger
+from .operator import Operator
 
 logger = logging.getLogger(__name__)
 
