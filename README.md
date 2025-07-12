@@ -2,7 +2,7 @@
 **Bimanual, multi-Embodiment, Accessible VR Teleoperation for Robots**
 
 <p align="center">
-  <img src="docs/images/beavr_logo.png" alt="BeaVR-Bot Logo" width="300"/>
+  <img src="media/BeaVR_logo.svg" alt="BeaVR-Bot Logo" width="300"/>
 </p>
 
 <p align="center">
