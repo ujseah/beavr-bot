@@ -1,16 +1,19 @@
+import logging
+import time
+
+import numpy as np
+
+from beavr.teleop.configs.constants import robots
 from beavr.teleop.controllers.xarm7_control import DexArmControl
-from .robot import RobotWrapper
 from beavr.teleop.utils.network import (
+    HandshakeCoordinator,
     ZMQKeypointSubscriber,
     ZMQPublisherManager,
-    HandshakeCoordinator,
     cleanup_zmq_resources,
 )
-import numpy as np
-import time
-from beavr.teleop.configs.constants import robots
-import logging
 from beavr.teleop.utils.ops import Ops
+
+from .robot import RobotWrapper
 
 logger = logging.getLogger(__name__)
 

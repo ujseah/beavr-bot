@@ -1,15 +1,17 @@
-import zmq
-import cv2
 import base64
-import numpy as np
-import pickle
-import blosc as bl
-import threading
-from typing import Any, Optional, Dict, Tuple
-import logging
-from abc import ABC, abstractmethod
-import time
 import inspect
+import logging
+import pickle
+import queue
+import threading
+import time
+from abc import ABC, abstractmethod
+from typing import Any, Dict, Optional, Tuple
+
+import blosc as bl
+import cv2
+import numpy as np
+import zmq
 
 logger = logging.getLogger(__name__)
 
@@ -88,12 +90,13 @@ class BaseSubscriber(threading.Thread, ABC):
         self._topic = topic
         self._socket = None
         self._running = True
-        self._poller = zmq.Poller()
+        self._poller = None
         self._context = context or get_global_context()
-        self._init_socket(socket_type)
+        # Store socket configuration for creation in worker thread
+        self._socket_type = socket_type
 
     def _init_socket(self, socket_type: int):
-        """Initialize the socket using global context."""
+        """Initialize the socket in the worker thread."""
         try:
             self._socket = self._context.socket(socket_type)
             
@@ -113,7 +116,11 @@ class BaseSubscriber(threading.Thread, ABC):
             self._socket.connect(addr)
             if socket_type == zmq.SUB:
                 self._socket.setsockopt_string(zmq.SUBSCRIBE, self._topic)
+            
+            # Create poller and register socket
+            self._poller = zmq.Poller()
             self._poller.register(self._socket, zmq.POLLIN)
+            
         except zmq.ZMQError as e:
             logger.error(f"Failed to initialize socket: {e}")
             raise
@@ -121,10 +128,14 @@ class BaseSubscriber(threading.Thread, ABC):
     def stop(self):
         """Stop the subscriber thread gracefully."""
         self._running = False
-        if self._socket:
-            self._poller.unregister(self._socket)
-            self._socket.close()
-            self._socket = None
+        if self._socket and self._poller:
+            try:
+                self._poller.unregister(self._socket)
+                self._socket.close()
+                self._socket = None
+                self._poller = None
+            except Exception as e:
+                logger.warning(f"Error closing socket: {e}")
         self.join(timeout=2)
         if self.is_alive():
             logger.warning("Subscriber thread did not stop gracefully")
@@ -139,42 +150,53 @@ class BaseSubscriber(threading.Thread, ABC):
         pass
 
     def run(self):
-        """Main subscriber loop with polling for graceful shutdown."""
-        while self._running:
-            try:
-                if self._socket is None:
-                    logger.error("Socket is None, breaking subscriber loop")
-                    break
-                
-                # Poll with timeout to check _running periodically
-                events = dict(self._poller.poll(100))  # 100ms timeout
-                
-                if self._socket in events:
-                    try:
-                        _, payload = self._socket.recv_multipart(zmq.NOBLOCK)
-                        try:
-                            data = pickle.loads(payload)
-                            self.process_message(data)
-                        except Exception as e:
-                            logger.error(f"Failed to process message: {e}")
-                    except zmq.Again:
-                        continue
-                    except Exception as e:
-                        if self._running:  # Only log if we're not shutting down
-                            logger.error(f"Error receiving message: {e}")
+        """Main subscriber loop with socket creation in worker thread."""
+        try:
+            # Create socket in the worker thread
+            self._init_socket(self._socket_type)
+            
+            while self._running:
+                try:
+                    if self._socket is None or self._poller is None:
+                        logger.error("Socket or poller is None, breaking subscriber loop")
                         break
-                else:
-                    # Log poll timeout occasionally (every few seconds)
-                    if hasattr(self, '_last_poll_log') and time.time() - self._last_poll_log > 5:
-                        self._last_poll_log = time.time()
-                    elif not hasattr(self, '_last_poll_log'):
-                        self._last_poll_log = time.time()
-                        
-            except Exception as e:
-                if self._running:
-                    logger.error(f"Error in subscriber loop: {e}")
-                break
-        
+                    
+                    # Poll with timeout to check _running periodically
+                    events = dict(self._poller.poll(100))  # 100ms timeout
+                    
+                    if self._socket in events:
+                        try:
+                            _, payload = self._socket.recv_multipart(zmq.NOBLOCK)
+                            try:
+                                data = pickle.loads(payload)
+                                self.process_message(data)
+                            except Exception as e:
+                                logger.error(f"Failed to process message: {e}")
+                        except zmq.Again:
+                            continue
+                        except Exception as e:
+                            if self._running:  # Only log if we're not shutting down
+                                logger.error(f"Error receiving message: {e}")
+                            break
+                    else:
+                        # Log poll timeout occasionally (every few seconds)
+                        if hasattr(self, '_last_poll_log') and time.time() - self._last_poll_log > 5:
+                            self._last_poll_log = time.time()
+                        elif not hasattr(self, '_last_poll_log'):
+                            self._last_poll_log = time.time()
+                            
+                except Exception as e:
+                    if self._running:
+                        logger.error(f"Error in subscriber loop: {e}")
+                    break
+        finally:
+            # Ensure socket is closed when thread exits
+            if self._socket:
+                try:
+                    self._socket.close()
+                except Exception as e:
+                    logger.warning(f"Error closing socket in cleanup: {e}")
+                self._socket = None
 
 # Update socket creation functions to use global context
 def create_push_socket(host: str, port: int) -> zmq.Socket:
@@ -544,11 +566,126 @@ class ZMQButtonFeedbackSubscriber(BaseSubscriber):
         """
         return self._last_data
 
+# Publisher thread for thread-safe socket ownership
+class PublisherThread(threading.Thread):
+    """Thread that owns a PUB socket and handles publishing via a queue."""
+    
+    def __init__(self, host: str, port: int, context: Optional[zmq.Context] = None):
+        """Initialize publisher thread.
+        
+        Args:
+            host: The host address to bind to
+            port: The port number to bind to
+            context: Optional custom ZMQ context (default: global context)
+        """
+        super().__init__(daemon=True)
+        self._host = host
+        self._port = port
+        self._context = context or get_global_context()
+        self._socket = None
+        self._running = True
+        self._queue = queue.Queue(maxsize=100)  # Limit queue size to prevent memory issues
+        self._started = threading.Event()
+        
+    def send(self, topic: str, data: Any) -> None:
+        """Send data to the publisher queue (thread-safe).
+        
+        Args:
+            topic: The topic to publish to
+            data: The data to publish
+        """
+        try:
+            # Serialize data here to avoid blocking the main thread
+            buffer = pickle.dumps(data, protocol=-1)
+            self._queue.put_nowait((topic, buffer))
+        except queue.Full:
+            logger.warning(f"Publisher queue full for {self._host}:{self._port}, dropping message")
+        except Exception as e:
+            logger.error(f"Error serializing data for publisher: {e}")
+    
+    def stop(self) -> None:
+        """Stop the publisher thread gracefully."""
+        self._running = False
+        # Put a sentinel value to unblock the queue
+        try:
+            self._queue.put_nowait((None, None))
+        except queue.Full:
+            pass
+        self.join(timeout=2)
+        if self.is_alive():
+            logger.warning("Publisher thread did not stop gracefully")
+    
+    def run(self) -> None:
+        """Main publisher loop with socket creation in worker thread."""
+        try:
+            # Create socket in the worker thread
+            self._socket = self._context.socket(zmq.PUB)
+            self._socket.setsockopt(zmq.SNDHWM, 1)  # Only keep latest message
+            addr = f'tcp://*:{self._port}'
+            self._socket.bind(addr)
+            
+            # Signal that socket is ready
+            self._started.set()
+            
+            while self._running:
+                try:
+                    # Get data from queue with timeout to allow checking _running
+                    topic, buffer = self._queue.get(timeout=0.1)
+                    
+                    # Check for sentinel value
+                    if topic is None:
+                        break
+                    
+                    try:
+                        # Use multipart messaging and non-blocking send
+                        encoded_topic = topic.encode('utf-8') if isinstance(topic, str) else topic
+                        self._socket.send_multipart([
+                            encoded_topic,
+                            buffer
+                        ], zmq.NOBLOCK)
+                        
+                    except zmq.Again:
+                        logger.warning(f"High water mark reached for {topic} at {self._host}:{self._port}, dropping message")
+                    except zmq.ZMQError as e:
+                        logger.error(f"Failed to publish to {topic} at {self._host}:{self._port}: {e}")
+                        break
+                        
+                except queue.Empty:
+                    # Queue was empty, just continue
+                    continue
+                except Exception as e:
+                    if self._running:
+                        logger.error(f"Error in publisher loop: {e}")
+                    break
+                    
+        except Exception as e:
+            logger.error(f"Failed to initialize publisher socket: {e}")
+        finally:
+            # Ensure socket is closed when thread exits
+            if self._socket:
+                try:
+                    self._socket.close()
+                except Exception as e:
+                    logger.warning(f"Error closing socket in cleanup: {e}")
+                self._socket = None
+    
+    def wait_for_start(self, timeout: float = 5.0) -> bool:
+        """Wait for the publisher thread to start and socket to be ready.
+        
+        Args:
+            timeout: Maximum time to wait in seconds
+            
+        Returns:
+            True if started successfully, False if timeout
+        """
+        return self._started.wait(timeout=timeout)
+
+
 # Improved Pub/Sub classes with shared context
 class ZMQPublisherManager:
-    """Centralized management of ZMQ publishers with enhanced error handling and monitoring"""
+    """Centralized management of ZMQ publishers with thread-safe socket ownership"""
     _instance: Optional['ZMQPublisherManager'] = None
-    _publishers: Dict[Tuple[str, int], zmq.Socket] = {}
+    _publishers: Dict[Tuple[str, int], PublisherThread] = {}
     _lock = threading.Lock()
     _monitor_thread: Optional[threading.Thread] = None
     _running = True
@@ -578,15 +715,18 @@ class ZMQPublisherManager:
                     cls._instance = cls(context)
         return cls._instance
     
-    def _create_publisher(self, host: str, port: int) -> zmq.Socket:
-        """Create a new PUB socket with error handling."""
+    def _create_publisher_thread(self, host: str, port: int) -> PublisherThread:
+        """Create a new publisher thread with error handling."""
         try:
-            socket = self._context.socket(zmq.PUB)
-            socket.setsockopt(zmq.SNDHWM, 1)  # Only keep latest message
-            addr = f'tcp://*:{port}'
-            socket.bind(addr)
-            return socket
-        except zmq.ZMQError as e:
+            publisher_thread = PublisherThread(host, port, self._context)
+            publisher_thread.start()
+            
+            # Wait for the thread to start and socket to be ready
+            if not publisher_thread.wait_for_start(timeout=5.0):
+                raise ConnectionError(f"Publisher thread failed to start for {host}:{port}")
+                
+            return publisher_thread
+        except Exception as e:
             caller = "unknown"
             frame = inspect.currentframe()
             if frame and frame.f_back and frame.f_back.f_back:
@@ -595,19 +735,11 @@ class ZMQPublisherManager:
                 mod_name = module.__name__ if module else "unknown"
                 caller = f"{mod_name}.{caller_frame.f_code.co_name}"
 
-            if e.errno == zmq.EADDRINUSE:
-                logger.error(
-                    f"Address {addr} already in use when {caller} attempted to bind. "
-                    "Check for lingering processes or other components using this port."
-                )
-            else:
-                logger.error(f"Failed to create PUB socket in {caller}: {e}")
-            
-            # ✅ FIX: Always raise the exception instead of returning None
-            raise ConnectionError(f"Failed to create publisher for {addr}: {e}")
+            logger.error(f"Failed to create publisher thread in {caller}: {e}")
+            raise ConnectionError(f"Failed to create publisher for {host}:{port}: {e}")
     
     def publish(self, host: str, port: int, topic: str, data: Any) -> None:
-        """Publish data to a topic with error handling and non-blocking sends.
+        """Publish data to a topic with thread-safe queue-based communication.
         
         Args:
             host: The host address
@@ -620,39 +752,21 @@ class ZMQPublisherManager:
             SerializationError: If data serialization fails
         """
         try:
-            publisher = self.get_publisher(host, port)
-            try:
-                buffer = pickle.dumps(data, protocol=-1)
-            except Exception as e:
-                raise SerializationError(f"Failed to serialize data: {e}")
-            
-            try:
-                # Use multipart messaging and non-blocking send
-                encoded_topic = topic.encode('utf-8') if isinstance(topic, str) else topic
-                publisher.send_multipart([
-                    encoded_topic,
-                    buffer
-                ], zmq.NOBLOCK)
-                
-            except zmq.Again:
-                logger.warning(f"High water mark reached for {topic} at {host}:{port}, dropping message")
-            except zmq.ZMQError as e:
-                logger.error(f"Failed to publish to {topic} at {host}:{port}: {e}")
-                self._close_publisher((host, port))  # Close unhealthy publisher
-                raise ConnectionError(f"Failed to publish: {e}")
+            publisher_thread = self.get_publisher_thread(host, port)
+            publisher_thread.send(topic, data)
         except Exception as e:
             logger.error(f"Unexpected error in publish: {e}")
             raise
 
-    def get_publisher(self, host: str, port: int) -> zmq.Socket:
-        """Get or create a publisher for the given host and port with thread safety.
+    def get_publisher_thread(self, host: str, port: int) -> PublisherThread:
+        """Get or create a publisher thread for the given host and port with thread safety.
         
         Args:
             host: The host address
             port: The port number
             
         Returns:
-            The ZMQ publisher socket
+            The PublisherThread instance
             
         Raises:
             ConnectionError: If publisher creation fails
@@ -660,11 +774,11 @@ class ZMQPublisherManager:
         key = (host, port)
         with self._lock:
             if key not in self._publishers:
-                self._publishers[key] = self._create_publisher(host, port)
+                self._publishers[key] = self._create_publisher_thread(host, port)
             return self._publishers[key]
     
     def _close_publisher(self, key: Tuple[str, int]) -> None:
-        """Close a specific publisher socket.
+        """Close a specific publisher thread.
         
         Args:
             key: Tuple of (host, port)
@@ -672,9 +786,9 @@ class ZMQPublisherManager:
         with self._lock:
             if key in self._publishers:
                 try:
-                    self._publishers[key].close()
+                    self._publishers[key].stop()
                 except Exception as e:
-                    logger.error(f"Error closing publisher at {key[0]}:{key[1]}: {e}")
+                    logger.error(f"Error stopping publisher at {key[0]}:{key[1]}: {e}")
                 del self._publishers[key]
 
     def get_bound_ports(self) -> Dict[Tuple[str, int], str]:
@@ -685,8 +799,8 @@ class ZMQPublisherManager:
         """
         with self._lock:
             return {
-                key: pub.getsockopt_string(zmq.LAST_ENDPOINT)
-                for key, pub in self._publishers.items()
+                key: f"tcp://*:{port}"  # Publisher threads bind to this pattern
+                for key, (host, port) in self._publishers.items()
             }
     
     def _start_monitor(self) -> None:
@@ -695,13 +809,14 @@ class ZMQPublisherManager:
             while self._running:
                 time.sleep(5)  # Check every 5 seconds
                 with self._lock:
-                    for key, pub in list(self._publishers.items()):
+                    for key, publisher_thread in list(self._publishers.items()):
                         try:
-                            # Try to get socket stats
-                            pub.getsockopt(zmq.EVENTS)
-                        except zmq.ZMQError:
-                            logger.warning(f"Unhealthy publisher detected at {key[0]}:{key[1]}")
-                            self._close_publisher(key)
+                            # Check if thread is still alive
+                            if not publisher_thread.is_alive():
+                                logger.warning(f"Dead publisher thread detected at {key[0]}:{key[1]}")
+                                self._close_publisher(key)
+                        except Exception as e:
+                            logger.error(f"Error monitoring publisher at {key[0]}:{key[1]}: {e}")
         
         self._monitor_thread = threading.Thread(
             target=monitor_loop,
@@ -725,11 +840,11 @@ class ZMQPublisherManager:
         
         # Then close all publishers
         with self._lock:
-            for key, publisher in list(self._publishers.items()):
+            for key, publisher_thread in list(self._publishers.items()):
                 try:
-                    publisher.close()
+                    publisher_thread.stop()
                 except Exception as e:
-                    logger.error(f"Error closing publisher at {key[0]}:{key[1]}: {e}")
+                    logger.error(f"Error stopping publisher at {key[0]}:{key[1]}: {e}")
             self._publishers.clear()
 
 # Function to clean up all ZMQ resources (call on program exit)
@@ -1157,3 +1272,117 @@ def publish_with_guaranteed_delivery(
 
 
 # Function to clean up all ZMQ resources (call on program exit)
+
+# Publisher thread for thread-safe socket ownership
+class PublisherThread(threading.Thread):
+    """Thread that owns a PUB socket and handles publishing via a queue."""
+    
+    def __init__(self, host: str, port: int, context: Optional[zmq.Context] = None):
+        """Initialize publisher thread.
+        
+        Args:
+            host: The host address to bind to
+            port: The port number to bind to
+            context: Optional custom ZMQ context (default: global context)
+        """
+        super().__init__(daemon=True)
+        self._host = host
+        self._port = port
+        self._context = context or get_global_context()
+        self._socket = None
+        self._running = True
+        self._queue = queue.Queue(maxsize=100)  # Limit queue size to prevent memory issues
+        self._started = threading.Event()
+        
+    def send(self, topic: str, data: Any) -> None:
+        """Send data to the publisher queue (thread-safe).
+        
+        Args:
+            topic: The topic to publish to
+            data: The data to publish
+        """
+        try:
+            # Serialize data here to avoid blocking the main thread
+            buffer = pickle.dumps(data, protocol=-1)
+            self._queue.put_nowait((topic, buffer))
+        except queue.Full:
+            logger.warning(f"Publisher queue full for {self._host}:{self._port}, dropping message")
+        except Exception as e:
+            logger.error(f"Error serializing data for publisher: {e}")
+    
+    def stop(self) -> None:
+        """Stop the publisher thread gracefully."""
+        self._running = False
+        # Put a sentinel value to unblock the queue
+        try:
+            self._queue.put_nowait((None, None))
+        except queue.Full:
+            pass
+        self.join(timeout=2)
+        if self.is_alive():
+            logger.warning("Publisher thread did not stop gracefully")
+    
+    def run(self) -> None:
+        """Main publisher loop with socket creation in worker thread."""
+        try:
+            # Create socket in the worker thread
+            self._socket = self._context.socket(zmq.PUB)
+            self._socket.setsockopt(zmq.SNDHWM, 1)  # Only keep latest message
+            addr = f'tcp://*:{self._port}'
+            self._socket.bind(addr)
+            
+            # Signal that socket is ready
+            self._started.set()
+            
+            while self._running:
+                try:
+                    # Get data from queue with timeout to allow checking _running
+                    topic, buffer = self._queue.get(timeout=0.1)
+                    
+                    # Check for sentinel value
+                    if topic is None:
+                        break
+                    
+                    try:
+                        # Use multipart messaging and non-blocking send
+                        encoded_topic = topic.encode('utf-8') if isinstance(topic, str) else topic
+                        self._socket.send_multipart([
+                            encoded_topic,
+                            buffer
+                        ], zmq.NOBLOCK)
+                        
+                    except zmq.Again:
+                        logger.warning(f"High water mark reached for {topic} at {self._host}:{self._port}, dropping message")
+                    except zmq.ZMQError as e:
+                        logger.error(f"Failed to publish to {topic} at {self._host}:{self._port}: {e}")
+                        break
+                        
+                except queue.Empty:
+                    # Queue was empty, just continue
+                    continue
+                except Exception as e:
+                    if self._running:
+                        logger.error(f"Error in publisher loop: {e}")
+                    break
+                    
+        except Exception as e:
+            logger.error(f"Failed to initialize publisher socket: {e}")
+        finally:
+            # Ensure socket is closed when thread exits
+            if self._socket:
+                try:
+                    self._socket.close()
+                except Exception as e:
+                    logger.warning(f"Error closing socket in cleanup: {e}")
+                self._socket = None
+    
+    def wait_for_start(self, timeout: float = 5.0) -> bool:
+        """Wait for the publisher thread to start and socket to be ready.
+        
+        Args:
+            timeout: Maximum time to wait in seconds
+            
+        Returns:
+            True if started successfully, False if timeout
+        """
+        return self._started.wait(timeout=timeout)
