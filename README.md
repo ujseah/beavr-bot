@@ -1,4 +1,4 @@
-# BeaVR-Bot
+# BeaVR
 **Bimanual, multi-Embodiment, Accessible VR Teleoperation for Robots**
 
 <p align="center">
