@@ -1,14 +1,16 @@
+import logging
 import os
+import warnings
+
 import cv2
 import matplotlib
-import warnings
 import matplotlib.pyplot as plt
-from .plotter import Plotter
-from beavr.teleop.utils.network import ZMQCompressedImageTransmitter
-from beavr.teleop.utils.files import check_file, get_npz_data, make_dir
-from beavr.teleop.configs.constants import robots, cameras
 
-import logging
+from beavr.teleop.configs.constants import robots
+from beavr.teleop.utils.files import check_file, get_npz_data, make_dir
+from beavr.teleop.utils.network import ZMQCompressedImageTransmitter
+
+from .plotter import Plotter
 
 logger = logging.getLogger(__name__)
 

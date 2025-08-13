@@ -200,20 +200,20 @@ class XArm7Robot(RobotWrapper):
         if self._latest_cartesian_coords is None:
             return None
 
-        cartesian_state_dict = dict(
-            cartesian_position = np.array(self._latest_cartesian_coords, dtype=np.float32),
-            timestamp = self._latest_cartesian_state_timestamp
-        )
+        cartesian_state_dict = {
+            "cartesian_position": np.array(self._latest_cartesian_coords, dtype=np.float32),
+            "timestamp": self._latest_cartesian_state_timestamp
+        }
         return cartesian_state_dict
 
     def get_joint_state_from_operator(self):
         if self._latest_joint_state is None:
             return None
         
-        joint_state_dict = dict(
-            joint_position = np.array(self._latest_joint_state, dtype=np.float32),
-            timestamp = self._latest_joint_state_timestamp
-        )
+        joint_state_dict = {
+            "joint_position": np.array(self._latest_joint_state, dtype=np.float32),
+            "timestamp": self._latest_joint_state_timestamp
+        }
         return joint_state_dict
 
     def get_cartesian_commanded_position(self):
@@ -226,10 +226,10 @@ class XArm7Robot(RobotWrapper):
 
     def get_robot_actual_cartesian_position(self):
         cartesian_state=self.get_cartesian_position()
-        cartesian_dict = dict(
-            cartesian_position = np.array(cartesian_state, dtype=np.float32),
-            timestamp = time.time()
-        )
+        cartesian_dict = {
+            "cartesian_position": np.array(cartesian_state, dtype=np.float32),
+            "timestamp": time.time()
+        }
         return cartesian_dict
     
     def get_robot_actual_joint_position(self):
@@ -250,10 +250,7 @@ class XArm7Robot(RobotWrapper):
 
     def check_reset(self):
         reset_bool = self._reset_subscriber.recv_keypoints()
-        if reset_bool is not None:
-            return True
-        else:
-            return False
+        return reset_bool is not None
 
     def check_home(self):
         home_bool = self._home_subscriber.recv_keypoints()
@@ -276,6 +273,10 @@ class XArm7Robot(RobotWrapper):
         # At the top of the stream() method, **before the main loop**:
         avg_start_time  = time.time() # window start for average frequency
         msg_counter     = 0           # how many commands arrived in this window
+        
+        # For jitter calculation
+        last_msg_time = None
+        msg_intervals = []
         
         while True:
             current_time = time.time()
@@ -309,13 +310,31 @@ class XArm7Robot(RobotWrapper):
                     )
                     self._latest_commanded_cartesian_timestamp = msg["timestamp"]
                     self.move_coords(self._latest_commanded_cartesian_position)
+                    
+                    # Track timing for jitter calculation
+                    msg_time = time.time()
+                    if last_msg_time is not None:
+                        interval = (msg_time - last_msg_time) * 1000  # Convert to ms
+                        msg_intervals.append(interval)
+                        # Keep only recent intervals for jitter calculation
+                        if len(msg_intervals) > 100:  # Keep last 100 intervals
+                            msg_intervals = msg_intervals[-100:]
+                    last_msg_time = msg_time
 
                 now = time.time()
 
                 msg_counter += 1
                 if now - avg_start_time >= 1.0:
                     avg_freq = msg_counter / (now - avg_start_time)
-                    # logger.info(f"Average cmd freq over last second: {avg_freq:6.2f} Hz")
+                    
+                    # Calculate jitter from individual message intervals
+                    jitter_ms = 0.0
+                    if len(msg_intervals) > 1:
+                        import statistics
+                        jitter_ms = statistics.stdev(msg_intervals)
+                    
+                    target_interval_ms = 1000.0 / self._data_frequency
+                    # logger.info(f"XARM: Average cmd freq over last second: {avg_freq:6.2f} Hz, Jitter: {jitter_ms:.2f}ms (target interval: {target_interval_ms:.1f}ms)")
                     avg_start_time = now
                     msg_counter = 0
 

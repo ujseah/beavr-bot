@@ -2,8 +2,9 @@
 # Robot Configuration Constants
 # -----------------------------------------------------------------------------
 
-import numpy as np
 import os
+
+import numpy as np
 
 ROBOT_NAME_LEAP = "leap"
 ROBOT_NAME_XARM7 = "xarm7"

@@ -19,6 +19,7 @@
 
 import logging
 import queue
+import numpy as np
 
 # ---- Asynchronous inference support ----
 import threading
@@ -105,7 +106,14 @@ def is_headless():
         return True
 
 
-def predict_action(observation, policy, device, use_amp):
+def predict_action(
+    observation,
+    policy: PreTrainedPolicy,
+    device: torch.device,
+    use_amp: bool,
+    task: str | None = None,
+    robot_type: str | None = None,
+):
     observation = copy(observation)
     with (
         torch.inference_mode(),
@@ -113,14 +121,35 @@ def predict_action(observation, policy, device, use_amp):
     ):
         # Convert to pytorch format: channel first and float32 in [0,1] with batch dimension
         for name in observation:
+            value = observation[name]
+            if isinstance(value, np.ndarray):
+                observation[name] = torch.from_numpy(value)
             if "image" in name:
                 observation[name] = observation[name].type(torch.float32) / 255
                 observation[name] = observation[name].permute(2, 0, 1).contiguous()
             observation[name] = observation[name].unsqueeze(0)
             observation[name] = observation[name].to(device)
 
+        observation["task"] = task if task else ""
+        observation["robot_type"] = robot_type if robot_type else ""
+
         # Compute the next action with the policy
         # based on the current observation
+        
+        # Determine batch size from one of the tensors
+        for v in observation.values():
+            if isinstance(v, torch.Tensor):
+                batch_size = v.shape[0]
+                break
+        else:
+            batch_size = 1  # fallback
+
+        # Ensure task is a list of strings
+        if "task" in observation and not isinstance(observation["task"], list):
+            observation["task"] = [observation["task"]] * batch_size
+        if "robot_type" in observation and not isinstance(observation["robot_type"], list):
+            observation["robot_type"] = [observation["robot_type"]] * batch_size
+
         action = policy.select_action(observation)
 
         # Remove batch dimension
@@ -319,11 +348,11 @@ def control_loop(
                     break
 
             try:
-                action = predict_action(observation, policy, device, use_amp)
+                action = predict_action(observation, policy, device, use_amp, single_task, robot.robot_type)
                 action_holder["action"] = action
                 ready_event.set()  # Signal ready for next observation
-            except Exception:
-                logging.exception("Policy inference failed.")
+            except Exception as e:
+                logging.exception(f"Policy inference failed for {policy.name} because of {e}")
                 ready_event.set()  # Still signal ready even on failure
 
     if policy is not None:

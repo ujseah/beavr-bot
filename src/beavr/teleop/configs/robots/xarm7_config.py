@@ -3,23 +3,19 @@
 This config can be used for single-arm (right/left) or dual-arm (bimanual) XArm7 setups.
 """
 from __future__ import annotations
+
+import logging
 from dataclasses import dataclass, field
 from typing import Any
 
-# Import shared component configurations
-from beavr.teleop.configs.robots.shared_components import SharedComponentRegistry
-
-from beavr.teleop.interfaces.xarm7_robot import XArm7Robot
-from beavr.teleop.configs.robots import TeleopRobotConfig
-
 # Import shared constants and utilities
 from beavr.teleop.configs.constants import network, ports, robots
-from beavr.teleop.utils.configs import (
-    Laterality,
-    log_laterality_configuration
-)
+from beavr.teleop.configs.robots import TeleopRobotConfig
 
-import logging
+# Import shared component configurations
+from beavr.teleop.configs.robots.shared_components import SharedComponentRegistry
+from beavr.teleop.interfaces.xarm7_robot import XArm7Robot
+from beavr.teleop.utils.configs import Laterality, log_laterality_configuration
 
 logger = logging.getLogger(__name__)
 

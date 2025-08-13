@@ -112,7 +112,7 @@ class BeavrBot(Robot):
 
         # Pre-create PUB sockets so that subscribers can connect early
         for pub_info in self.home_publishers.values():
-            self.pub_manager.get_publisher(pub_info["host"], pub_info["port"])
+            self.pub_manager.get_publisher_thread(pub_info["host"], pub_info["port"])
 
 
         self.command_publishers: dict[str, dict] = {}
@@ -152,7 +152,7 @@ class BeavrBot(Robot):
         }
 
         # Pre-bind teleop socket
-        self.pub_manager.get_publisher(self.op_state_publish_info["host"], self.op_state_publish_info["port"])
+        self.pub_manager.get_publisher_thread(self.op_state_publish_info["host"], self.op_state_publish_info["port"])
 
         # Thread pool for asynchronous publishing
         # We keep a small pool (<= #robots) so that PUB sends never block the

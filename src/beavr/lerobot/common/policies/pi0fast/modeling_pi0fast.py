@@ -17,21 +17,21 @@
 """
 π0+FAST: Efficient Action Tokenization for Vision-Language-Action Models
 
-[Paper](https://arxiv.org/abs/2501.09747)
+[Paper](https://huggingface.co/papers/2501.09747)
 [Jax code](https://github.com/Physical-Intelligence/openpi)
 
 Designed by Physical Intelligence. Ported from Jax by Hugging Face.
 
 Example of finetuning the pi0+FAST pretrained model (`pi0_fast_base` in `openpi`):
 ```bash
-python lerobot/scripts/train.py \
+python -m lerobot.scripts.train \
 --policy.path=lerobot/pi0fast_base \
 --dataset.repo_id=danaaubakirova/koch_test
 ```
 
 Example of training the pi0+FAST neural network with from scratch:
 ```bash
-python lerobot/scripts/train.py \
+python -m lerobot.scripts.train \
 --policy.type=pi0fast \
 --dataset.repo_id=danaaubakirova/koch_test
 ```
@@ -56,7 +56,7 @@ from transformers import AutoProcessor, AutoTokenizer, PaliGemmaForConditionalGe
 from transformers.cache_utils import HybridCache, StaticCache
 from transformers.models.auto import CONFIG_MAPPING
 
-from beavr.lerobot.common.constants import ACTION, OBS_ROBOT
+from beavr.lerobot.common.constants import ACTION, OBS_STATE
 from beavr.lerobot.common.policies.normalize import Normalize, Unnormalize
 from beavr.lerobot.common.policies.pi0fast.configuration_pi0fast import PI0FASTConfig
 from beavr.lerobot.common.policies.pretrained import PreTrainedPolicy
@@ -192,7 +192,12 @@ class PI0FASTPolicy(PreTrainedPolicy):
             actions[:, :, motor_idx] = aloha_gripper_from_angular_inv(actions[:, :, motor_idx])
         return actions
 
-    @torch.no_grad
+    @torch.no_grad()
+    def predict_action_chunk(self, batch: dict[str, Tensor]) -> Tensor:
+        """Predict a chunk of actions given environment observations."""
+        raise NotImplementedError("Currently not implemented for PI0FAST")
+
+    @torch.no_grad()
     def select_action(self, batch: dict[str, Tensor]) -> Tensor:
         """Select a single action given environment observations.
 
@@ -203,7 +208,7 @@ class PI0FASTPolicy(PreTrainedPolicy):
         self.eval()
 
         if self.config.adapt_to_pi_aloha:
-            batch[OBS_ROBOT] = self._pi_aloha_decode_state(batch[OBS_ROBOT])
+            batch[OBS_STATE] = self._pi_aloha_decode_state(batch[OBS_STATE])
 
         batch = self.normalize_inputs(batch)
 
@@ -231,7 +236,7 @@ class PI0FASTPolicy(PreTrainedPolicy):
 
     def forward(self, batch: dict[str, Tensor]) -> dict[str, Tensor]:
         if self.config.adapt_to_pi_aloha:
-            batch[OBS_ROBOT] = self._pi_aloha_decode_state(batch[OBS_ROBOT])
+            batch[OBS_STATE] = self._pi_aloha_decode_state(batch[OBS_STATE])
             batch[ACTION] = self._pi_aloha_encode_actions_inv(batch[ACTION])
         batch = self.normalize_inputs(batch)
         batch = self.normalize_targets(batch)
@@ -363,7 +368,7 @@ def prepare_inputs_for_generation(
         attn_implementation=self.config.text_config._attn_implementation,
     )
     # Overwritten -- custom `position_ids` and `pixel_values` handling
-    model_inputs = self.language_model.prepare_inputs_for_generation(
+    model_inputs = prepare_inputs_for_generation(
         input_ids,
         past_key_values=past_key_values,
         inputs_embeds=inputs_embeds,
@@ -472,7 +477,7 @@ class PI0FAST(nn.Module):
                 param.data = param.data.to(dtype=torch_precision)
         self.set_requires_grad()
         self.image_keys = self.config.image_features.keys()
-        self.ignore_index = self.pi0_paligemma.config.ignore_index
+        self.ignore_index = -100
         self.padding_side = self.config.padding_side
 
     def set_requires_grad(self):
@@ -487,7 +492,7 @@ class PI0FAST(nn.Module):
                     params.requires_grad = False
 
     def embed_tokens(self, tokens: torch.Tensor):
-        return self.pi0_paligemma.language_model.model.embed_tokens(tokens)
+        return self.pi0_paligemma.language_model.embed_tokens(tokens)
 
     def prepare_inputs_for_generation(self, *args, **kwargs):
         return self.pi0_paligemma.prepare_inputs_for_generation(*args, **kwargs)
@@ -677,12 +682,12 @@ class PI0FAST(nn.Module):
         return new_tokens, new_ar_masks, new_padding_mask, new_loss_mask, new_targets, new_token_type_ids
 
     def forward(self, batch: dict[str, Tensor]):
-        device = batch[OBS_ROBOT].device
+        device = batch[OBS_STATE].device
         # TODO: keep like this or move to the policy .forward
         images, img_masks = self.prepare_images(batch)
 
         padded_outs = self.create_input_tokens(
-            state=batch[OBS_ROBOT],
+            state=batch[OBS_STATE],
             lang_text=batch["task"],
             actions=batch[ACTION],
         )
@@ -849,7 +854,7 @@ class PI0FAST(nn.Module):
         # TODO: keep like this or move to the policy .forward
         images, img_masks = self.prepare_images(batch)
 
-        padded_outs = self.create_input_tokens(state=batch[OBS_ROBOT], lang_text=batch["task"], actions=None)
+        padded_outs = self.create_input_tokens(state=batch[OBS_STATE], lang_text=batch["task"], actions=None)
         embs, pad_masks, att_masks2, targets, loss_mask, token_type_ids = self.embed_inputs(
             images,
             img_masks,
@@ -878,7 +883,11 @@ class PI0FAST(nn.Module):
         return actions
 
     def embed_image(self, image: torch.Tensor):
-        return self.pi0_paligemma.get_image_features(image)
+        # Handle different transformers versions
+        if hasattr(self.pi0_paligemma, "get_image_features"):
+            return self.pi0_paligemma.get_image_features(image)
+        else:
+            return self.pi0_paligemma.model.get_image_features(image)
 
     def embed_inputs(
         self,

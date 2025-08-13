@@ -60,6 +60,15 @@ class PreTrainedConfig(draccus.ChoiceRegistry, HubMixin, abc.ABC):
     # automatic gradient scaling is used.
     use_amp: bool = False
 
+    # Optional Hub metadata (ignored during runtime). Added to ensure backward compatibility with
+    # older configuration files that may include these keys. They are kept as no-ops so that the
+    # dataclass parser (`draccus`) does not raise when it encounters them.
+    push_to_hub: bool | None = None
+    repo_id: str | None = None
+    private: bool | None = None
+    tags: list[str] | None = None
+    license: str | None = None
+
     def __post_init__(self):
         self.pretrained_path = None
         if not self.device or not is_torch_device_available(self.device):

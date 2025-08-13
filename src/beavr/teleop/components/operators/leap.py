@@ -1,19 +1,21 @@
-from copy import deepcopy as copy
-from beavr.teleop.utils.network import ZMQKeypointSubscriber, ZMQKeypointPublisher
-from .operator import Operator
-from shapely.geometry import Point, Polygon 
-from shapely.ops import nearest_points
-
-from beavr.teleop.utils.files import get_path_in_package, get_yaml_data
-from beavr.teleop.utils.vectorops import coord_in_bound
-from beavr.teleop.utils.timer import FrequencyTimer
-from beavr.teleop.constants import VR_FREQ, OCULUS_JOINTS, LEAP_JOINTS_PER_FINGER, LEAP_JOINT_OFFSETS
+import logging
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
-import threading
+from copy import deepcopy as copy
+
 import numpy as np
+from shapely.geometry import Point, Polygon
+from shapely.ops import nearest_points
+
+from beavr.teleop.constants import LEAP_JOINT_OFFSETS, LEAP_JOINTS_PER_FINGER, OCULUS_JOINTS, VR_FREQ
+from beavr.teleop.utils.files import get_path_in_package, get_yaml_data
 from beavr.teleop.utils.logger import HandLogger
-import logging
+from beavr.teleop.utils.network import ZMQKeypointPublisher, ZMQKeypointSubscriber
+from beavr.teleop.utils.timer import FrequencyTimer
+from beavr.teleop.utils.vectorops import coord_in_bound
+
+from .operator import Operator
 
 logger = logging.getLogger(__name__)
 

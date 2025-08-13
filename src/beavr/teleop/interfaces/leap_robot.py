@@ -1,19 +1,20 @@
-from beavr.teleop.controllers.leap_control import DexArmControl
-from beavr.teleop.interfaces.robot import RobotWrapper
-import numpy as np
+import logging
 import threading
 import time
 from queue import Queue
-from beavr.teleop.utils.ops import Ops
 
+import numpy as np
+
+from beavr.teleop.configs.constants import robots
+from beavr.teleop.controllers.leap_control import DexArmControl
+from beavr.teleop.interfaces.robot import RobotWrapper
 from beavr.teleop.utils.network import (
     ZMQKeypointSubscriber,
     ZMQPublisherManager,
     cleanup_zmq_resources,
 )
+from beavr.teleop.utils.ops import Ops
 from beavr.teleop.utils.registry import GlobalRegistry
-from beavr.teleop.configs.constants import robots
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -108,10 +109,6 @@ class LeapHandRobot(RobotWrapper):
         self._publisher_host = host
         self._joint_angle_publish_port = joint_angle_publish_port
         self._state_publish_port = state_publish_port
-
-        # Pre-bind sockets so that subscribers can connect early
-        self._publisher_manager.get_publisher(self._publisher_host, self._joint_angle_publish_port)
-        self._publisher_manager.get_publisher(self._publisher_host, self._state_publish_port)
 
         # Add recording control
         self._is_recording_enabled = False
@@ -265,6 +262,10 @@ class LeapHandRobot(RobotWrapper):
         avg_start_time  = time.time() # window start for average frequency
         msg_counter     = 0           # how many commands arrived in this window
         
+        # For jitter calculation
+        last_msg_time = None
+        msg_intervals = []
+        
         while True:
             current_time = time.time()
 
@@ -292,6 +293,16 @@ class LeapHandRobot(RobotWrapper):
                 # Process the command
                 self.move(msg)
                 
+                # Track timing for jitter calculation
+                msg_time = time.time()
+                if last_msg_time is not None:
+                    interval = (msg_time - last_msg_time) * 1000  # Convert to ms
+                    msg_intervals.append(interval)
+                    # Keep only recent intervals for jitter calculation
+                    if len(msg_intervals) > 100:  # Keep last 100 intervals
+                        msg_intervals = msg_intervals[-100:]
+                last_msg_time = msg_time
+                
             # Update the joint state cache if recording is enabled
             if self._is_recording_enabled:
                 current_joint_position = self._controller.get_hand_position()
@@ -312,7 +323,15 @@ class LeapHandRobot(RobotWrapper):
             msg_counter += 1
             if now - avg_start_time >= 1.0:
                 avg_freq = msg_counter / (now - avg_start_time)
-                # logger.info(f"Average cmd freq over last second: {avg_freq:6.2f} Hz")
+                
+                # Calculate jitter from individual message intervals
+                jitter_ms = 0.0
+                if len(msg_intervals) > 1:
+                    import statistics
+                    jitter_ms = statistics.stdev(msg_intervals)
+                
+                target_interval_ms = 1000.0 / self._data_frequency
+                #  logger.info(f"LEAP: Average cmd freq over last second: {avg_freq:6.2f} Hz, Jitter: {jitter_ms:.2f}ms (target interval: {target_interval_ms:.1f}ms)")
                 avg_start_time = now
                 msg_counter = 0
                 

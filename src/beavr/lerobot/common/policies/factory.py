@@ -29,6 +29,7 @@ from beavr.lerobot.common.policies.pi0fast.configuration_pi0fast import PI0FASTC
 from beavr.lerobot.common.policies.pretrained import PreTrainedPolicy
 from beavr.lerobot.common.policies.tdmpc.configuration_tdmpc import TDMPCConfig
 from beavr.lerobot.common.policies.vqbet.configuration_vqbet import VQBeTConfig
+from beavr.lerobot.common.policies.smolvla.configuration_smolvla import SmolVLAConfig
 from beavr.lerobot.configs.policies import PreTrainedConfig
 from beavr.lerobot.configs.types import FeatureType
 
@@ -51,6 +52,11 @@ def get_policy_class(name: str) -> PreTrainedPolicy:
         from beavr.lerobot.common.policies.vqbet.modeling_vqbet import VQBeTPolicy
 
         return VQBeTPolicy
+
+    elif name == "smolvla":
+        from beavr.lerobot.common.policies.smolvla.modeling_smolvla import SmolVLAPolicy
+
+        return SmolVLAPolicy
     elif name == "pi0":
         from beavr.lerobot.common.policies.pi0.modeling_pi0 import PI0Policy
 
@@ -76,6 +82,8 @@ def make_policy_config(policy_type: str, **kwargs) -> PreTrainedConfig:
         return PI0Config(**kwargs)
     elif policy_type == "pi0fast":
         return PI0FASTConfig(**kwargs)
+    elif policy_type == "smolvla":
+        return SmolVLAConfig(**kwargs)
     else:
         raise ValueError(f"Policy type '{policy_type}' is not available.")
 

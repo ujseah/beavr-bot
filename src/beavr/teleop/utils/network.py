@@ -8,6 +8,8 @@ import time
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional, Tuple
 
+import cv2
+import numpy as np
 import zmq
 
 logger = logging.getLogger(__name__)
@@ -1066,3 +1068,68 @@ def publish_with_guaranteed_delivery(
     except Exception as e:
         logger.error(f"Error in guaranteed delivery for topic '{topic}': {e}")
         return False
+    
+# Publisher for image visualizers
+class ZMQCompressedImageTransmitter(BasePublisher):
+    """Publisher for compressed images using multipart messaging."""
+    
+    def __init__(self, host: str, port: int):
+        super().__init__(host, port, zmq.PUB)
+
+    def send_image(self, rgb_image: np.ndarray) -> None:
+        """Send a compressed RGB image.
+        
+        Args:
+            rgb_image: The RGB image array to publish
+            
+        Raises:
+            ConnectionError: If socket operation fails
+            SerializationError: If compression fails
+        """
+        try:
+            _, buffer = cv2.imencode('.jpg', rgb_image, [int(cv2.IMWRITE_WEBP_QUALITY), 10])
+            try:
+                self._socket.send_multipart([
+                    b"image",
+                    np.array(buffer).tobytes()
+                ], zmq.NOBLOCK)
+            except zmq.Again:
+                logger.warning("High water mark reached for compressed image, dropping frame")
+            except zmq.ZMQError as e:
+                raise ConnectionError(f"Failed to send compressed image: {e}") from e
+        except Exception as e:
+            raise SerializationError(f"Failed to compress image: {e}") from e
+
+class ZMQCompressedImageReceiver(BaseSubscriber):
+    """Subscriber for compressed images using multipart messaging."""
+    
+    def __init__(self, host: str, port: int):
+        """Initialize compressed image receiver.
+        
+        Args:
+            host: The host address to connect to
+            port: The port number to connect to
+        """
+        super().__init__(host, port, "image", zmq.SUB)
+        self._last_image: Optional[np.ndarray] = None
+        self.start()  # Start the subscriber thread
+
+    def process_message(self, data: bytes) -> None:
+        """Process received image data.
+        
+        Args:
+            data: Raw bytes of compressed image data
+        """
+        try:
+            encoded_data = np.fromstring(data, np.uint8)
+            self._last_image = cv2.imdecode(encoded_data, 1)
+        except Exception as e:
+            logger.error(f"Failed to process image: {e}")
+
+    def recv_image(self) -> Optional[np.ndarray]:
+        """Get the latest received image.
+        
+        Returns:
+            The latest image array if available, None otherwise
+        """
+        return self._last_image

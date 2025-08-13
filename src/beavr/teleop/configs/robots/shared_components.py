@@ -5,16 +5,14 @@ individual robot config files no longer need to duplicate IP addresses or port
 numbers.  Override any field as usual when you instantiate the dataclass.
 """
 
-from dataclasses import dataclass
-from typing import Dict, Any
-
-from beavr.teleop.configs.constants import ports, network, robots
-
-from beavr.teleop.components.detector.oculus import OculusVRHandDetector, BimanualOculusVRHandDetector
-from beavr.teleop.components.detector.keypoint_transform import TransformHandPositionCoords
-from beavr.teleop.components.visualizers.visualizer_2d import Hand2DVisualizer
-
 import logging
+from dataclasses import dataclass
+from typing import Any, Dict
+
+from beavr.teleop.components.detector.keypoint_transform import TransformHandPositionCoords
+from beavr.teleop.components.detector.oculus import BimanualOculusVRHandDetector, OculusVRHandDetector
+from beavr.teleop.components.visualizers.visualizer_2d import Hand2DVisualizer
+from beavr.teleop.configs.constants import network, ports, robots
 
 logger = logging.getLogger(__name__)
 

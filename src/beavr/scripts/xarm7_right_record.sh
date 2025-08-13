@@ -7,6 +7,7 @@ python src/beavr/scripts/control_robot.py \
     --control.warmup_time_s=5 \
     --control.episode_time_s=30 \
     --control.reset_time_s=5 \
-    --control.repo_id=arclabmit/lx7r_stack_blocks_dataset \
-    --control.single_task="Stack blocks in order from smallest to largest" \
-    --control.resume=true
+    --control.repo_id=arclabmit/lx7r_flip_cube_dataset \
+    --control.single_task="Flip cube" \
+    --control.resume=false
+    

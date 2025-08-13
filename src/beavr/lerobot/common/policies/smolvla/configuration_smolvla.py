@@ -1,20 +1,34 @@
+# Copyright 2025 The HuggingFace Inc. team. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from dataclasses import dataclass, field
 
-from beavr.lerobot.configs.policies import PreTrainedConfig
-from beavr.lerobot.configs.types import FeatureType, NormalizationMode, PolicyFeature
 from beavr.lerobot.common.optim.optimizers import AdamWConfig
 from beavr.lerobot.common.optim.schedulers import (
     CosineDecayWithWarmupSchedulerConfig,
 )
+from beavr.lerobot.configs.policies import PreTrainedConfig
+from beavr.lerobot.configs.types import FeatureType, NormalizationMode, PolicyFeature
 
 
-@PreTrainedConfig.register_subclass("pi0fast")
+@PreTrainedConfig.register_subclass("smolvla")
 @dataclass
-class PI0FASTConfig(PreTrainedConfig):
+class SmolVLAConfig(PreTrainedConfig):
     # Input / output structure.
     n_obs_steps: int = 1
-    chunk_size: int = 10
-    n_action_steps: int = 5
+    chunk_size: int = 50
+    n_action_steps: int = 50
 
     normalization_mapping: dict[str, NormalizationMode] = field(
         default_factory=lambda: {
@@ -25,14 +39,13 @@ class PI0FASTConfig(PreTrainedConfig):
     )
 
     # Shorter state and action vectors will be padded
-    max_state_dim: int = 32  # 32
-    max_action_dim: int = 32  # 32
+    max_state_dim: int = 32
+    max_action_dim: int = 32
 
     # Image preprocessing
-    resize_imgs_with_padding: tuple[int, int] = (224, 224)
-    interpolate_like_pi: bool = False
+    resize_imgs_with_padding: tuple[int, int] = (512, 512)
 
-    # Add empty images. Used by pi0_aloha_sim which adds the empty
+    # Add empty images. Used by smolvla_aloha_sim which adds the empty
     # left and right wrist cameras in addition to the top camera.
     empty_cameras: int = 0
 
@@ -47,41 +60,46 @@ class PI0FASTConfig(PreTrainedConfig):
     # Tokenizer
     tokenizer_max_length: int = 48
 
-    # Projector
-    proj_width: int = 1024
-
     # Decoding
-    max_decoding_steps: int = 256
-    fast_skip_tokens: int = 128  # Skip last 128 tokens in PaliGemma vocab since they are special tokens
-    max_input_seq_len: int = 256  # 512
+    num_steps: int = 10
 
-    # Utils
+    # Attention utils
     use_cache: bool = True
 
-    # Frozen parameters
+    # Finetuning settings
     freeze_vision_encoder: bool = True
-    freeze_lm_head: bool = True
+    train_expert_only: bool = True
+    train_state_proj: bool = True
 
     # Training presets
     optimizer_lr: float = 1e-4
     optimizer_betas: tuple[float, float] = (0.9, 0.95)
     optimizer_eps: float = 1e-8
-    optimizer_weight_decay: float = 1e-5
+    optimizer_weight_decay: float = 1e-10
+    optimizer_grad_clip_norm: float = 10
 
     scheduler_warmup_steps: int = 1_000
     scheduler_decay_steps: int = 30_000
     scheduler_decay_lr: float = 2.5e-6
 
-    checkpoint_path: str = None
+    vlm_model_name: str = "HuggingFaceTB/SmolVLM2-500M-Video-Instruct"  # Select the VLM backbone.
+    load_vlm_weights: bool = False  # Set to True in case of training the expert from scratch. True when init from pretrained SmolVLA weights
 
-    padding_side: str = "right"
+    add_image_special_tokens: bool = False  # Whether to use special image tokens around image features.
 
-    precision: str = "bfloat16"
-    grad_clip_norm: float = 1
+    attention_mode: str = "cross_attn"
 
-    # Allows padding/truncation of generated action tokens during detokenization to ensure decoding.
-    # In the original version, tensors of 0s were generated if shapes didn't match for stable decoding.
-    relaxed_action_decoding: bool = True
+    prefix_length: int = -1
+
+    pad_language_to: str = "longest"  # "max_length"
+
+    num_expert_layers: int = -1  # Less or equal to 0 is the default where the action expert has the same number of layers of VLM. Otherwise the expert have less layers.
+    num_vlm_layers: int = 16  # Number of layers used in the VLM (first num_vlm_layers layers)
+    self_attn_every_n_layers: int = 2  # Interleave SA layers each self_attn_every_n_layers
+    expert_width_multiplier: float = 0.75  # The action expert hidden size (wrt to the VLM)
+
+    min_period: float = 4e-3  # sensitivity range for the timestep used in sine-cosine positional encoding
+    max_period: float = 4.0
 
     def __post_init__(self):
         super().__post_init__()
@@ -92,9 +110,9 @@ class PI0FASTConfig(PreTrainedConfig):
                 f"The chunk size is the upper bound for the number of action steps per model invocation. Got "
                 f"{self.n_action_steps} for `n_action_steps` and {self.chunk_size} for `chunk_size`."
             )
-        if self.n_obs_steps != 1:
-            raise ValueError(
-                f"Multiple observation steps not handled yet. Got `nobs_steps={self.n_obs_steps}`"
+        if self.use_delta_joint_actions_aloha:
+            raise NotImplementedError(
+                "`use_delta_joint_actions_aloha` is used by smolvla for aloha real models. It is not ported yet in LeRobot."
             )
 
     def validate_features(self) -> None:
@@ -112,7 +130,7 @@ class PI0FASTConfig(PreTrainedConfig):
             betas=self.optimizer_betas,
             eps=self.optimizer_eps,
             weight_decay=self.optimizer_weight_decay,
-            grad_clip_norm=self.grad_clip_norm,
+            grad_clip_norm=self.optimizer_grad_clip_norm,
         )
 
     def get_scheduler_preset(self):
@@ -124,8 +142,8 @@ class PI0FASTConfig(PreTrainedConfig):
         )
 
     @property
-    def observation_delta_indices(self) -> None:
-        return None
+    def observation_delta_indices(self) -> list:
+        return [0]
 
     @property
     def action_delta_indices(self) -> list:
