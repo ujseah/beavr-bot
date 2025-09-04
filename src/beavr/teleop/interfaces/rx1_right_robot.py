@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
+import logging
 import time
-import zmq
+
 import numpy as np
-from beavr.teleop.utils.network import EnhancedZMQKeypointSubscriber as ZMQKeypointSubscriber, EnhancedZMQKeypointPublisher as ZMQKeypointPublisher
+import zmq
 from scipy.spatial.transform import Rotation as R
 
-import logging
+from beavr.teleop.utils.network import EnhancedZMQKeypointPublisher as ZMQKeypointPublisher
+from beavr.teleop.utils.network import EnhancedZMQKeypointSubscriber as ZMQKeypointSubscriber
 
 logger = logging.getLogger(__name__)
 

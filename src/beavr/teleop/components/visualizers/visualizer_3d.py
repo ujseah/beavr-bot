@@ -1,8 +1,10 @@
 import numpy as np
-from .plotters.plotter_3d import *
+
 from beavr.components import Component
 from beavr.constants import OCULUS_NUM_KEYPOINTS
 from beavr.utils.network import ZMQKeypointSubscriber
+
+from .plotters.plotter_3d import *
 
 
 class Hand3DVisualizer(Component):

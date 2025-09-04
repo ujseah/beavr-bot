@@ -1,6 +1,8 @@
-import numpy as np
-from beavr.teleop.configs.constants import robots
 import logging
+
+import numpy as np
+
+from beavr.teleop.configs.constants import robots
 from beavr.teleop.utils.network import ZMQKeypointSubscriber
 
 logger = logging.getLogger(__name__)

@@ -1,11 +1,11 @@
-import cv2 
+import cv2
+import matplotlib
+import matplotlib.pyplot as plt
 import numpy as np
 
-import matplotlib 
-import matplotlib.pyplot as plt 
-
-from .plotter import Plotter 
 from beavr.teleop.constants import XELA_PLOT_SAVE_PATH
+
+from .plotter import Plotter
 
 
 class XelaPlotter(Plotter):
@@ -163,11 +163,7 @@ class XelaCurvedPlotter(Plotter):
         for j in range(20, 240, 40): # y axis
             # x axis is somewhat hard coded
             for i in range(20, 240, 40):
-                if j == 20 and (i == 100 or i == 140): # Only the middle two will be added
-                    tactile_coordinates.append([i,j])
-                elif (j > 20 and j < 100) and (i > 20 and i < 220):
-                    tactile_coordinates.append([i,j])
-                elif j >= 100: 
+                if j == 20 and (i == 100 or i == 140) or (j > 20 and j < 100) and (i > 20 and i < 220) or j >= 100: # Only the middle two will be added
                     tactile_coordinates.append([i,j])
         
         # Plot the circles 

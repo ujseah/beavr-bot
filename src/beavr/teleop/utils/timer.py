@@ -1,10 +1,11 @@
-import cv2
-import time
-import zmq
-import pickle
-import numpy as np
 import base64
 import logging
+import pickle
+import time
+
+import cv2
+import numpy as np
+import zmq
 
 logger = logging.getLogger(__name__)
 

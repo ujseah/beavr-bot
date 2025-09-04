@@ -1,17 +1,20 @@
+import logging
+import threading
+import time
+from queue import Queue
+
 import numpy as np
 from dynamixel_sdk import (
+    COMM_SUCCESS,
+    DXL_HIBYTE,
+    DXL_HIWORD,
+    DXL_LOBYTE,
+    DXL_LOWORD,
+    GroupBulkRead,
+    GroupBulkWrite,
+    PacketHandler,
     PortHandler,
-    PacketHandler, 
-    GroupBulkWrite, 
-    GroupBulkRead, 
-    COMM_SUCCESS, 
-    DXL_LOBYTE, 
-    DXL_LOWORD, 
-    DXL_HIBYTE, DXL_HIWORD)
-import time
-import threading
-from queue import Queue
-import logging
+)
 
 from beavr.teleop.configs.constants import network
 

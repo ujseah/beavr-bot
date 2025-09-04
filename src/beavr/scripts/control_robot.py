@@ -128,8 +128,8 @@ python beavr/scripts/control_robot.py \
 """
 
 import logging
-import time
 import multiprocessing  # Needed for process types
+import time
 from dataclasses import asdict
 from pprint import pformat
 
@@ -156,7 +156,6 @@ from beavr.lerobot.common.robot_devices.robots.utils import Robot, make_robot_fr
 from beavr.lerobot.common.robot_devices.utils import busy_wait, safe_disconnect
 from beavr.lerobot.common.utils.utils import init_logging, log_say
 from beavr.lerobot.configs import parser
-
 
 ########################################################################################
 # Control modes
@@ -197,8 +196,8 @@ def start_teleop_process(
         return
 
     # Lazy imports to avoid the heavy dependency cost when teleop is not needed.
-    from beavr.teleop.main import MainConfig  # pylint: disable=import-error
     from beavr.teleop.components import TeleOperator
+    from beavr.teleop.main import MainConfig  # pylint: disable=import-error
 
     # ------------------------------------------------------------------
     # Resolve *robot_name*

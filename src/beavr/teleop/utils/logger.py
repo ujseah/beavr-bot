@@ -1,12 +1,13 @@
-import json
-import csv
-from datetime import datetime
-import os
-import numpy as np
 import atexit
+import csv
 import glob
-import time
+import json
 import logging
+import os
+import time
+from datetime import datetime
+
+import numpy as np
 
 logger = logging.getLogger(__name__)
 

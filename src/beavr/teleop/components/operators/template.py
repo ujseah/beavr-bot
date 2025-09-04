@@ -1,19 +1,26 @@
+import logging
+from copy import deepcopy as copy
+
 import numpy as np
 import zmq
-
-
-from copy import deepcopy as copy
-from beavr.teleop.constants import XARM_SCALE_FACTOR as SCALE_FACTOR, ARM_TELEOP_STOP, ARM_TELEOP_CONT, ARM_HIGH_RESOLUTION, ARM_LOW_RESOLUTION, OCULUS_JOINTS, VR_FREQ
-from beavr.teleop.utils.timer import FrequencyTimer
-from beavr.teleop.utils.network import ZMQKeypointSubscriber, ZMQKeypointPublisher
-
-from beavr.teleop.interfaces.robot import RobotWrapper
-from scipy.spatial.transform import Rotation, Slerp
-from .operator import Operator
-from scipy.spatial.transform import Rotation as R
 from numpy.linalg import pinv
+from scipy.spatial.transform import Rotation, Slerp
+from scipy.spatial.transform import Rotation as R
 
-import logging
+from beavr.teleop.constants import (
+    ARM_HIGH_RESOLUTION,
+    ARM_LOW_RESOLUTION,
+    ARM_TELEOP_CONT,
+    ARM_TELEOP_STOP,
+    OCULUS_JOINTS,
+    VR_FREQ,
+)
+from beavr.teleop.constants import XARM_SCALE_FACTOR as SCALE_FACTOR
+from beavr.teleop.interfaces.robot import RobotWrapper
+from beavr.teleop.utils.network import ZMQKeypointPublisher, ZMQKeypointSubscriber
+from beavr.teleop.utils.timer import FrequencyTimer
+
+from .operator import Operator
 
 logger = logging.getLogger(__name__)
 

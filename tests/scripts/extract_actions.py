@@ -7,12 +7,12 @@ automatically paging in chunks of 100 to respect the API limit,
 extracts the “action” vectors, and writes them to actions.json.
 """
 
-import requests
+import argparse
 import json
 import sys
 import time
-import argparse
 
+import requests
 
 BASE_URL = (
     "https://datasets-server.huggingface.co/rows"

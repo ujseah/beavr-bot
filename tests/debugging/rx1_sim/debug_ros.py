@@ -1,7 +1,7 @@
-import roslibpy
 import time
-
 import traceback
+
+import roslibpy
 
 
 def debug_ros_connections():

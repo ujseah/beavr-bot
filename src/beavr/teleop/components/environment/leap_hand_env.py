@@ -1,11 +1,12 @@
-from beavr.teleop.components.environment.pybullet_base_env_hand import PyBulletBaseEnvHand
-import pybullet as p
-import pybullet_data
-import numpy as np
+import logging
 import os
 import time
 
-import logging
+import numpy as np
+import pybullet as p
+import pybullet_data
+
+from beavr.teleop.components.environment.pybullet_base_env_hand import PyBulletBaseEnvHand
 
 logger = logging.getLogger(__name__)
 

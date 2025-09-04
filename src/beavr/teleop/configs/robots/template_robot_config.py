@@ -1,12 +1,14 @@
 """Auto-generated strongly-typed config for robot `template_robot`."""
 from __future__ import annotations
+
 from dataclasses import dataclass, field
+
 from beavr.teleop.components.detector.keypoint_transform import TransformHandPositionCoords
 from beavr.teleop.components.detector.oculus import OculusVRHandDetector
 from beavr.teleop.components.operators.template import TemplateArmOperator
 from beavr.teleop.components.visualizers.visualizer_2d import Hand2DVisualizer
-from beavr.teleop.interfaces.robot import RobotWrapper
 from beavr.teleop.configs_teleop import TeleopRobotConfig
+from beavr.teleop.interfaces.robot import RobotWrapper
 
 
 @dataclass

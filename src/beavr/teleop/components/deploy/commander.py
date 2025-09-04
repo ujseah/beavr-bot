@@ -1,6 +1,8 @@
 import pickle
+
 from beavr.teleop.configs.constants import ports
 from beavr.teleop.utils.network import ZMQCameraSubscriber, create_request_socket
+
 
 class DeployAPI(object):
     def __init__(self, configs, required_data):

@@ -1,11 +1,12 @@
+import logging
+
 import cv2
+
 from beavr.teleop.components import Component
 from beavr.teleop.constants import CAM_FPS, VISUAL_RESCALE_FACTOR
 from beavr.teleop.utils.images import rescale_image
 from beavr.teleop.utils.network import ZMQCameraSubscriber
 from beavr.teleop.utils.timer import FrequencyTimer
-
-import logging
 
 logger = logging.getLogger(__name__)
 

@@ -1,17 +1,19 @@
+import logging
 from copy import deepcopy as copy
-#Holo-bot Components
-from beavr.teleop.utils.network import ZMQKeypointSubscriber, ZMQKeypointPublisher
-from .operator import Operator
-from shapely.geometry import Point, Polygon 
-from shapely.ops import nearest_points
-
-from beavr.teleop.utils.files import get_path_in_package, get_yaml_data
-from beavr.teleop.utils.vectorops import coord_in_bound
-from beavr.teleop.utils.timer import FrequencyTimer
-from beavr.teleop.constants import VR_FREQ, OCULUS_JOINTS, ALLEGRO_JOINTS_PER_FINGER, ALLEGRO_JOINT_OFFSETS
 
 import numpy as np
-import logging
+from shapely.geometry import Point, Polygon
+from shapely.ops import nearest_points
+
+from beavr.teleop.constants import ALLEGRO_JOINT_OFFSETS, ALLEGRO_JOINTS_PER_FINGER, OCULUS_JOINTS, VR_FREQ
+from beavr.teleop.utils.files import get_path_in_package, get_yaml_data
+
+#Holo-bot Components
+from beavr.teleop.utils.network import ZMQKeypointPublisher, ZMQKeypointSubscriber
+from beavr.teleop.utils.timer import FrequencyTimer
+from beavr.teleop.utils.vectorops import coord_in_bound
+
+from .operator import Operator
 
 logger = logging.getLogger(__name__)
 

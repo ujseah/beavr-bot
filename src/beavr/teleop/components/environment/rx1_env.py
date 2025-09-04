@@ -1,12 +1,13 @@
-from beavr.teleop.utils.network import ZMQCompressedImageTransmitter
-from beavr.teleop.utils.images import rescale_image
-from beavr.teleop.constants import VIZ_PORT_OFFSET
-from beavr.teleop.utils.logger import RobotLogger
+import logging
+import time
 
 import numpy as np
-import time
 import roslibpy
-import logging
+
+from beavr.teleop.constants import VIZ_PORT_OFFSET
+from beavr.teleop.utils.images import rescale_image
+from beavr.teleop.utils.logger import RobotLogger
+from beavr.teleop.utils.network import ZMQCompressedImageTransmitter
 
 logger = logging.getLogger(__name__)
 

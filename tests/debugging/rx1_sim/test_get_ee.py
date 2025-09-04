@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 
-import zmq
 import time
+
+import zmq
 
 
 class EndEffectorMonitor:

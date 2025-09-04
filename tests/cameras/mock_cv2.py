@@ -16,7 +16,6 @@ from functools import cache
 
 import numpy as np
 
-
 CAP_V4L2 = 200
 CAP_DSHOW = 700
 CAP_AVFOUNDATION = 1200

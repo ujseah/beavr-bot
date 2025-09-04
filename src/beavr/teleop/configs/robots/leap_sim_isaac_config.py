@@ -1,7 +1,9 @@
 """Auto-generated strongly-typed config for robot `leap_sim_isaac`."""
 from __future__ import annotations
+
 from dataclasses import dataclass, field
 from typing import Any
+
 from beavr.teleop.components.detector.keypoint_transform import TransformHandPositionCoords
 from beavr.teleop.components.detector.oculus import OculusVRHandDetector
 from beavr.teleop.components.environment.leap_hand_isaac import LeapHandEnv

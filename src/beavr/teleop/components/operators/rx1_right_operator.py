@@ -1,16 +1,23 @@
+import logging
+import time
+from copy import deepcopy as copy
+
 import numpy as np
 import zmq
-from copy import deepcopy as copy
 from scipy.spatial.transform import Rotation, Slerp
-import time
 
-from beavr.teleop.constants import VR_FREQ, ARM_TELEOP_STOP, ARM_TELEOP_CONT, ARM_HIGH_RESOLUTION, ARM_LOW_RESOLUTION
-from beavr.teleop.utils.timer import FrequencyTimer
+from beavr.teleop.constants import (
+    ARM_HIGH_RESOLUTION,
+    ARM_LOW_RESOLUTION,
+    ARM_TELEOP_CONT,
+    ARM_TELEOP_STOP,
+    VR_FREQ,
+)
 from beavr.teleop.utils.logger import PoseLogger
-from beavr.teleop.utils.network import ZMQKeypointSubscriber, ZMQKeypointPublisher
-from .operator import Operator
+from beavr.teleop.utils.network import ZMQKeypointPublisher, ZMQKeypointSubscriber
+from beavr.teleop.utils.timer import FrequencyTimer
 
-import logging
+from .operator import Operator
 
 logger = logging.getLogger(__name__)
 

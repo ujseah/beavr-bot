@@ -1,11 +1,11 @@
 from dataclasses import dataclass, field
 
-from beavr.lerobot.configs.policies import PreTrainedConfig
-from beavr.lerobot.configs.types import FeatureType, NormalizationMode, PolicyFeature
 from beavr.lerobot.common.optim.optimizers import AdamWConfig
 from beavr.lerobot.common.optim.schedulers import (
     CosineDecayWithWarmupSchedulerConfig,
 )
+from beavr.lerobot.configs.policies import PreTrainedConfig
+from beavr.lerobot.configs.types import FeatureType, NormalizationMode, PolicyFeature
 
 
 @PreTrainedConfig.register_subclass("pi0fast")

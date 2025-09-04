@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 
-import zmq
-import time
 import pickle
+import time
+
+import zmq
 
 
 def test_cartesian_control():

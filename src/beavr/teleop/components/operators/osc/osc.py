@@ -1,11 +1,9 @@
-from isaacgym import gymapi
 import numpy as np
-from isaacgym.torch_utils import *
-
-
-
 import torch
-from oscar.utils.torch_utils import quat_mul, quat2mat, orientation_error, axisangle2quat
+from isaacgym import gymapi
+from isaacgym.torch_utils import *
+from oscar.utils.torch_utils import axisangle2quat, orientation_error, quat2mat, quat_mul
+
 from .base_controller import Controller
 
 
@@ -109,7 +107,7 @@ class OSCController(Controller):
         for variable_gain, gain_limits, dim in zip(
             (self.variable_kp, self.variable_damping_ratio, self.variable_kp_null),
             (self.kp_limits, self.damping_ratio_limits, self.kp_null_limits),
-            (6, 6, self.control_dim),
+            (6, 6, self.control_dim), strict=False,
         ):
             if variable_gain:
                 # Add this to input / output limits

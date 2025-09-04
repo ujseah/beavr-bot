@@ -1,9 +1,11 @@
+from typing import Any, Dict, Optional
+
 import numpy as np
-from typing import Dict, Any, Optional
+
+from beavr.teleop.configs.constants import robots
 
 # Import the base class
 from .xarm_base import XArmOperator
-from beavr.teleop.configs.constants import robots
 
 # Define the transformation matrices specific to the RIGHT arm
 # These map points/vectors from the source frame (Robot base R, Hand Tracking T)

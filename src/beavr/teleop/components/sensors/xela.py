@@ -1,12 +1,11 @@
-import numpy as np 
-
-
-from get_xela_values import XelaSensorControl , XelaCurvedSensorControl 
-from beavr.teleop.components import Component 
-from beavr.teleop.utils.timer import FrequencyTimer
-from beavr.teleop.configs.constants import robots
-
 import logging
+
+import numpy as np
+from get_xela_values import XelaCurvedSensorControl, XelaSensorControl
+
+from beavr.teleop.components import Component
+from beavr.teleop.configs.constants import robots
+from beavr.teleop.utils.timer import FrequencyTimer
 
 logger = logging.getLogger(__name__)
 

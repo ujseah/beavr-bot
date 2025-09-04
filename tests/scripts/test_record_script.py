@@ -1,17 +1,17 @@
-import numpy as np
-import time
+import logging
 import pickle
 import threading
-import zmq
-from unittest.mock import patch, MagicMock
+import time
+from unittest.mock import MagicMock, patch
 
-from beavr.scripts.control_robot import record
-from beavr.common.robot_devices.robots.configs import BeavrRobotAdapterConfig
+import numpy as np
+import zmq
+
 from beavr.common.robot_devices.cameras.configs import OpenCVCameraConfig
 from beavr.common.robot_devices.control_configs import RecordControlConfig
+from beavr.common.robot_devices.robots.configs import BeavrRobotAdapterConfig
 from beavr.common.robot_devices.robots.utils import make_robot_from_config
-import logging
-
+from beavr.scripts.control_robot import record
 
 # Setup logging for tests
 logger = logging.getLogger(__name__)

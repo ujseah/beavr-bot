@@ -1,15 +1,17 @@
+import logging
 import os
-import cv2
 import time
+
+import cv2
 import h5py
 import numpy as np
-from .recorder import Recorder
+
 from beavr.teleop.configs.constants import cameras
 from beavr.teleop.utils.files import store_pickle_data
 from beavr.teleop.utils.network import ZMQCameraSubscriber
 from beavr.teleop.utils.timer import FrequencyTimer
 
-import logging
+from .recorder import Recorder
 
 logger = logging.getLogger(__name__)
 

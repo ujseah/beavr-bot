@@ -279,6 +279,7 @@ def hf_transform_to_torch(items_dict: dict[torch.Tensor | None]):
     with channel first (c h w) of float32 type in range [0,1].
     """
     import io
+
     from PIL import Image as PILImage
 
     for key in items_dict:

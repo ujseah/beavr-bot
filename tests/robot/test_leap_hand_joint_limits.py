@@ -1,13 +1,13 @@
+import argparse
+import os
+import re
+import time
+import tkinter as tk
+import traceback
+from tkinter import simpledialog
+
 import pybullet as p
 import pybullet_data
-import time
-import os
-import argparse
-import re
-
-import tkinter as tk
-from tkinter import simpledialog
-import traceback
 
 
 def test_leap_hand_joint_limits():

@@ -1,13 +1,15 @@
 #import rospy
-import numpy as np
-import time
-from xarm import XArmAPI
-from enum import Enum
 import math
+import time
+from enum import Enum
+
+import numpy as np
+from scipy.spatial.transform import Rotation as R
+from xarm import XArmAPI
 
 from beavr.teleop.configs.constants import robots
-from scipy.spatial.transform import Rotation as R
 from beavr.teleop.utils.orientation import quat_positive, quat_to_axis_angle
+
 
 class RobotControlMode(Enum):
     CARTESIAN_CONTROL = 0

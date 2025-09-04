@@ -1,12 +1,14 @@
+import logging
 import os
+from abc import ABC, abstractmethod
+
 import cv2
 import h5py
 import numpy as np
-from abc import ABC, abstractmethod
-from beavr.teleop.utils.files import get_pickle_data
-from beavr.teleop.constants import SAMPLE_WRITER_FPS, IMAGE_RECORD_RESOLUTION
 
-import logging
+from beavr.teleop.constants import IMAGE_RECORD_RESOLUTION, SAMPLE_WRITER_FPS
+from beavr.teleop.utils.files import get_pickle_data
+
 logger = logging.getLogger(__name__)
 
 

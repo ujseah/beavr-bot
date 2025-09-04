@@ -1,13 +1,14 @@
+import logging
+import time
+
 import numpy as np
 import pyrealsense2 as rs
-from beavr.teleop.components import Component
-from beavr.teleop.utils.images import rotate_image, rescale_image
-from beavr.teleop.utils.timer import FrequencyTimer
-from beavr.teleop.utils.network import ZMQCameraPublisher, ZMQCompressedImageTransmitter
-from beavr.teleop.configs.constants import cameras
 
-import time
-import logging
+from beavr.teleop.components import Component
+from beavr.teleop.configs.constants import cameras
+from beavr.teleop.utils.images import rescale_image, rotate_image
+from beavr.teleop.utils.network import ZMQCameraPublisher, ZMQCompressedImageTransmitter
+from beavr.teleop.utils.timer import FrequencyTimer
 
 logger = logging.getLogger(__name__)
 

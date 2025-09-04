@@ -1,15 +1,14 @@
-import numpy as np
+import logging
 from copy import deepcopy as copy
+from enum import IntEnum
+
+import numpy as np
+
 from beavr.teleop.components import Component
-
 from beavr.teleop.configs.constants import robots
-
-from beavr.teleop.utils.vectorops import normalize_vector, moving_average
 from beavr.teleop.utils.network import ZMQKeypointSubscriber, ZMQPublisherManager, cleanup_zmq_resources
 from beavr.teleop.utils.timer import FrequencyTimer
-from enum import IntEnum
-import logging
-import time
+from beavr.teleop.utils.vectorops import moving_average, normalize_vector
 
 logger = logging.getLogger(__name__)
 

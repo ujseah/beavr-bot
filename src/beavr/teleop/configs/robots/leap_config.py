@@ -1,22 +1,19 @@
 """Auto-generated strongly-typed config for robot `leap_pybullet`."""
 from __future__ import annotations
+
+import logging
 from dataclasses import dataclass, field
 from typing import Any
 
-# Shared component configs driven by `configs.constants`
-from beavr.teleop.configs.robots.shared_components import SharedComponentRegistry
-
 # Constants (host address, port numbers, …)
 from beavr.teleop.components.operators.leap_pybullet import LeapHandOperator
-from beavr.teleop.interfaces.leap_robot import LeapHandRobot
+from beavr.teleop.configs.constants import network, ports, robots
 from beavr.teleop.configs.robots import TeleopRobotConfig
-from beavr.teleop.configs.constants import ports, network, robots
-from beavr.teleop.utils.configs import (
-    Laterality,
-    log_laterality_configuration
-)
 
-import logging
+# Shared component configs driven by `configs.constants`
+from beavr.teleop.configs.robots.shared_components import SharedComponentRegistry
+from beavr.teleop.interfaces.leap_robot import LeapHandRobot
+from beavr.teleop.utils.configs import Laterality, log_laterality_configuration
 
 logger = logging.getLogger(__name__)
 

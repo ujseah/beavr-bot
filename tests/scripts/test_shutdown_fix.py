@@ -4,11 +4,12 @@ Test script to verify the shutdown fixes work correctly.
 This script simulates the main control_robot.py structure with proper cleanup.
 """
 
-import time
 import signal
 import sys
 import threading
-from beavr.utils.network import cleanup_zmq_resources, request_shutdown, is_shutdown_requested
+import time
+
+from beavr.utils.network import cleanup_zmq_resources, is_shutdown_requested, request_shutdown
 from beavr.utils.timer import FrequencyTimer
 
 

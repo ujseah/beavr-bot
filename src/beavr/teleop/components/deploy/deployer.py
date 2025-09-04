@@ -1,11 +1,11 @@
+import logging
 import pickle
 
 from beavr.teleop.components import Component
-from beavr.teleop.utils.network import create_response_socket
-from beavr.teleop.utils.timer import FrequencyTimer
 from beavr.teleop.configs.constants import network
 from beavr.teleop.utils.instantiator import instantiate_from_target
-import logging
+from beavr.teleop.utils.network import create_response_socket
+from beavr.teleop.utils.timer import FrequencyTimer
 
 logger = logging.getLogger(__name__)
 

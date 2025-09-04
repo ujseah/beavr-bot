@@ -19,7 +19,6 @@
 
 import logging
 import queue
-import numpy as np
 
 # ---- Asynchronous inference support ----
 import threading
@@ -29,6 +28,7 @@ from contextlib import nullcontext, suppress
 from copy import copy
 from functools import cache
 
+import numpy as np
 import rerun as rr
 import torch
 from deepdiff import DeepDiff

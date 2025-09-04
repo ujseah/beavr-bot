@@ -1,6 +1,8 @@
-from beavr.teleop.constants import OCULUS_JOINTS, OCULUS_VIEW_LIMITS
-from .plotter import Plotter
 import matplotlib.pyplot as plt
+
+from beavr.teleop.constants import OCULUS_JOINTS, OCULUS_VIEW_LIMITS
+
+from .plotter import Plotter
 
 
 class PlotHand3D(Plotter):

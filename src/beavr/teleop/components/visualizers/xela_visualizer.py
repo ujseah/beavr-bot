@@ -1,5 +1,6 @@
-from .plotters.xela_plotter import *
 from beavr.components import Component
+
+from .plotters.xela_plotter import *
 
 
 class XelaVisualizer(Component):

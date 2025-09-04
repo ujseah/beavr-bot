@@ -1,14 +1,15 @@
 #!/usr/bin/env python
 
-import rospy
-from trajectory_msgs.msg import JointTrajectoryPoint
-from sensor_msgs.msg import JointState
-from geometry_msgs.msg import Pose
-from .dex_arm_control import DexArmControl
-import actionlib
-from control_msgs.msg import FollowJointTrajectoryAction, FollowJointTrajectoryGoal
-
 import logging
+
+import actionlib
+import rospy
+from control_msgs.msg import FollowJointTrajectoryAction, FollowJointTrajectoryGoal
+from geometry_msgs.msg import Pose
+from sensor_msgs.msg import JointState
+from trajectory_msgs.msg import JointTrajectoryPoint
+
+from .dex_arm_control import DexArmControl
 
 logger = logging.getLogger(__name__)
 
@@ -162,7 +163,7 @@ class RX1RosLink(DexArmControl):
         current_pos = self.get_robot_position()
         if current_pos:
             rospy.loginfo("Current Robot Joint States:")
-            for joint, pos in zip(self.right_arm_joints, current_pos):
+            for joint, pos in zip(self.right_arm_joints, current_pos, strict=False):
                 rospy.loginfo(f"  {joint}: {pos:.6f} rad")
         
         rospy.loginfo("="*50)

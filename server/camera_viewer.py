@@ -1,17 +1,16 @@
 # simple_viewer.py
 
-from flask import Flask, Response, render_template_string
-import zmq
 import base64
 import pickle
-import numpy as np
-import time
-import threading
 import queue
-import cv2  # Add for debugging
-
+import threading
+import time
 import traceback
 
+import cv2  # Add for debugging
+import numpy as np
+import zmq
+from flask import Flask, Response, render_template_string
 
 app = Flask(__name__)
 

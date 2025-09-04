@@ -1,12 +1,14 @@
-import numpy as np
-from beavr.teleop.components import Component
-from beavr.teleop.utils.images import rescale_image
-from beavr.teleop.utils.timer import FrequencyTimer
-from beavr.teleop.utils.network import ZMQCameraPublisher, ZMQCompressedImageTransmitter
-from beavr.teleop.configs.constants import cameras
-import cv2
-import time
 import logging
+import time
+
+import cv2
+import numpy as np
+
+from beavr.teleop.components import Component
+from beavr.teleop.configs.constants import cameras
+from beavr.teleop.utils.images import rescale_image
+from beavr.teleop.utils.network import ZMQCameraPublisher, ZMQCompressedImageTransmitter
+from beavr.teleop.utils.timer import FrequencyTimer
 
 logger = logging.getLogger(__name__)
 

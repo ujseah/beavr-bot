@@ -1,12 +1,15 @@
+import logging
 import os
 import time
+
 import h5py
-from beavr.teleop.utils.instantiator import instantiate_from_target
 import numpy as np
-from .recorder import Recorder
-from beavr.teleop.utils.timer import FrequencyTimer
+
 from beavr.teleop.configs.constants import robots
-import logging
+from beavr.teleop.utils.instantiator import instantiate_from_target
+from beavr.teleop.utils.timer import FrequencyTimer
+
+from .recorder import Recorder
 
 logger = logging.getLogger(__name__)
 

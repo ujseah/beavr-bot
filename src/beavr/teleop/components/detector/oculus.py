@@ -1,11 +1,12 @@
-from beavr.teleop.configs.constants import robots, network, ports
-from beavr.teleop.components import Component
-from beavr.teleop.utils.timer import FrequencyTimer
-from beavr.teleop.utils.network import create_pull_socket, ZMQPublisherManager
-import zmq
-import time
 import logging
+import time
 
+import zmq
+
+from beavr.teleop.components import Component
+from beavr.teleop.configs.constants import network, ports, robots
+from beavr.teleop.utils.network import ZMQPublisherManager, create_pull_socket
+from beavr.teleop.utils.timer import FrequencyTimer
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +46,7 @@ class OculusVRHandDetector(Component):
         
         # Initialize timing
         self.timer = FrequencyTimer(robots.VR_FREQ)
-        self.last_received = {name: 0 for name in self.sockets}
+        self.last_received = dict.fromkeys(self.sockets, 0)
         
         # Determine hand side based on port
         if self.oculus_hand_port == network.LEFT_HAND_PORT:

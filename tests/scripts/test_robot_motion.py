@@ -20,13 +20,12 @@ Notes:
 """
 
 import argparse
+import json
 import time
+
 import numpy as np
 
 from beavr.controllers.xarm7_control import DexArmControl
-
-
-import json
 
 
 def parse_args() -> argparse.Namespace:

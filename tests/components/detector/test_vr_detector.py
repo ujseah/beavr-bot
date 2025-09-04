@@ -1,5 +1,6 @@
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
 from beavr.components.detector.oculus import OculusVRHandDetector
 from beavr.constants import ARM_LOW_RESOLUTION, ARM_TELEOP_CONT
 

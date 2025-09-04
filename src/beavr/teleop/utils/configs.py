@@ -9,13 +9,14 @@ This module provides comprehensive configuration management including:
 The utilities support both single robot configurations and comma-separated
 multi-robot setups via CLI, enabling flexible system composition.
 """
-from enum import Enum
-import logging
 import importlib
+import logging
 import os
-import yaml
-from typing import Any, List
 from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any, List
+
+import yaml
 
 from beavr.teleop.configs.constants.models import TeleopConfig
 from beavr.teleop.configs.robots import TeleopRobotConfig

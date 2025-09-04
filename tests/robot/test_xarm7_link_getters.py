@@ -1,8 +1,10 @@
-import numpy as np
-from beavr.interfaces.xarm7_robot import XArm7Robot
-import zmq
 import time
 from threading import Thread
+
+import numpy as np
+import zmq
+
+from beavr.interfaces.xarm7_robot import XArm7Robot
 
 
 def setup_dummy_publisher(port):

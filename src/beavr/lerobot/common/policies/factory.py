@@ -27,9 +27,9 @@ from beavr.lerobot.common.policies.diffusion.configuration_diffusion import Diff
 from beavr.lerobot.common.policies.pi0.configuration_pi0 import PI0Config
 from beavr.lerobot.common.policies.pi0fast.configuration_pi0fast import PI0FASTConfig
 from beavr.lerobot.common.policies.pretrained import PreTrainedPolicy
+from beavr.lerobot.common.policies.smolvla.configuration_smolvla import SmolVLAConfig
 from beavr.lerobot.common.policies.tdmpc.configuration_tdmpc import TDMPCConfig
 from beavr.lerobot.common.policies.vqbet.configuration_vqbet import VQBeTConfig
-from beavr.lerobot.common.policies.smolvla.configuration_smolvla import SmolVLAConfig
 from beavr.lerobot.configs.policies import PreTrainedConfig
 from beavr.lerobot.configs.types import FeatureType
 

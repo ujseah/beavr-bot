@@ -54,7 +54,7 @@ def instantiate_from_target(cfg: Any):
     - Dataclass/objects providing a ``build`` method (called eagerly)
     """
     # If the object already knows how to build itself, do it immediately.
-    if hasattr(cfg, "build") and callable(getattr(cfg, "build")):
+    if hasattr(cfg, "build") and callable(cfg.build):
         return cfg.build()
 
     # Lists/tuples → recurse

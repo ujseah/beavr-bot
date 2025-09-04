@@ -1,3 +1,4 @@
+import logging
 import time
 from copy import copy
 from warnings import warn as Warnings
@@ -7,8 +8,6 @@ import rospy
 from cv_bridge import CvBridge, CvBridgeError
 from sensor_msgs.msg import Image as Image_msg
 from std_msgs.msg import Float32MultiArray, Int64
-
-import logging
 
 logger = logging.getLogger(__name__)
 

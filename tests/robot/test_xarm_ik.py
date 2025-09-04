@@ -1,8 +1,9 @@
+import os
+import time
+
+import numpy as np
 import pybullet as p
 import pybullet_data
-import time
-import numpy as np
-import os
 
 
 def test_xarm_ik():

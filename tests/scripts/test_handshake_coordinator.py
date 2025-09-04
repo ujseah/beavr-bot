@@ -13,12 +13,12 @@ Usage:
     python test_handshake_coordinator.py publisher
 """
 
+import logging
 import sys
 import time
-import logging
-from beavr.utils.network import HandshakeCoordinator, publish_with_guaranteed_delivery
-from beavr.constants import ARM_TELEOP_STOP, ARM_TELEOP_CONT
 
+from beavr.constants import ARM_TELEOP_CONT, ARM_TELEOP_STOP
+from beavr.utils.network import HandshakeCoordinator, publish_with_guaranteed_delivery
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

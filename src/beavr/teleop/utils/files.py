@@ -1,8 +1,11 @@
 import os
-import pickle 
-import yaml
+import pickle
+
 import numpy as np
+import yaml
+
 import beavr
+
 
 def make_dir(folder):
     if not os.path.exists(folder):

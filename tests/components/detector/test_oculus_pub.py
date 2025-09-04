@@ -1,5 +1,6 @@
-import time
 import argparse
+import time
+
 from beavr.utils.network import ZMQKeypointSubscriber
 
 
@@ -27,7 +28,7 @@ def monitor_oculus_data(host='localhost', port=5556, timeout=None):
     print("Press Ctrl+C to stop...\n")
     
     start_time = time.time()
-    data_received = {topic: False for topic in subscribers.keys()}
+    data_received = dict.fromkeys(subscribers.keys(), False)
     
     try:
         while True:

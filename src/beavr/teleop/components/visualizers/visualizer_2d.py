@@ -1,10 +1,12 @@
+import logging
+
 import numpy as np
-from .plotters.plotter_2d import PlotHand2D
+
 from beavr.teleop.components import Component
 from beavr.teleop.configs.constants import robots
 from beavr.teleop.utils.network import ZMQKeypointSubscriber
 
-import logging
+from .plotters.plotter_2d import PlotHand2D
 
 logger = logging.getLogger(__name__)
 

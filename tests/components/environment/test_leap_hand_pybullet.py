@@ -1,8 +1,8 @@
-import pybullet as p
-import pybullet_data
-import numpy as np
 import os
 
+import numpy as np
+import pybullet as p
+import pybullet_data
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 

@@ -5,13 +5,13 @@ This class provides inverse kinematics solutions for the LEAP hand
 without any simulation overhead.
 """
 
-import pybullet as p
-import numpy as np
+import logging
 import os
 
-from beavr.teleop.configs.constants import robots
+import numpy as np
+import pybullet as p
 
-import logging
+from beavr.teleop.configs.constants import robots
 
 logger = logging.getLogger(__name__)
 
