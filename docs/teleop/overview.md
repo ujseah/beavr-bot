@@ -139,47 +139,6 @@ Message format:
 
 ---
 
-## 4) Components and data flow
-
-This section follows the path from the VR detector to the controller using your example run (`xarm7,leap` on the right side).
-
-```mermaid
-flowchart LR
-  subgraph VR[VR/Operator Inputs]
-    OVR[OculusVRHandDetector]
-    BTN[Button]
-    PAUSE[Pause]
-  end
-
-  subgraph Bus[ZeroMQ Pub/Sub]
-    KP[Keypoint Stream]
-    TF[Transformed Hand Frame]
-    CMD[End Effector Commands]
-    POSE[Robot Pose]
-    STATE[Robot State]
-  end
-
-  subgraph Ops[Operators]
-    XOP[XArm7RightOperator]
-  end
-
-  subgraph Robo[Robot Interface + Controller]
-    XIF[XArm7Robot]
-    CTRL[DexArmControl]
-  end
-
-  OVR -- raw keypoints --> KP
-  BTN --> KP
-  PAUSE --> KP
-  KP -- transform --> TF
-  TF --> XOP
-  XOP -- endeff_coords --> CMD
-  XIF -- subscribes --> CMD
-  XIF -- reads sensors --> CTRL
-  XIF -- pose (endeff_homo) --> POSE
-  XIF -- state dict --> STATE
-```
-
 ### 4.1) VR Detector: `src/beavr/teleop/components/detector/oculus.py`
 
 - `OculusVRHandDetector` (single hand) or `BimanualOculusVRHandDetector` (both hands) reads raw hand data via PULL sockets from preconfigured ports (see `network.RIGHT_HAND_PORT`, `network.LEFT_HAND_PORT`, etc.).
