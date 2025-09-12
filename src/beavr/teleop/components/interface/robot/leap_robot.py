@@ -6,15 +6,15 @@ from queue import Queue
 import numpy as np
 
 from beavr.teleop.common.factory.registry import GlobalRegistry
-from beavr.teleop.common.math.ops import Ops
 from beavr.teleop.common.messaging.publisher import ZMQPublisherManager
 from beavr.teleop.common.messaging.utils import cleanup_zmq_resources
 from beavr.teleop.common.messaging.vr import ZMQKeypointSubscriber
+from beavr.teleop.common.ops import Ops
 from beavr.teleop.components.interface.controller.base_controller import RobotWrapper
 from beavr.teleop.components.interface.controller.robot.leap_control import DexArmControl
-from beavr.teleop.configs.constants import robots
 from beavr.teleop.components.interface.interface_types import RobotState
 from beavr.teleop.components.operator.operator_types import JointTarget
+from beavr.teleop.configs.constants import robots
 
 logger = logging.getLogger(__name__)
 

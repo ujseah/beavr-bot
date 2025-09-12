@@ -3,11 +3,12 @@ import time
 
 import numpy as np
 
-from beavr.teleop.common.math.ops import Ops
 from beavr.teleop.common.messaging.handshake import HandshakeCoordinator
 from beavr.teleop.common.messaging.publisher import ZMQPublisherManager
 from beavr.teleop.common.messaging.utils import cleanup_zmq_resources
 from beavr.teleop.common.messaging.vr.subscribers import ZMQSubscriber
+from beavr.teleop.common.ops import Ops
+from beavr.teleop.components.detector.detector_types import SessionCommand
 from beavr.teleop.components.interface.controller.robot.xarm7_control import DexArmControl
 from beavr.teleop.components.interface.interface_base import RobotWrapper
 from beavr.teleop.components.interface.interface_types import CartesianState, CommandedCartesianState
@@ -69,40 +70,36 @@ class XArm7Robot(RobotWrapper):
             topic = 'endeff_coords',
             message_type=CartesianTarget,
         )
-        
-        self._joint_state_subscriber = ZMQSubscriber(
-            host = host, 
-            port = joint_subscribe_port,
-            topic = 'joint'
-        )
 
         # Dedicated RESET subscriber -------------------------------------------------
-        self._reset_subscriber = ZMQSubscriber(
+        self._reset_subscriber = ZMQSubscriber[SessionCommand](
             host = host,
             port = reset_subscribe_port,
-            topic = 'reset'
+            topic = 'reset',
+            message_type=SessionCommand,
         )
 
         # Dedicated HOME subscriber --------------------------------------------------
-        self._home_subscriber = ZMQSubscriber(
+        self._home_subscriber = ZMQSubscriber[SessionCommand](
             host = host,
             port = home_subscribe_port,
-            topic = 'home'
+            topic = 'home',
+            message_type=SessionCommand,
         )
 
         # Ops state subscriber --------------------------------------------------------
         # Checks if operation is stopped or continued.
         self._arm_teleop_state_subscriber = Ops(
-            arm_teleop_state_subscriber=ZMQSubscriber(
+            arm_teleop_state_subscriber=ZMQSubscriber[SessionCommand](
                 host=host,
                 port=teleoperation_state_port,
                 topic='pause',
+                message_type=SessionCommand,
             )
         )
 
         self._subscribers = {
             'cartesian_coords': self._cartesian_coords_subscriber,
-            'joint_state': self._joint_state_subscriber,
             'reset': self._reset_subscriber,
             'home': self._home_subscriber,
             'teleop_state': self._arm_teleop_state_subscriber.get_arm_teleop_state
