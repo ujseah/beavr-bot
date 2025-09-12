@@ -9,4 +9,4 @@ The stack is launched from `beavr/teleop/main.py` and can be configured entirely
 - **Interfaces** – robot specific adapters that translate commands
 - **Operators** – processes that retarget VR input to robot actions
 
-Use `python -m beavr.teleop.main --robot_name=leap,xarm7` to start the default bimanual setup.
+Use `python -m beavr.teleop.main --robot_name=leap,xarm7 --laterality=bimanual` to start the default bimanual setup.

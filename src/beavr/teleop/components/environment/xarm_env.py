@@ -1,16 +1,16 @@
-from beavr.teleop.components.environment.pybullet_base_env import PyBulletBaseEnv
-from beavr.teleop.utils.network import ZMQCompressedImageTransmitter
-from beavr.teleop.utils.images import rescale_image
-from beavr.teleop.constants import VIZ_PORT_OFFSET
-
-import pybullet as p
-import numpy as np
+import logging
 import os
 import time
-from scipy.spatial.transform import Rotation
-import logging
 
+import numpy as np
+import pybullet as p
+from scipy.spatial.transform import Rotation
+
+from beavr.teleop.components.environment.pybullet_base_env import PyBulletBaseEnv
+from beavr.teleop.constants import VIZ_PORT_OFFSET
+from beavr.teleop.utils.images import rescale_image
 from beavr.teleop.utils.logger import RobotLogger
+from beavr.teleop.utils.network import ZMQCompressedImageTransmitter
 
 logger = logging.getLogger(__name__)
 
@@ -264,7 +264,7 @@ class XArmEnv(PyBulletBaseEnv):
             target_quat,
             lowerLimits=self._lower_limits,
             upperLimits=self._upper_limits,
-            jointRanges=[u-l for u,l in zip(self._upper_limits, self._lower_limits)],
+            jointRanges=[u-l for u,l in zip(self._upper_limits, self._lower_limits, strict=False)],
             restPoses=rest_poses,
             maxNumIterations=100,
             residualThreshold=0.001
@@ -292,7 +292,7 @@ class XArmEnv(PyBulletBaseEnv):
                     )
         
         # Log only the arm joint data
-        joint_data = list(zip(rest_poses, joint_poses[:7]))  # Ensure we only take arm joint poses
+        joint_data = list(zip(rest_poses, joint_poses[:7], strict=False))  # Ensure we only take arm joint poses
         if self.robot_logger:
             self.robot_logger.log_frame(self.get_endeff_position(), action, joint_data)
         

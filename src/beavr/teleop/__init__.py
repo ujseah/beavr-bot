@@ -8,7 +8,13 @@ The main entry point is now in main.py, and configuration is handled in configs/
 import logging
 
 # Import the new structured configuration for backward compatibility
-from beavr.teleop.configs.constants.models import TeleopConfig, NetworkConfig, PortsConfig, RobotConfig, CameraConfig
+from beavr.teleop.configs.constants.models import (
+    CameraConfig,
+    NetworkConfig,
+    PortsConfig,
+    RobotConfig,
+    TeleopConfig,
+)
 
 # Note: main functions are not imported here to avoid circular imports when using python -m
 # Import them directly: from beavr.teleop.main import run_teleop, main

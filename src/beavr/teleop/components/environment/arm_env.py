@@ -1,7 +1,8 @@
+import logging
 from abc import ABC, abstractmethod
+
 from beavr.teleop.components import Component
 from beavr.teleop.utils.images import rescale_image
-import logging
 
 logger = logging.getLogger(__name__)
 

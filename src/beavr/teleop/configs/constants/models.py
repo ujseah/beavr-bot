@@ -1,9 +1,9 @@
 
 from dataclasses import dataclass, field
-from typing import List, Dict, Any
+from typing import Any, Dict, List
 
 # Import all constants from the consolidated config files using terse imports
-from beavr.teleop.configs.constants import network, ports, robots, cameras
+from beavr.teleop.configs.constants import cameras, network, ports, robots
 
 # -----------------------------------------------------------------------------
 # Configuration Models

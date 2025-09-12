@@ -9,15 +9,10 @@ from beavr.lerobot.common.datasets.utils import Frame
 from beavr.lerobot.common.robot_devices.cameras.configs import CameraConfig, OpenCVCameraConfig
 from beavr.lerobot.common.robot_devices.cameras.opencv import OpenCVCamera
 from beavr.lerobot.common.robot_devices.robots.utils import Robot
+from beavr.teleop.common.messaging.handshake import HandshakeCoordinator, publish_with_guaranteed_delivery
+from beavr.teleop.common.messaging.publisher import ZMQPublisherManager
+from beavr.teleop.common.messaging.vr import ZMQKeypointSubscriber
 from beavr.teleop.configs.constants import robots
-
-# Network helpers
-from beavr.teleop.utils.network import (
-    HandshakeCoordinator,
-    ZMQKeypointSubscriber,
-    ZMQPublisherManager,
-    publish_with_guaranteed_delivery,
-)
 
 
 class BeavrBot(Robot):
@@ -112,7 +107,7 @@ class BeavrBot(Robot):
 
         # Pre-create PUB sockets so that subscribers can connect early
         for pub_info in self.home_publishers.values():
-            self.pub_manager.get_publisher(pub_info["host"], pub_info["port"])
+            self.pub_manager.get_publisher_thread(pub_info["host"], pub_info["port"])
 
 
         self.command_publishers: dict[str, dict] = {}
@@ -152,7 +147,7 @@ class BeavrBot(Robot):
         }
 
         # Pre-bind teleop socket
-        self.pub_manager.get_publisher(self.op_state_publish_info["host"], self.op_state_publish_info["port"])
+        self.pub_manager.get_publisher_thread(self.op_state_publish_info["host"], self.op_state_publish_info["port"])
 
         # Thread pool for asynchronous publishing
         # We keep a small pool (<= #robots) so that PUB sends never block the

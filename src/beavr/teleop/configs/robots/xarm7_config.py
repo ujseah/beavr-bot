@@ -3,23 +3,20 @@
 This config can be used for single-arm (right/left) or dual-arm (bimanual) XArm7 setups.
 """
 from __future__ import annotations
+
+import logging
 from dataclasses import dataclass, field
 from typing import Any
 
-# Import shared component configurations
-from beavr.teleop.configs.robots.shared_components import SharedComponentRegistry
-
-from beavr.teleop.interfaces.xarm7_robot import XArm7Robot
-from beavr.teleop.configs.robots import TeleopRobotConfig
+from beavr.teleop.common.config.loader import Laterality, log_laterality_configuration
+from beavr.teleop.components.interface.robot.xarm7_robot import XArm7Robot
 
 # Import shared constants and utilities
 from beavr.teleop.configs.constants import network, ports, robots
-from beavr.teleop.utils.configs import (
-    Laterality,
-    log_laterality_configuration
-)
+from beavr.teleop.configs.robots import TeleopRobotConfig
 
-import logging
+# Import shared component configurations
+from beavr.teleop.configs.robots.shared_components import SharedComponentRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -81,7 +78,6 @@ class XArm7RobotCfg:
             reset_subscribe_port=self.reset_subscribe_port,
             state_publish_port=self.state_publish_port,
             home_subscribe_port=self.home_subscribe_port,
-            recorder_config=self.recorder_config,
             teleoperation_state_port=self.teleoperation_state_port
         )
 
@@ -133,10 +129,10 @@ class XArm7OperatorCfg:
     def build(self):
         # Import here to avoid circular imports
         if self.hand_side == robots.RIGHT:
-            from beavr.teleop.components.operators.xarm7_right import XArm7RightOperator
+            from beavr.teleop.components.operator.robot.xarm7_right import XArm7RightOperator
             operator_class = XArm7RightOperator
         else:  # LEFT
-            from beavr.teleop.components.operators.xarm7_left import XArm7LeftOperator
+            from beavr.teleop.components.operator.robot.xarm7_left import XArm7LeftOperator
             operator_class = XArm7LeftOperator
         
         return operator_class(
@@ -176,29 +172,24 @@ class XArm7Config:
     def _configure_for_laterality(self):
         """Configure all components based on the laterality setting - explicit and simple."""
         
-        # Create detector configurations
+        # Create detector configurations - unified approach handles all lateralities
         self.detector = []
         if self.laterality == Laterality.BIMANUAL:
+            # Single detector handles both hands
             self.detector.append(
                 SharedComponentRegistry.get_bimanual_detector_config(
                     host=network.HOST_ADDRESS,
                 )
             )
         else:
-            if self.laterality == Laterality.RIGHT:
-                self.detector.append(
-                    SharedComponentRegistry.get_detector_config(
-                        hand_side=robots.RIGHT,
-                        host=network.HOST_ADDRESS,
-                    )
+            # Single detector for specific hand side  
+            hand_side = robots.RIGHT if self.laterality == Laterality.RIGHT else robots.LEFT
+            self.detector.append(
+                SharedComponentRegistry.get_detector_config(
+                    hand_side=hand_side,
+                    host=network.HOST_ADDRESS,
                 )
-            elif self.laterality == Laterality.LEFT:
-                self.detector.append(
-                    SharedComponentRegistry.get_detector_config(
-                        hand_side=robots.LEFT,
-                        host=network.HOST_ADDRESS,
-                    )
-                )
+            )
         
         # Create transform configurations
         self.transforms = []
@@ -220,21 +211,21 @@ class XArm7Config:
         
         # Create visualizer configurations
         self.visualizers = []
-        if self.laterality in [Laterality.RIGHT, Laterality.BIMANUAL]:
-            self.visualizers.append(SharedComponentRegistry.get_visualizer_config(
-                hand_side=robots.RIGHT,
-                host=network.HOST_ADDRESS,
-                oculus_feedback_port=ports.OCULUS_GRAPH_PORT,
-                display_plot=False,
-            ))
+        # if self.laterality in [Laterality.RIGHT, Laterality.BIMANUAL]:
+        #     self.visualizers.append(SharedComponentRegistry.get_visualizer_config(
+        #         hand_side=robots.RIGHT,
+        #         host=network.HOST_ADDRESS,
+        #         oculus_feedback_port=ports.OCULUS_GRAPH_PORT,
+        #         display_plot=False,
+        #     ))
         
-        if self.laterality in [Laterality.LEFT, Laterality.BIMANUAL]:
-            self.visualizers.append(SharedComponentRegistry.get_visualizer_config(
-                hand_side=robots.LEFT,
-                host=network.HOST_ADDRESS,
-                oculus_feedback_port=ports.OCULUS_GRAPH_PORT,
-                display_plot=False,
-            ))
+        # if self.laterality in [Laterality.LEFT, Laterality.BIMANUAL]:
+        #     self.visualizers.append(SharedComponentRegistry.get_visualizer_config(
+        #         hand_side=robots.LEFT,
+        #         host=network.HOST_ADDRESS,
+        #         oculus_feedback_port=ports.OCULUS_GRAPH_PORT,
+        #         display_plot=False,
+        #     ))
         
         # Create robot configurations
         self.robots = []

@@ -26,7 +26,11 @@ from huggingface_hub.errors import HfHubHTTPError
 from beavr.lerobot.common.optim.optimizers import OptimizerConfig
 from beavr.lerobot.common.optim.schedulers import LRSchedulerConfig
 from beavr.lerobot.common.utils.hub import HubMixin
-from beavr.lerobot.common.utils.utils import auto_select_torch_device, is_amp_available, is_torch_device_available
+from beavr.lerobot.common.utils.utils import (
+    auto_select_torch_device,
+    is_amp_available,
+    is_torch_device_available,
+)
 from beavr.lerobot.configs.types import FeatureType, NormalizationMode, PolicyFeature
 
 # Generic variable that is either PreTrainedConfig or a subclass thereof
@@ -59,6 +63,15 @@ class PreTrainedConfig(draccus.ChoiceRegistry, HubMixin, abc.ABC):
     # `use_amp` determines whether to use Automatic Mixed Precision (AMP) for training and evaluation. With AMP,
     # automatic gradient scaling is used.
     use_amp: bool = False
+
+    # Optional Hub metadata (ignored during runtime). Added to ensure backward compatibility with
+    # older configuration files that may include these keys. They are kept as no-ops so that the
+    # dataclass parser (`draccus`) does not raise when it encounters them.
+    push_to_hub: bool | None = None
+    repo_id: str | None = None
+    private: bool | None = None
+    tags: list[str] | None = None
+    license: str | None = None
 
     def __post_init__(self):
         self.pretrained_path = None

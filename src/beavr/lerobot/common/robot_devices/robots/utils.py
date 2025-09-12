@@ -16,12 +16,12 @@ from typing import Protocol
 
 from beavr.lerobot.common.robot_devices.robots.configs import (
     AlohaRobotConfig,
+    BeavrBotConfig,
     KochBimanualRobotConfig,
     KochRobotConfig,
     LeKiwiRobotConfig,
     ManipulatorRobotConfig,
     MossRobotConfig,
-    BeavrBotConfig,
     RobotConfig,
     So100RobotConfig,
     So101RobotConfig,

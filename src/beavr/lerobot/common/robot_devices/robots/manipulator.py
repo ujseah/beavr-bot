@@ -31,7 +31,10 @@ from beavr.lerobot.common.robot_devices.cameras.utils import make_cameras_from_c
 from beavr.lerobot.common.robot_devices.motors.utils import MotorsBus, make_motors_buses_from_configs
 from beavr.lerobot.common.robot_devices.robots.configs import ManipulatorRobotConfig
 from beavr.lerobot.common.robot_devices.robots.utils import get_arm_id
-from beavr.lerobot.common.robot_devices.utils import RobotDeviceAlreadyConnectedError, RobotDeviceNotConnectedError
+from beavr.lerobot.common.robot_devices.utils import (
+    RobotDeviceAlreadyConnectedError,
+    RobotDeviceNotConnectedError,
+)
 
 
 def ensure_safe_goal_position(
@@ -309,7 +312,9 @@ class ManipulatorRobot:
                 print(f"Missing calibration file '{arm_calib_path}'")
 
                 if self.robot_type in ["koch", "koch_bimanual", "aloha"]:
-                    from beavr.lerobot.common.robot_devices.robots.dynamixel_calibration import run_arm_calibration
+                    from beavr.lerobot.common.robot_devices.robots.dynamixel_calibration import (
+                        run_arm_calibration,
+                    )
 
                     calibration = run_arm_calibration(arm, self.robot_type, name, arm_type)
 

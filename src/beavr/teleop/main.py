@@ -6,20 +6,20 @@ This module provides the CLI interface and main execution logic for the teleoper
 Uses the structured configuration system with automatic CLI flag generation via Draccus.
 """
 
-import draccus
 import logging
-from typing import Any
 from dataclasses import dataclass, field
+from typing import Any
 
+import draccus
 
-from beavr.teleop.configs.constants.models import TeleopConfig
-from beavr.teleop.utils.configs import (
+from beavr.teleop.common.config.loader import (
     Laterality,
+    apply_yaml_preserving_cli,
     load_robot_config,
     load_yaml_config,
-    apply_yaml_preserving_cli,
 )
-from beavr.teleop.utils.logger import setup_root_logger
+from beavr.teleop.common.logging.logger import setup_root_logger
+from beavr.teleop.configs.constants.models import TeleopConfig
 
 logger = logging.getLogger(__name__)
 

@@ -1,0 +1,970 @@
+=== BeaVR Teleop Code Structure ===
+Wed Sep 10 10:59:01 AM EDT 2025
+
+[ROOT]: /home/demo/beavr-bot/src/beavr/teleop
+
+--- Directory Tree (filtered) ---
+/home/demo/beavr-bot/src/beavr/teleop
+├── common
+│   ├── config
+│   │   └── loader.py
+│   ├── factory
+│   │   ├── __init__.py
+│   │   ├── instantiator.py
+│   │   └── registry.py
+│   ├── __init__.py
+│   ├── io
+│   │   ├── files.py
+│   │   └── __init__.py
+│   ├── logging
+│   │   ├── __init__.py
+│   │   └── logger.py
+│   ├── math
+│   │   ├── __init__.py
+│   │   ├── ops.py
+│   │   ├── orientation.py
+│   │   └── vectorops.py
+│   ├── messaging
+│   │   ├── handshake.py
+│   │   ├── __init__.py
+│   │   ├── publisher.py
+│   │   ├── subscriber.py
+│   │   ├── utils.py
+│   │   └── vr
+│   │       ├── __init__.py
+│   │       └── keypoints.py
+│   └── time
+│       └── timer.py
+├── components
+│   ├── component.py
+│   ├── detector
+│   │   ├── base.py
+│   │   ├── __init__.py
+│   │   ├── types.py
+│   │   └── vr
+│   │       ├── keypoint_transform.py
+│   │       └── oculus.py
+│   ├── environment
+│   │   ├── arm_env.py
+│   │   ├── hand_env.py
+│   │   ├── __init__.py
+│   │   ├── leap_hand_env.py
+│   │   ├── leap_hand_isaac.py
+│   │   ├── pybullet_base_env_hand.py
+│   │   ├── pybullet_base_env.py
+│   │   ├── rx1_env.py
+│   │   └── xarm_env.py
+│   ├── initializers.py
+│   ├── __init__.py
+│   ├── interface
+│   │   ├── base.py
+│   │   ├── controller
+│   │   │   ├── controller.py
+│   │   │   ├── __init__.py
+│   │   │   └── robot
+│   │   │       ├── leap_control.py
+│   │   │       ├── rx1_right.py
+│   │   │       └── xarm7_control.py
+│   │   ├── __init__.py
+│   │   ├── robot
+│   │   │   ├── leap_robot.py
+│   │   │   ├── rx1_right_robot.py
+│   │   │   └── xarm7_robot.py
+│   │   └── types.py
+│   ├── operator
+│   │   ├── base.py
+│   │   ├── __init__.py
+│   │   ├── robot
+│   │   │   ├── leap_operator.py
+│   │   │   ├── leap_sim.py
+│   │   │   ├── rx1_operator.py
+│   │   │   ├── template.py
+│   │   │   ├── xarm7_left.py
+│   │   │   ├── xarm7_right.py
+│   │   │   ├── xarm_base.py
+│   │   │   └── xarm_pybullet_sim.py
+│   │   ├── solvers
+│   │   │   └── leap_solver.py
+│   │   └── types.py
+│   └── visualizer
+│       ├── image.py
+│       ├── __init__.py
+│       ├── plotters
+│       │   ├── plotter_2d.py
+│       │   ├── plotter_3d.py
+│       │   ├── plotter.py
+│       │   └── xela_plotter.py
+│       ├── visualizer_2d.py
+│       ├── visualizer_3d.py
+│       └── xela_visualizer.py
+├── configs
+│   ├── constants
+│   │   ├── cameras.py
+│   │   ├── __init__.py
+│   │   ├── models.py
+│   │   ├── network.py
+│   │   ├── ports.py
+│   │   └── robots.py
+│   └── robots
+│       ├── __init__.py
+│       ├── leap_config.py
+│       ├── leap_sim_config.py
+│       ├── leap_sim_isaac_config.py
+│       ├── rx1_right_config.py
+│       ├── shared_components.py
+│       ├── template_robot_config.py
+│       ├── xarm7_config.py
+│       └── xarm_pybullet_sim_config.py
+├── __init__.py
+└── main.py
+
+26 directories, 87 files
+
+--- Python Modules: classes and functions ---
+(ripgrep not found; install with: sudo apt-get install ripgrep)
+  /home/demo/beavr-bot/src/beavr/teleop/common/config/loader.py:125:        def deduplicate_by_identity(items):
+  /home/demo/beavr-bot/src/beavr/teleop/common/config/loader.py:146:    def build(self):
+  /home/demo/beavr-bot/src/beavr/teleop/common/config/loader.py:219:def load_robot_config(robot_name: str, laterality: Laterality) -> Any:
+  /home/demo/beavr-bot/src/beavr/teleop/common/config/loader.py:247:def _load_single_robot(robot_name: str, laterality: Laterality) -> Any:
+  /home/demo/beavr-bot/src/beavr/teleop/common/config/loader.py:274:def _load_multiple_robots(robot_names: List[str], laterality: Laterality) -> CompositeRobotConfig:
+  /home/demo/beavr-bot/src/beavr/teleop/common/config/loader.py:28:class Laterality(Enum):
+  /home/demo/beavr-bot/src/beavr/teleop/common/config/loader.py:296:def load_yaml_config(config_file: str) -> dict:
+  /home/demo/beavr-bot/src/beavr/teleop/common/config/loader.py:324:def apply_section_override(target: Any, yaml_obj: dict, defaults: Any, section_name: str):
+  /home/demo/beavr-bot/src/beavr/teleop/common/config/loader.py:351:def apply_yaml_preserving_cli(target_cfg: Any, yaml_overrides: dict):
+  /home/demo/beavr-bot/src/beavr/teleop/common/config/loader.py:35:def validate_laterality(laterality: Laterality):
+  /home/demo/beavr-bot/src/beavr/teleop/common/config/loader.py:42:def log_laterality_configuration(laterality: Laterality, robot_name: str):
+  /home/demo/beavr-bot/src/beavr/teleop/common/config/loader.py:52:class CompositeRobotConfig:
+  /home/demo/beavr-bot/src/beavr/teleop/common/config/loader.py:71:    def __post_init__(self):
+  /home/demo/beavr-bot/src/beavr/teleop/common/config/loader.py:75:    def _merge_components(self):
+  /home/demo/beavr-bot/src/beavr/teleop/common/factory/instantiator.py:17:    def __getattr__(self, item: str) -> Any:  # noqa: D401
+  /home/demo/beavr-bot/src/beavr/teleop/common/factory/instantiator.py:35:    def copy(self):  # noqa: D401
+  /home/demo/beavr-bot/src/beavr/teleop/common/factory/instantiator.py:39:def _convert_to_dotdict(obj: Any) -> Any:
+  /home/demo/beavr-bot/src/beavr/teleop/common/factory/instantiator.py:48:def instantiate_from_target(cfg: Any):
+  /home/demo/beavr-bot/src/beavr/teleop/common/factory/instantiator.py:5:class DotDict(dict):
+  /home/demo/beavr-bot/src/beavr/teleop/common/factory/registry.py:11:    def register(cls, name, instance):
+  /home/demo/beavr-bot/src/beavr/teleop/common/factory/registry.py:17:    def get(cls, name):
+  /home/demo/beavr-bot/src/beavr/teleop/common/factory/registry.py:7:class GlobalRegistry:
+  /home/demo/beavr-bot/src/beavr/teleop/common/io/files.py:10:def make_dir(folder):
+  /home/demo/beavr-bot/src/beavr/teleop/common/io/files.py:17:def get_path_in_package(relative_path):
+  /home/demo/beavr-bot/src/beavr/teleop/common/io/files.py:20:def store_pickle_data(path, dictionary):
+  /home/demo/beavr-bot/src/beavr/teleop/common/io/files.py:24:def get_pickle_data(path):    
+  /home/demo/beavr-bot/src/beavr/teleop/common/io/files.py:28:def check_file(path):
+  /home/demo/beavr-bot/src/beavr/teleop/common/io/files.py:31:def get_npz_data(path):
+  /home/demo/beavr-bot/src/beavr/teleop/common/io/files.py:34:def get_yaml_data(yaml_path):
+  /home/demo/beavr-bot/src/beavr/teleop/common/logging/logger.py:143:    def export_csv(self, filename):
+  /home/demo/beavr-bot/src/beavr/teleop/common/logging/logger.py:15:class BaseLogger:
+  /home/demo/beavr-bot/src/beavr/teleop/common/logging/logger.py:170:    def _cleanup(self):
+  /home/demo/beavr-bot/src/beavr/teleop/common/logging/logger.py:175:    def close(self):
+  /home/demo/beavr-bot/src/beavr/teleop/common/logging/logger.py:17:    def __init__(self, log_dir="logs", prefix=""):
+  /home/demo/beavr-bot/src/beavr/teleop/common/logging/logger.py:197:class PoseLogger(BaseLogger):
+  /home/demo/beavr-bot/src/beavr/teleop/common/logging/logger.py:199:    def __init__(self, log_dir="logs", prefix="operator"):
+  /home/demo/beavr-bot/src/beavr/teleop/common/logging/logger.py:204:    def log_frame(self, init_hand_pose, init_robot_pose, current_hand_pose, transformed_pose):
+  /home/demo/beavr-bot/src/beavr/teleop/common/logging/logger.py:225:class HandLogger(BaseLogger):
+  /home/demo/beavr-bot/src/beavr/teleop/common/logging/logger.py:227:    def __init__(self, log_dir="logs", prefix="hand"):
+  /home/demo/beavr-bot/src/beavr/teleop/common/logging/logger.py:232:    def log_frame(self, finger_input_positions, finger_computed_angles, finger_states=None):
+  /home/demo/beavr-bot/src/beavr/teleop/common/logging/logger.py:260:class RobotLogger(BaseLogger):
+  /home/demo/beavr-bot/src/beavr/teleop/common/logging/logger.py:262:    def __init__(self, log_dir="logs", prefix="sim"):
+  /home/demo/beavr-bot/src/beavr/teleop/common/logging/logger.py:267:    def log_frame(self, end_effector_pose, action_pose, ik_calculated_joints):
+  /home/demo/beavr-bot/src/beavr/teleop/common/logging/logger.py:289:def synchronize_logs(log_files, output_file):
+  /home/demo/beavr-bot/src/beavr/teleop/common/logging/logger.py:315:def setup_root_logger(level: int = logging.DEBUG):
+  /home/demo/beavr-bot/src/beavr/teleop/common/logging/logger.py:45:    def ensure_log_dir(self):
+  /home/demo/beavr-bot/src/beavr/teleop/common/logging/logger.py:50:    def _convert_numpy_to_list(self, data):
+  /home/demo/beavr-bot/src/beavr/teleop/common/logging/logger.py:56:    def _cleanup_temp_files(self):
+  /home/demo/beavr-bot/src/beavr/teleop/common/logging/logger.py:97:    def _save_json(self, filename):
+  /home/demo/beavr-bot/src/beavr/teleop/common/math/ops.py:10:class Ops:
+  /home/demo/beavr-bot/src/beavr/teleop/common/math/ops.py:14:    def __init__(self, arm_teleop_state_subscriber: ZMQKeypointSubscriber, arm_teleop_state: int = robots.ARM_TELEOP_CONT):
+  /home/demo/beavr-bot/src/beavr/teleop/common/math/ops.py:18:    def get_arm_teleop_state(self) -> int:
+  /home/demo/beavr-bot/src/beavr/teleop/common/math/orientation.py:122:def canonical_axis_angle(v: np.ndarray) -> np.ndarray:
+  /home/demo/beavr-bot/src/beavr/teleop/common/math/orientation.py:25:def quat_normalise(q: np.ndarray) -> np.ndarray:
+  /home/demo/beavr-bot/src/beavr/teleop/common/math/orientation.py:39:def quat_positive(q: np.ndarray) -> np.ndarray:
+  /home/demo/beavr-bot/src/beavr/teleop/common/math/orientation.py:50:def axis_angle_to_quat(v: np.ndarray) -> np.ndarray:
+  /home/demo/beavr-bot/src/beavr/teleop/common/math/orientation.py:65:def quat_to_axis_angle(q: np.ndarray) -> np.ndarray:
+  /home/demo/beavr-bot/src/beavr/teleop/common/math/orientation.py:83:def quat_to_euler(q: np.ndarray) -> np.ndarray:
+  /home/demo/beavr-bot/src/beavr/teleop/common/math/vectorops.py:17:def get_distance(start_vector, end_vector):
+  /home/demo/beavr-bot/src/beavr/teleop/common/math/vectorops.py:20:def linear_transform(curr_val, source_bound, target_bound):
+  /home/demo/beavr-bot/src/beavr/teleop/common/math/vectorops.py:25:def persperctive_transform(input_coordinates, given_bound, target_bound):
+  /home/demo/beavr-bot/src/beavr/teleop/common/math/vectorops.py:32:def calculate_angle(coord_1, coord_2, coord_3):
+  /home/demo/beavr-bot/src/beavr/teleop/common/math/vectorops.py:41:def coord_in_bound(bound, coord):
+  /home/demo/beavr-bot/src/beavr/teleop/common/math/vectorops.py:5:def normalize_vector(vector):
+  /home/demo/beavr-bot/src/beavr/teleop/common/math/vectorops.py:8:def moving_average(vector, moving_average_queue, limit):
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/handshake.py:101:    def request(self, *, timeout: float = 2.0) -> bool:
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/handshake.py:122:    def close(self):
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/handshake.py:125:class HandshakeCoordinator:
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/handshake.py:156:    def __init__(self, context: Optional[zmq.Context] = None):
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/handshake.py:169:    def get_instance(cls, context: Optional[zmq.Context] = None) -> 'HandshakeCoordinator':
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/handshake.py:184:    def register_subscriber(self, subscriber_id: str, host: str, port: int) -> None:
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/handshake.py:200:    def unregister_subscriber(self, subscriber_id: str) -> None:
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/handshake.py:218:    def start_server(self, subscriber_id: str, bind_host: str, port: int) -> None:
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/handshake.py:252:    def stop_server(self, subscriber_id: str) -> None:
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/handshake.py:274:    def _run_server(self, subscriber_id: str, bind_host: str, port: int) -> None:
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/handshake.py:328:    def request_acknowledgments(self, subscriber_ids: list[str], timeout: float = 3.0, 
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/handshake.py:416:    def get_registered_subscribers(self) -> list[str]:
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/handshake.py:425:    def is_subscriber_registered(self, subscriber_id: str) -> bool:
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/handshake.py:437:    def shutdown(self) -> None:
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/handshake.py:458:    def cleanup_all(cls) -> None:
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/handshake.py:465:def publish_with_guaranteed_delivery(
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/handshake.py:53:class HandshakeServer:
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/handshake.py:56:    def __init__(self, host: str, port: int, *, ping: bytes = _DEFAULT_PING, ack: bytes = _DEFAULT_ACK):
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/handshake.py:64:    def poll_once(self, *, timeout_ms: int = 0) -> bool:
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/handshake.py:87:    def close(self):
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/handshake.py:91:class HandshakeClient:
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/handshake.py:94:    def __init__(self, host: str, port: int, *, ping: bytes = _DEFAULT_PING, ack: bytes = _DEFAULT_ACK):
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/publisher.py:150:    def wait_for_start(self, timeout: float = 5.0) -> bool:
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/publisher.py:163:class ZMQPublisherManager:
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/publisher.py:16:class BasePublisher:
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/publisher.py:171:    def __init__(self, context: Optional[zmq.Context] = None):
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/publisher.py:181:    def get_instance(cls, context: Optional[zmq.Context] = None) -> 'ZMQPublisherManager':
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/publisher.py:18:    def __init__(self, host: str, port: int, socket_type: int = zmq.PUB, context: Optional[zmq.Context] = None):
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/publisher.py:196:    def _create_publisher_thread(self, host: str, port: int) -> PublisherThread:
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/publisher.py:219:    def publish(self, host: str, port: int, topic: str, data: Any) -> None:
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/publisher.py:239:    def get_publisher_thread(self, host: str, port: int) -> PublisherThread:
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/publisher.py:258:    def _close_publisher(self, key: Tuple[str, int]) -> None:
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/publisher.py:272:    def get_bound_ports(self) -> Dict[Tuple[str, int], str]:
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/publisher.py:284:    def _start_monitor(self) -> None:
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/publisher.py:286:        def monitor_loop():
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/publisher.py:306:    def close_all(self) -> None:
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/publisher.py:33:    def _init_socket(self, socket_type: int) -> None:
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/publisher.py:44:    def stop(self) -> None:
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/publisher.py:50:class PublisherThread(threading.Thread):
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/publisher.py:53:    def __init__(self, host: str, port: int, context: Optional[zmq.Context] = None):
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/publisher.py:70:    def send(self, topic: str, data: Any) -> None:
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/publisher.py:86:    def stop(self) -> None:
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/publisher.py:96:    def run(self) -> None:
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/subscriber.py:14:class BaseSubscriber(threading.Thread, ABC):
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/subscriber.py:16:    def __init__(self, host: str, port: int, topic: str = "", socket_type: int = zmq.SUB, 
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/subscriber.py:38:    def _init_socket(self, socket_type: int):
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/subscriber.py:68:    def stop(self):
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/subscriber.py:84:    def process_message(self, message: Any) -> None:
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/subscriber.py:92:    def run(self):
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/utils.py:104:def create_response_socket(host: str, port: int) -> zmq.Socket:
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/utils.py:115:def create_request_socket(host: str, port: int) -> zmq.Socket:
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/utils.py:15:def get_global_context() -> zmq.Context:
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/utils.py:20:def set_global_context(context: zmq.Context) -> None:
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/utils.py:29:def cleanup_zmq_resources() -> None:
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/utils.py:59:def create_push_socket(host: str, port: int) -> zmq.Socket:
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/utils.py:70:def create_pull_socket(host: str, port: int) -> zmq.Socket:
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/utils.py:8:class SerializationError(Exception):
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/vr/keypoints.py:13:class ZMQKeypointPublisher(BasePublisher):
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/vr/keypoints.py:16:    def __init__(self, host: str, port: int):
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/vr/keypoints.py:19:    def pub_keypoints(self, keypoint_array: Any, topic_name: str) -> None:
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/vr/keypoints.py:44:class ZMQKeypointSubscriber(BaseSubscriber):
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/vr/keypoints.py:47:    def __init__(self, host: str, port: int, topic: str, context: Optional[zmq.Context] = None):
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/vr/keypoints.py:52:    def process_message(self, data: Any) -> None:
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/vr/keypoints.py:60:    def recv_keypoints(self) -> Optional[Any]:
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/vr/keypoints.py:72:class ZMQButtonFeedbackSubscriber(BaseSubscriber):
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/vr/keypoints.py:75:    def __init__(self, host: str, port: int, context: Optional[zmq.Context] = None):
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/vr/keypoints.py:80:    def process_message(self, data: Any) -> None:
+  /home/demo/beavr-bot/src/beavr/teleop/common/messaging/vr/keypoints.py:88:    def recv_keypoints(self) -> Optional[Any]:
+  /home/demo/beavr-bot/src/beavr/teleop/common/time/timer.py:13:class FrequencyTimer(object):
+  /home/demo/beavr-bot/src/beavr/teleop/common/time/timer.py:14:    def __init__(self, frequency_rate):
+  /home/demo/beavr-bot/src/beavr/teleop/common/time/timer.py:17:    def start_loop(self):
+  /home/demo/beavr-bot/src/beavr/teleop/common/time/timer.py:20:    def end_loop(self):
+  /home/demo/beavr-bot/src/beavr/teleop/common/time/timer.py:26:class SocketChecker(object):
+  /home/demo/beavr-bot/src/beavr/teleop/common/time/timer.py:27:    def __init__(self, host, port, topic_name, print_data, data_type = None):
+  /home/demo/beavr-bot/src/beavr/teleop/common/time/timer.py:35:    def _init_connection(self, host, port):
+  /home/demo/beavr-bot/src/beavr/teleop/common/time/timer.py:42:    def _reinit_counter(self):
+  /home/demo/beavr-bot/src/beavr/teleop/common/time/timer.py:46:    def _calculate_frequency(self):
+  /home/demo/beavr-bot/src/beavr/teleop/common/time/timer.py:49:    def _decode_array(self):
+  /home/demo/beavr-bot/src/beavr/teleop/common/time/timer.py:55:    def _decode_rgb_image(self):
+  /home/demo/beavr-bot/src/beavr/teleop/common/time/timer.py:62:    def check_connection(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/component.py:12:    def notify_component_start(self, component_name):
+  /home/demo/beavr-bot/src/beavr/teleop/components/component.py:7:class Component(ABC):
+  /home/demo/beavr-bot/src/beavr/teleop/components/component.py:9:    def stream(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/detector/base.py:12:    def data_frequency(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/detector/base.py:16:    def receive_data(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/detector/base.py:20:    def process_data(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/detector/base.py:6:class InputDevice(Component, ABC):
+  /home/demo/beavr-bot/src/beavr/teleop/components/detector/base.py:8:    def stream(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/detector/types.py:11:class ButtonEvent:
+  /home/demo/beavr-bot/src/beavr/teleop/components/detector/types.py:25:class SessionCommand:
+  /home/demo/beavr-bot/src/beavr/teleop/components/detector/types.py:36:class InputFrame:
+  /home/demo/beavr-bot/src/beavr/teleop/components/detector/vr/keypoint_transform.py:106:    def _translate_coords(self, hand_coords):
+  /home/demo/beavr-bot/src/beavr/teleop/components/detector/vr/keypoint_transform.py:110:    def _orthogonalize_frame(self, x_vec, y_vec, z_vec):
+  /home/demo/beavr-bot/src/beavr/teleop/components/detector/vr/keypoint_transform.py:125:    def _get_stable_coord_frame(self, hand_coords):
+  /home/demo/beavr-bot/src/beavr/teleop/components/detector/vr/keypoint_transform.py:143:    def _get_stable_hand_dir_frame(self, hand_coords):
+  /home/demo/beavr-bot/src/beavr/teleop/components/detector/vr/keypoint_transform.py:15:class HandMode(IntEnum):
+  /home/demo/beavr-bot/src/beavr/teleop/components/detector/vr/keypoint_transform.py:167:    def _get_coord_frame(self, index_knuckle_coord, pinky_knuckle_coord):
+  /home/demo/beavr-bot/src/beavr/teleop/components/detector/vr/keypoint_transform.py:176:    def _get_hand_dir_frame(self, origin_coord, index_knuckle_coord, pinky_knuckle_coord):
+  /home/demo/beavr-bot/src/beavr/teleop/components/detector/vr/keypoint_transform.py:194:    def transform_keypoints(self, hand_coords):
+  /home/demo/beavr-bot/src/beavr/teleop/components/detector/vr/keypoint_transform.py:19:class TransformHandPositionCoords(Component):
+  /home/demo/beavr-bot/src/beavr/teleop/components/detector/vr/keypoint_transform.py:20:    def __init__(self,
+  /home/demo/beavr-bot/src/beavr/teleop/components/detector/vr/keypoint_transform.py:210:    def _publish_data(self, data_type, averaged_hand_coords, averaged_hand_frame):
+  /home/demo/beavr-bot/src/beavr/teleop/components/detector/vr/keypoint_transform.py:229:    def stream(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/detector/vr/keypoint_transform.py:89:    def _get_hand_coords(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/detector/vr/oculus.py:14:class OculusVRHandDetector(Component):
+  /home/demo/beavr-bot/src/beavr/teleop/components/detector/vr/oculus.py:155:class BimanualOculusVRHandDetector(Component):
+  /home/demo/beavr-bot/src/beavr/teleop/components/detector/vr/oculus.py:158:    def __init__(
+  /home/demo/beavr-bot/src/beavr/teleop/components/detector/vr/oculus.py:186:    def _process_keypoints(self, data):
+  /home/demo/beavr-bot/src/beavr/teleop/components/detector/vr/oculus.py:18:    def __init__(self, host, oculus_hand_port, oculus_pub_port, button_port, teleop_reset_port):
+  /home/demo/beavr-bot/src/beavr/teleop/components/detector/vr/oculus.py:195:    def _process_button(self, data):
+  /home/demo/beavr-bot/src/beavr/teleop/components/detector/vr/oculus.py:198:    def _process_pause(self, data):
+  /home/demo/beavr-bot/src/beavr/teleop/components/detector/vr/oculus.py:201:    def _receive_data(self, socket_name):
+  /home/demo/beavr-bot/src/beavr/teleop/components/detector/vr/oculus.py:207:    def stream(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/detector/vr/oculus.py:62:    def _process_keypoints(self, data):
+  /home/demo/beavr-bot/src/beavr/teleop/components/detector/vr/oculus.py:75:    def _process_button(self, data):
+  /home/demo/beavr-bot/src/beavr/teleop/components/detector/vr/oculus.py:79:    def _process_pause(self, data):
+  /home/demo/beavr-bot/src/beavr/teleop/components/detector/vr/oculus.py:83:    def _receive_data(self, socket_name):
+  /home/demo/beavr-bot/src/beavr/teleop/components/detector/vr/oculus.py:92:    def stream(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/arm_env.py:13:    def timer(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/arm_env.py:17:    def stream(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/arm_env.py:9:class Arm_Env(Component, ABC):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/hand_env.py:13:    def timer(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/hand_env.py:17:    def stream(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/hand_env.py:9:class Hand_Env(Component, ABC):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/leap_hand_env.py:129:    def load_assets(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/leap_hand_env.py:181:    def create_target_vis(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/leap_hand_env.py:201:    def update_target_vis(self, hand_pos):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/leap_hand_env.py:211:    def reset(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/leap_hand_env.py:237:    def get_endeff_position(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/leap_hand_env.py:244:    def compute_IK(self, hand_pos):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/leap_hand_env.py:289:    def take_action(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/leap_hand_env.py:324:    def get_meta_quest_data(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/leap_hand_env.py:375:    def get_rgb_depth_images(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/leap_hand_env.py:38:class LeapHandEnv(PyBulletBaseEnvHand):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/leap_hand_env.py:39:    def __init__(self,
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/leap_hand_env.py:408:    def get_dof_position(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/leap_hand_env.py:423:    def apply_offset(self, joints):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/leap_hand_isaac.py:241:        def create_env(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/leap_hand_isaac.py:31:class LeapHandEnv(Hand_Env):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/leap_hand_isaac.py:32:        def __init__(self,
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/leap_hand_isaac.py:366:        def color_hand(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/leap_hand_isaac.py:372:        def color_curved_hand(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/leap_hand_isaac.py:377:        def get_dof_names(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/leap_hand_isaac.py:382:        def get_dof_count(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/leap_hand_isaac.py:387:        def create_viewer(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/leap_hand_isaac.py:395:        def reset(self,object_position,object_rotation):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/leap_hand_isaac.py:416:        def compute_observation(self, observation):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/leap_hand_isaac.py:441:        def get_dof_position(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/leap_hand_isaac.py:445:        def get_time(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/leap_hand_isaac.py:449:        def get_rgb_depth_images(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/leap_hand_isaac.py:465:        def set_position(self, position):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/leap_hand_isaac.py:469:        def get_endeff_position(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/leap_hand_isaac.py:477:        def set_control_mode(self,props,mode=None):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/leap_hand_isaac.py:494:        def timer(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/leap_hand_isaac.py:498:        def take_action(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/pybullet_base_env_hand.py:173:    def load_assets(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/pybullet_base_env_hand.py:178:    def take_action(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/pybullet_base_env_hand.py:183:    def get_endeff_position(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/pybullet_base_env_hand.py:187:    def get_rgb_depth_images(self, camera_name=None):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/pybullet_base_env_hand.py:200:    def step_simulation(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/pybullet_base_env_hand.py:205:    def timer(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/pybullet_base_env_hand.py:208:    def cleanup(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/pybullet_base_env_hand.py:21:class PyBulletBaseEnvHand(Hand_Env):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/pybullet_base_env_hand.py:224:    def __del__(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/pybullet_base_env_hand.py:22:    def __init__(self,
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/pybullet_base_env.py:147:    def load_assets(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/pybullet_base_env.py:152:    def take_action(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/pybullet_base_env.py:157:    def get_endeff_position(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/pybullet_base_env.py:161:    def get_rgb_depth_images(self, camera_name=None):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/pybullet_base_env.py:174:    def step_simulation(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/pybullet_base_env.py:179:    def timer(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/pybullet_base_env.py:182:    def cleanup(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/pybullet_base_env.py:21:class PyBulletBaseEnv(Arm_Env):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/pybullet_base_env.py:22:    def __init__(self, 
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/rx1_env.py:116:    def take_action(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/rx1_env.py:149:    def get_rgb_depth_images(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/rx1_env.py:156:    def stream(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/rx1_env.py:15:class RX1GazeboEnv:
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/rx1_env.py:16:    def __init__(self, 
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/rx1_env.py:185:    def cleanup(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/rx1_env.py:204:    def __del__(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/rx1_env.py:84:    def _joint_state_callback(self, message):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/rx1_env.py:88:    def _rgb_callback(self, message):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/rx1_env.py:93:    def _depth_callback(self, message):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/rx1_env.py:98:    def get_endeff_position(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/xarm_env.py:109:    def load_assets(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/xarm_env.py:174:    def reset(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/xarm_env.py:18:class XArmEnv(PyBulletBaseEnv):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/xarm_env.py:19:    def __init__(self, 
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/xarm_env.py:204:    def update_reference_frame(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/xarm_env.py:218:    def get_endeff_position(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/xarm_env.py:243:    def take_action(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/xarm_env.py:302:    def get_joint_info(self, robot_id):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/xarm_env.py:320:    def get_rgb_depth_images(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/xarm_env.py:353:    def cleanup(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/xarm_env.py:373:    def __del__(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/xarm_env.py:377:    def stream(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/initializers.py:102:    def _init_visualizers(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/initializers.py:118:    def _init_operator(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/initializers.py:11:class ProcessInstantiator(ABC):
+  /home/demo/beavr-bot/src/beavr/teleop/components/initializers.py:125:    def _init_robot_interface(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/initializers.py:139:class Collector(ProcessInstantiator):
+  /home/demo/beavr-bot/src/beavr/teleop/components/initializers.py:144:    def __init__(self, main_config, demo_num):
+  /home/demo/beavr-bot/src/beavr/teleop/components/initializers.py:15:    def __init__(self, configs):
+  /home/demo/beavr-bot/src/beavr/teleop/components/initializers.py:179:    def _create_storage_dir(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/initializers.py:186:    def _start_component(self, component):
+  /home/demo/beavr-bot/src/beavr/teleop/components/initializers.py:20:    def _start_component(self, configs):
+  /home/demo/beavr-bot/src/beavr/teleop/components/initializers.py:24:    def get_processes(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/initializers.py:28:class TeleOperator(ProcessInstantiator):
+  /home/demo/beavr-bot/src/beavr/teleop/components/initializers.py:35:    def __init__(self, main_config):
+  /home/demo/beavr-bot/src/beavr/teleop/components/initializers.py:65:    def _start_component(self, configs):    
+  /home/demo/beavr-bot/src/beavr/teleop/components/initializers.py:79:    def _init_detector(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/initializers.py:86:    def _init_sim_environment(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/initializers.py:94:    def _init_keypoint_transform(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/base.py:12:    def recorder_functions(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/base.py:17:    def data_frequency(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/base.py:21:    def get_joint_state(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/base.py:25:    def get_joint_position(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/base.py:29:    def get_cartesian_position(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/base.py:33:    def get_joint_velocity(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/base.py:37:    def get_joint_torque(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/base.py:41:    def home(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/base.py:45:    def move(self, input_angles):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/base.py:49:    def move_coords(self, input_coords):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/base.py:4:class RobotWrapper(ABC):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/base.py:7:    def name(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/controller.py:10:    def _init_robot_control(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/controller.py:15:    def _callback_robot_joint_state(self, joint_state):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/controller.py:19:    def _callback_robot_commanded_joint_state(self, joint_state):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/controller.py:23:    def get_robot_state(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/controller.py:35:    def get_commanded_robot_state(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/controller.py:47:    def get_robot_position(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/controller.py:52:    def get_robot_velocity(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/controller.py:57:    def get_robot_torque(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/controller.py:62:    def get_commanded_robot_joint_position(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/controller.py:66:    def move_robot(self, joint_angles):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/controller.py:6:class DexArmControl():
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/controller.py:70:    def home_robot(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/controller.py:74:    def reset_robot(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/controller.py:77:    def arm_control(self, arm_pose):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/controller.py:7:    def __init__(self, record_type=None, robot_type='both'):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/leap_control.py:100:    def _convert_radians_to_raw(self, radians):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/leap_control.py:104:    def bulk_write_positions(self, positions):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/leap_control.py:139:    def set_motor_positions(self, positions):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/leap_control.py:143:    def _bulk_read_values(self, group_handler, address, length, default_value):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/leap_control.py:170:    def get_motor_positions(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/leap_control.py:175:    def get_motor_velocities(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/leap_control.py:180:    def get_motor_torques(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/leap_control.py:185:    def close(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/leap_control.py:191:    def __del__(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/leap_control.py:204:class DexArmControl:
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/leap_control.py:205:    def __init__(self, is_right_arm: bool = True):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/leap_control.py:212:    def _convert_radians_to_raw(self, radians):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/leap_control.py:216:    def _convert_raw_to_radians(self, raw_values):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/leap_control.py:222:    def _convert_rpm_to_rad_per_sec(self, rpm):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/leap_control.py:226:    def move_hand(self, target_joints_radians):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/leap_control.py:238:    def _execute_movement_loop(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/leap_control.py:253:    def get_hand_position(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/leap_control.py:257:    def get_hand_state(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/leap_control.py:265:    def get_commanded_hand_state(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/leap_control.py:269:    def home_hand(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/leap_control.py:272:    def reset_hand(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/leap_control.py:275:    def close(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/leap_control.py:278:    def get_hand_velocity(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/leap_control.py:281:    def get_hand_torque(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/leap_control.py:284:    def get_commanded_hand_joint_position(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/leap_control.py:49:class DynamixelClient:
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/leap_control.py:50:    def __init__(self, is_right_arm: bool):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/leap_control.py:90:    def _read_motor_value(self, motor_id, address, byte_length):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/rx1_right.py:123:    def home_robot(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/rx1_right.py:127:    def reset_robot(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/rx1_right.py:131:    def arm_control(self, pose):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/rx1_right.py:17:class RX1RosLink(DexArmControl):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/rx1_right.py:18:    def __init__(self, record_type=None, robot_type='right'):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/rx1_right.py:57:    def _joint_state_callback(self, msg):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/rx1_right.py:61:    def get_robot_position(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/rx1_right.py:72:    def get_robot_velocity(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/rx1_right.py:82:    def get_robot_torque(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/rx1_right.py:92:    def move_robot(self, joint_angles):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/xarm7_control.py:110:    def get_arm_velocity(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/xarm7_control.py:126:    def get_arm_torque(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/xarm7_control.py:142:    def get_arm_cartesian_coords(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/xarm7_control.py:14:class RobotControlMode(Enum):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/xarm7_control.py:151:    def move_arm_joint(self, joint_angles):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/xarm7_control.py:172:    def _ensure_correct_mode(self, desired_mode, desired_state=0):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/xarm7_control.py:181:    def _exceeds_movement_limit(self, target_pose):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/xarm7_control.py:19:class Robot(XArmAPI):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/xarm7_control.py:20:    def __init__(self, ip="192.168.1.197", is_radian=True, simulation_mode=False):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/xarm7_control.py:219:    def _split_large_movement(self, current_pose, target_pose):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/xarm7_control.py:251:    def arm_control(self, cartesian_pose):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/xarm7_control.py:268:    def move_arm_cartesian(self, cartesian_pos, duration=3):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/xarm7_control.py:346:    def home_arm(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/xarm7_control.py:365:    def home_robot(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/xarm7_control.py:378:    def reset_arm(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/xarm7_control.py:382:    def move_robot(self, arm_angles):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/xarm7_control.py:396:    def robot_pose_aa_to_affine(self,pose_aa: np.ndarray) -> np.ndarray:
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/xarm7_control.py:411:    def _print_performance_metrics(self, print_metrics=False):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/xarm7_control.py:43:    def clear(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/xarm7_control.py:452:class DexArmControl:
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/xarm7_control.py:455:    def __init__(self, ip="192.168.1.197"):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/xarm7_control.py:472:    def _init_xarm_control(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/xarm7_control.py:476:    def get_arm_states(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/xarm7_control.py:490:    def get_arm_position(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/xarm7_control.py:494:    def get_arm_velocity(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/xarm7_control.py:498:    def get_arm_torque(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/xarm7_control.py:49:    def set_mode_and_state(self, mode, state=0):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/xarm7_control.py:502:    def get_arm_cartesian_coords(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/xarm7_control.py:506:    def get_cartesian_state(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/xarm7_control.py:515:    def get_arm_pose(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/xarm7_control.py:519:    def move_arm_joint(self, joint_angles):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/xarm7_control.py:523:    def move_arm_cartesian(self, cartesian_pos, duration=3):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/xarm7_control.py:534:    def arm_control(self, cartesian_pos):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/xarm7_control.py:538:    def home_arm(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/xarm7_control.py:67:    def reset(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/xarm7_control.py:92:    def get_arm_pose(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/xarm7_control.py:97:    def get_arm_position(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/leap_robot.py:124:    def name(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/leap_robot.py:128:    def recorder_functions(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/leap_robot.py:138:    def data_frequency(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/leap_robot.py:142:    def start_recording(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/leap_robot.py:147:    def stop_recording(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/leap_robot.py:152:    def is_recording(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/leap_robot.py:157:    def get_joint_state(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/leap_robot.py:164:    def get_commanded_joint_state(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/leap_robot.py:167:    def get_joint_position(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/leap_robot.py:170:    def get_joint_velocity(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/leap_robot.py:173:    def get_joint_torque(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/leap_robot.py:176:    def get_commanded_joint_position(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/leap_robot.py:186:    def home(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/leap_robot.py:189:    def move_coords(self, coords):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/leap_robot.py:194:    def move(self, desired_angles):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/leap_robot.py:20:class LeapHandRobot(RobotWrapper):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/leap_robot.py:214:    def _execute_movement_loop(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/leap_robot.py:21:    def __init__(
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/leap_robot.py:231:    def check_reset(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/leap_robot.py:236:    def check_home(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/leap_robot.py:247:    def get_teleop_state(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/leap_robot.py:251:    def stream(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/leap_robot.py:344:    def _get_operator(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/leap_robot.py:350:    def get_transformed_keypoints(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/leap_robot.py:361:    def publish_current_state(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/leap_robot.py:391:    def __del__(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/rx1_right_robot.py:133:    def robot_pose_aa_to_affine(self, pose_aa: np.ndarray) -> np.ndarray:
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/rx1_right_robot.py:149:    def send_robot_pose(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/rx1_right_robot.py:15:class RX1RightRobot:
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/rx1_right_robot.py:175:    def get_current_ee_pose(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/rx1_right_robot.py:179:    def get_current_joint_states(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/rx1_right_robot.py:183:    def cleanup(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/rx1_right_robot.py:193:    def recorder_functions(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/rx1_right_robot.py:204:    def name(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/rx1_right_robot.py:208:    def data_frequency(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/rx1_right_robot.py:24:    def __init__(self,
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/rx1_right_robot.py:81:    def check_reset(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/rx1_right_robot.py:91:    def stream(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/xarm7_robot.py:131:    def recorder_functions(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/xarm7_robot.py:141:    def name(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/xarm7_robot.py:145:    def data_frequency(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/xarm7_robot.py:149:    def get_joint_state(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/xarm7_robot.py:152:    def get_arm_velocity(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/xarm7_robot.py:155:    def get_arm_torque(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/xarm7_robot.py:158:    def get_cartesian_state(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/xarm7_robot.py:162:    def get_joint_position(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/xarm7_robot.py:165:    def get_cartesian_position(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/xarm7_robot.py:168:    def reset(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/xarm7_robot.py:171:    def get_teleop_state(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/xarm7_robot.py:177:    def get_pose(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/xarm7_robot.py:17:class XArm7Robot(RobotWrapper):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/xarm7_robot.py:181:    def home(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/xarm7_robot.py:184:    def move(self, input_angles):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/xarm7_robot.py:187:    def move_coords(self, cartesian_coords, duration=3):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/xarm7_robot.py:18:    def __init__(
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/xarm7_robot.py:190:    def arm_control(self, cartesian_coords):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/xarm7_robot.py:193:    def move_velocity(self, input_velocity_values, duration):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/xarm7_robot.py:196:    def get_cartesian_state_from_operator(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/xarm7_robot.py:206:    def get_joint_state_from_operator(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/xarm7_robot.py:216:    def get_cartesian_commanded_position(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/xarm7_robot.py:224:    def get_robot_actual_cartesian_position(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/xarm7_robot.py:232:    def get_robot_actual_joint_position(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/xarm7_robot.py:236:    def send_robot_pose(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/xarm7_robot.py:248:    def check_reset(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/xarm7_robot.py:252:    def check_home(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/xarm7_robot.py:263:    def stream(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/xarm7_robot.py:351:    def publish_current_state(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/xarm7_robot.py:382:    def __del__(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/types.py:22:class ErrorEvent:
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/types.py:8:class RobotState:
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/base.py:12:    def timer(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/base.py:18:    def robot(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/base.py:24:    def transformed_hand_keypoint_subscriber(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/base.py:30:    def transformed_arm_keypoint_subscriber(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/base.py:35:    def _apply_retargeted_angles(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/base.py:38:    def cleanup(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/base.py:63:    def stream(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/base.py:9:class Operator(Component, ABC):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/leap_operator.py:118:    def timer(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/leap_operator.py:122:    def transformed_arm_keypoint_subscriber(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/leap_operator.py:126:    def robot(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/leap_operator.py:130:    def transformed_hand_keypoint_subscriber(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/leap_operator.py:134:    def return_real(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/leap_operator.py:138:    def _get_finger_coords(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/leap_operator.py:158:    def _generate_frozen_angles(self, joint_angles, finger_type):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/leap_operator.py:167:    def _background_logging(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/leap_operator.py:190:    def _apply_retargeted_angles(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/leap_operator.py:24:class LeapHandOperator(Operator):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/leap_operator.py:25:    def __init__(self,
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/leap_operator.py:273:    def __del__(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/leap_operator.py:299:def allegro_to_leap_hand(joints, teleop = True, zeros = True):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/leap_sim.py:103:    def transformed_arm_keypoint_subscriber(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/leap_sim.py:107:    def _calibrate_bounds(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/leap_sim.py:112:    def _get_finger_coords(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/leap_sim.py:122:    def _get_2d_thumb_angles(self, thumb_keypoints, curr_angles):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/leap_sim.py:136:    def _get_3d_thumb_angles(self, thumb_keypoints, curr_angles):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/leap_sim.py:157:    def _generate_frozen_angles(self, joint_angles, finger_type):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/leap_sim.py:167:    def _apply_retargeted_angles(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/leap_sim.py:21:class LeapHandSimOperator(Operator):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/leap_sim.py:22:    def __init__(
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/leap_sim.py:87:    def timer(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/leap_sim.py:91:    def robot(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/leap_sim.py:94:    def return_real(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/leap_sim.py:99:    def transformed_hand_keypoint_subscriber(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/rx1_operator.py:155:    def timer(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/rx1_operator.py:159:    def robot(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/rx1_operator.py:163:    def transformed_hand_keypoint_subscriber(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/rx1_operator.py:168:    def transformed_arm_keypoint_subscriber(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/rx1_operator.py:171:    def return_real(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/rx1_operator.py:177:    def _get_hand_frame(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/rx1_operator.py:186:    def _turn_frame_to_homo_mat(self, frame):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/rx1_operator.py:198:    def _homo2cart(self, homo_mat):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/rx1_operator.py:210:    def cart2homo(self, cart):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/rx1_operator.py:219:    def project_to_rotation_matrix(self, R):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/rx1_operator.py:230:    def quat_to_euler_rad(self, qx: float, qy: float, qz: float, qw: float) -> list[float, float, float]:
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/rx1_operator.py:244:    def _get_resolution_scale_mode(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/rx1_operator.py:253:    def _get_arm_teleop_state(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/rx1_operator.py:265:    def _reset_teleop(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/rx1_operator.py:26:class CompStateFilter:
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/rx1_operator.py:27:    def __init__(self, init_state, comp_ratio=0.6):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/rx1_operator.py:299:    def _get_finger_coords(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/rx1_operator.py:306:    def _apply_retargeted_angles(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/rx1_operator.py:32:    def __call__(self, next_state):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/rx1_operator.py:38:class RX1RightOperator(Operator):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/rx1_operator.py:416:    def moving_average(self, action, queue, limit):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/rx1_operator.py:423:    def __del__(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/rx1_operator.py:426:    def _cleanup(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/rx1_operator.py:431:    def move_coords(self, cartesian_coords, duration=3):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/rx1_operator.py:44:    def __init__(
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/template.py:123:    def timer(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/template.py:127:    def robot(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/template.py:131:    def transformed_hand_keypoint_subscriber(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/template.py:135:    def transformed_arm_keypoint_subscriber(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/template.py:139:    def robot_pose_aa_to_affine(self,pose_aa: np.ndarray) -> np.ndarray:
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/template.py:154:    def return_real(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/template.py:158:    def _get_hand_frame(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/template.py:169:    def _get_resolution_scale_mode(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/template.py:175:    def _get_arm_teleop_state_from_hand_keypoints(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/template.py:182:    def _turn_frame_to_homo_mat(self, frame):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/template.py:194:    def _homo2cart(self, homo_mat):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/template.py:207:    def _get_scaled_cart_pose(self, moving_robot_homo_mat):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/template.py:228:    def _reset_teleop(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/template.py:243:    def get_gripper_state_from_hand_keypoints(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/template.py:263:    def get_pause_state_from_hand_keypoints(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/template.py:283:    def _apply_retargeted_angles(self, log=False):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/template.py:31:class Filter:
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/template.py:32:    def __init__(self, state, comp_ratio=0.6):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/template.py:37:    def __call__(self, next_state):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/template.py:45:class TemplateArmOperator(Operator):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/template.py:46:    def __init__(
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/xarm7_left.py:29:class XArm7LeftOperator(XArmOperator):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/xarm7_left.py:35:    def __init__(
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/xarm7_right.py:29:class XArm7RightOperator(XArmOperator):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/xarm7_right.py:35:    def __init__(
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/xarm_base.py:110:class XArmOperator(Operator):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/xarm_base.py:117:    def __init__(
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/xarm_base.py:26:class CompStateFilter:
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/xarm_base.py:294:    def timer(self) -> FrequencyTimer:
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/xarm_base.py:299:    def robot(self) -> Any:
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/xarm_base.py:304:    def transformed_arm_keypoint_subscriber(self) -> ZMQKeypointSubscriber:
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/xarm_base.py:309:    def transformed_hand_keypoint_subscriber(self) -> None:
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/xarm_base.py:313:    def return_real(self) -> bool:
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/xarm_base.py:320:    def _get_hand_frame(self) -> Optional[np.ndarray]:
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/xarm_base.py:32:    def __init__(self, init_state: np.ndarray, pos_ratio: float = 0.6, ori_ratio: float = 0.8, adaptive: bool = True):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/xarm_base.py:349:    def _turn_frame_to_homo_mat(self, frame: np.ndarray) -> np.ndarray:
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/xarm_base.py:372:    def _homo2cart(self, homo_mat: np.ndarray) -> np.ndarray:
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/xarm_base.py:390:    def cart2homo(self, cart: np.ndarray) -> np.ndarray:
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/xarm_base.py:418:    def project_to_rotation_matrix(self, r_mat: np.ndarray) -> np.ndarray:
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/xarm_base.py:443:    def _get_resolution_scale_mode(self) -> float:
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/xarm_base.py:467:    def _get_arm_teleop_state(self) -> int:
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/xarm_base.py:489:    def _reset_teleop(self) -> Optional[np.ndarray]:
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/xarm_base.py:51:    def __call__(self, next_state: np.ndarray) -> np.ndarray:
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/xarm_base.py:550:    def _fix_quaternion_flips(self, quats: np.ndarray) -> np.ndarray:
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/xarm_base.py:575:    def _apply_retargeted_angles(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/xarm_base.py:751:    def moving_average(self, action: np.ndarray, queue: list, limit: int) -> np.ndarray:
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/xarm_base.py:772:    def run(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/xarm_base.py:783:    def __del__(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/xarm_pybullet_sim.py:159:    def timer(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/xarm_pybullet_sim.py:163:    def robot(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/xarm_pybullet_sim.py:167:    def transformed_hand_keypoint_subscriber(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/xarm_pybullet_sim.py:172:    def transformed_arm_keypoint_subscriber(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/xarm_pybullet_sim.py:175:    def return_real(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/xarm_pybullet_sim.py:181:    def _get_hand_frame(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/xarm_pybullet_sim.py:190:    def _turn_frame_to_homo_mat(self, frame):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/xarm_pybullet_sim.py:202:    def _homo2cart(self, homo_mat):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/xarm_pybullet_sim.py:214:    def cart2homo(self, cart):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/xarm_pybullet_sim.py:223:    def project_to_rotation_matrix(self, R):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/xarm_pybullet_sim.py:234:    def _get_resolution_scale_mode(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/xarm_pybullet_sim.py:243:    def _get_arm_teleop_state(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/xarm_pybullet_sim.py:255:    def _reset_teleop(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/xarm_pybullet_sim.py:26:class CompStateFilter:
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/xarm_pybullet_sim.py:27:    def __init__(self, init_state, comp_ratio=0.6):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/xarm_pybullet_sim.py:285:    def _calibrate_bounds(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/xarm_pybullet_sim.py:310:    def _get_finger_coords(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/xarm_pybullet_sim.py:317:    def _apply_retargeted_angles(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/xarm_pybullet_sim.py:32:    def __call__(self, next_state):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/xarm_pybullet_sim.py:38:class XArmPyBulletOperator(Operator):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/xarm_pybullet_sim.py:39:    def __init__(
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/xarm_pybullet_sim.py:422:    def moving_average(self, action, queue, limit):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/xarm_pybullet_sim.py:429:    def __del__(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/xarm_pybullet_sim.py:432:    def _cleanup(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/solvers/leap_solver.py:102:    def transform_position(self, pos, is_ring_finger=False, is_index_finger=False, is_thumb=False):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/solvers/leap_solver.py:167:    def compute_hand_pos(self, finger_positions):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/solvers/leap_solver.py:19:class LeapHandIKSolver:
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/solvers/leap_solver.py:200:    def solve_ik(self, finger_positions, current_positions=None):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/solvers/leap_solver.py:25:    def __init__(self, urdf_path=None, use_gui=False, smoothing_factor=0.1, hand_side=robots.RIGHT):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/solvers/leap_solver.py:417:    def _create_coordinate_frame(self, position=[0, 0, 0], size=0.1):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/solvers/leap_solver.py:426:    def close(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/types.py:16:class CartesianTarget:
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/types.py:39:class JointTarget:
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/types.py:55:class GripperCommand:
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/types.py:69:class ModeChange:
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/image.py:14:class RobotImageVisualizer(Component):
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/image.py:15:    def __init__(self, host, cam_port_offset, cam_id):        
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/image.py:24:    def stream(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/plotters/plotter_2d.py:23:def plot_line(X1, X2, Y1, Y2):
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/plotters/plotter_2d.py:26:class PlotHand2D(Plotter):
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/plotters/plotter_2d.py:27:    def __init__(self, host: str, port: int, display_plot: bool = False):
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/plotters/plotter_2d.py:51:    def _check_thumb_bounds(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/plotters/plotter_2d.py:55:    def _set_limits(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/plotters/plotter_2d.py:58:    def _draw_thumb_bounds(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/plotters/plotter_2d.py:67:    def draw_hand(self, X, Y):
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/plotters/plotter_2d.py:87:    def draw(self, X, Y):
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/plotters/plotter_3d.py:21:    def _plot_line(self, X1, X2, Y1, Y2, Z1, Z2):
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/plotters/plotter_3d.py:24:    def _set_limits(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/plotters/plotter_3d.py:29:    def _draw_hand(self, X, Y, Z):
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/plotters/plotter_3d.py:48:    def draw(self, X, Y, Z):
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/plotters/plotter_3d.py:65:class PlotHandDirection(Plotter):
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/plotters/plotter_3d.py:66:    def __init__(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/plotters/plotter_3d.py:72:    def _set_limits(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/plotters/plotter_3d.py:77:    def draw(self, X, Y, Z):
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/plotters/plotter_3d.py:8:class PlotHand3D(Plotter):
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/plotters/plotter_3d.py:9:    def __init__(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/plotters/plotter.py:10:    def draw(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/plotters/plotter.py:4:class Plotter(ABC):
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/plotters/plotter.py:6:    def _set_limits(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/plotters/xela_plotter.py:119:    def _set_limits(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/plotters/xela_plotter.py:11:class XelaPlotter(Plotter):
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/plotters/xela_plotter.py:122:    def plot_tactile_sensor(self,ax, sensor_values, use_img=False, img=None, title='Tip Position'):
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/plotters/xela_plotter.py:12:    def __init__(self, display_plot=True):
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/plotters/xela_plotter.py:153:    def plot_tactile_curved_tip(self,ax, sensor_values, use_img=False, img=None, title='Tip Position'):
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/plotters/xela_plotter.py:187:    def plot_tactile_palm(self,ax, sensor_values, use_img=False, img=None, title='Tip Position'):
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/plotters/xela_plotter.py:236:    def draw(self,palm_sensor_values,fingertip_sensor_values,finger_sensor_values):
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/plotters/xela_plotter.py:32:    def _set_limits(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/plotters/xela_plotter.py:35:    def _set_circle_coordinates(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/plotters/xela_plotter.py:41:    def _draw_one_sensor(self, ax, sensor_values, img=None):
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/plotters/xela_plotter.py:66:    def draw(self, all_sensor_values):
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/plotters/xela_plotter.py:87:class XelaCurvedPlotter(Plotter):
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/plotters/xela_plotter.py:88:    def __init__(self, display_plot=True):
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/visualizer_2d.py:14:class Hand2DVisualizer(Component):
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/visualizer_2d.py:15:    def __init__(self, host, transformed_keypoint_port, oculus_feedback_port, display_plot):
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/visualizer_2d.py:25:    def _get_keypoints(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/visualizer_2d.py:29:    def stream(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/visualizer_3d.py:10:class Hand3DVisualizer(Component):
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/visualizer_3d.py:11:    def __init__(self, host, port):
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/visualizer_3d.py:22:    def _get_keypoints(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/visualizer_3d.py:26:    def stream(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/visualizer_3d.py:38:class OculusRightHandDirVisualizer(Component):
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/visualizer_3d.py:39:    def __init__(self, host, port, scaling_factor = 0.2):
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/visualizer_3d.py:54:    def _get_directions(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/visualizer_3d.py:58:    def stream(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/xela_visualizer.py:19:    def stream(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/xela_visualizer.py:37:class XelaCurvedVisualizer(Component):
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/xela_visualizer.py:38:    def __init__(
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/xela_visualizer.py:48:    def stream(self):
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/xela_visualizer.py:6:class XelaVisualizer(Component):
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/xela_visualizer.py:7:    def __init__(
+  /home/demo/beavr-bot/src/beavr/teleop/configs/constants/models.py:113:    def __post_init__(self):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/constants/models.py:126:class ResolutionConfig:
+  /home/demo/beavr-bot/src/beavr/teleop/configs/constants/models.py:131:    def __post_init__(self):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/constants/models.py:137:class TeleopFlags:
+  /home/demo/beavr-bot/src/beavr/teleop/configs/constants/models.py:13:class NetworkConfig:
+  /home/demo/beavr-bot/src/beavr/teleop/configs/constants/models.py:151:class TeleopControlConfig:
+  /home/demo/beavr-bot/src/beavr/teleop/configs/constants/models.py:160:    def __post_init__(self):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/constants/models.py:168:class RobotConfig:
+  /home/demo/beavr-bot/src/beavr/teleop/configs/constants/models.py:242:    def __post_init__(self):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/constants/models.py:24:    def __post_init__(self):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/constants/models.py:251:class CameraConfig:
+  /home/demo/beavr-bot/src/beavr/teleop/configs/constants/models.py:320:    def __post_init__(self):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/constants/models.py:329:class TeleopConfig:
+  /home/demo/beavr-bot/src/beavr/teleop/configs/constants/models.py:40:class PortsConfig:
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/__init__.py:6:class TeleopRobotConfig(draccus.ChoiceRegistry, abc.ABC):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/leap_config.py:108:    def build(self):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/leap_config.py:121:class LeapHandConfig:
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/leap_config.py:140:    def __post_init__(self):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/leap_config.py:146:    def _configure_for_laterality(self):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/leap_config.py:22:class LeapHandOperatorCfg:
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/leap_config.py:303:    def build(self):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/leap_config.py:51:    def __post_init__(self):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/leap_config.py:64:    def build(self):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/leap_config.py:77:class LeapHandRobotCfg:
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/leap_config.py:95:    def __post_init__(self):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/leap_sim_config.py:16:class OculusVRHandDetectorCfg:
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/leap_sim_config.py:25:    def build(self):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/leap_sim_config.py:29:class TransformHandPositionCoordsCfg:
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/leap_sim_config.py:35:    def build(self):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/leap_sim_config.py:39:class Hand2DVisualizerCfg:
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/leap_sim_config.py:45:    def build(self):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/leap_sim_config.py:49:class LeapHandSimOperatorCfg:
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/leap_sim_config.py:58:    def build(self):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/leap_sim_config.py:62:class LeapHandEnvCfg:
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/leap_sim_config.py:74:    def build(self):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/leap_sim_config.py:79:class LeapSimConfig:
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/leap_sim_config.py:89:    def build(self):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/leap_sim_isaac_config.py:16:class OculusVRHandDetectorCfg:
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/leap_sim_isaac_config.py:25:    def build(self):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/leap_sim_isaac_config.py:29:class TransformHandPositionCoordsCfg:
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/leap_sim_isaac_config.py:35:    def build(self):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/leap_sim_isaac_config.py:39:class Hand2DVisualizerCfg:
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/leap_sim_isaac_config.py:45:    def build(self):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/leap_sim_isaac_config.py:49:class LeapHandSimOperatorCfg:
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/leap_sim_isaac_config.py:58:    def build(self):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/leap_sim_isaac_config.py:62:class LeapHandEnvCfg:
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/leap_sim_isaac_config.py:73:    def build(self):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/leap_sim_isaac_config.py:78:class LeapSimIsaacConfig:
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/leap_sim_isaac_config.py:88:    def build(self):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/rx1_right_config.py:16:class OculusVRHandDetectorCfg:
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/rx1_right_config.py:25:    def build(self):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/rx1_right_config.py:29:class TransformHandPositionCoordsCfg:
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/rx1_right_config.py:35:    def build(self):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/rx1_right_config.py:39:class Hand2DVisualizerCfg:
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/rx1_right_config.py:45:    def build(self):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/rx1_right_config.py:49:class RX1RightCfg:
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/rx1_right_config.py:58:    def build(self):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/rx1_right_config.py:62:class RX1RightOperatorCfg:
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/rx1_right_config.py:76:    def build(self):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/rx1_right_config.py:81:class Rx1RightConfig:
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/rx1_right_config.py:90:    def build(self):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/shared_components.py:114:    def get_visualizer_config(
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/shared_components.py:142:    def clear(cls):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/shared_components.py:149:    def get_registered_hands(cls) -> Dict[str, list]:
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/shared_components.py:158:class OculusVRHandDetectorCfg:
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/shared_components.py:168:    def __post_init__(self):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/shared_components.py:185:    def build(self):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/shared_components.py:195:class BimanualOculusVRHandDetectorCfg:
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/shared_components.py:205:    def build(self):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/shared_components.py:20:class SharedComponentRegistry:
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/shared_components.py:217:class TransformHandPositionCoordsCfg:
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/shared_components.py:226:    def __post_init__(self):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/shared_components.py:235:    def build(self):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/shared_components.py:245:class Hand2DVisualizerCfg:
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/shared_components.py:254:    def __post_init__(self):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/shared_components.py:263:    def build(self):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/shared_components.py:35:    def get_detector_config(
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/shared_components.py:66:    def get_bimanual_detector_config(
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/shared_components.py:86:    def get_transform_config(
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/template_robot_config.py:15:class OculusVRHandDetectorCfg:
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/template_robot_config.py:24:    def build(self):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/template_robot_config.py:28:class TransformHandPositionCoordsCfg:
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/template_robot_config.py:34:    def build(self):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/template_robot_config.py:38:class Hand2DVisualizerCfg:
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/template_robot_config.py:44:    def build(self):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/template_robot_config.py:48:class TemplateArmOperatorCfg:
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/template_robot_config.py:58:    def build(self):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/template_robot_config.py:62:class RobotWrapperCfg:
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/template_robot_config.py:65:    def build(self):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/template_robot_config.py:70:class TemplateRobotConfig:
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/template_robot_config.py:79:    def build(self):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/xarm7_config.py:112:    def __post_init__(self):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/xarm7_config.py:129:    def build(self):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/xarm7_config.py:155:class XArm7Config:
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/xarm7_config.py:166:    def __post_init__(self):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/xarm7_config.py:172:    def _configure_for_laterality(self):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/xarm7_config.py:24:class XArm7RobotCfg:
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/xarm7_config.py:335:    def build(self):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/xarm7_config.py:48:    def __post_init__(self):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/xarm7_config.py:69:    def build(self):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/xarm7_config.py:86:class XArm7OperatorCfg:
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/xarm_pybullet_sim_config.py:16:class OculusVRHandDetectorCfg:
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/xarm_pybullet_sim_config.py:25:    def build(self):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/xarm_pybullet_sim_config.py:29:class TransformHandPositionCoordsCfg:
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/xarm_pybullet_sim_config.py:35:    def build(self):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/xarm_pybullet_sim_config.py:39:class Hand2DVisualizerCfg:
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/xarm_pybullet_sim_config.py:45:    def build(self):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/xarm_pybullet_sim_config.py:49:class XArmPyBulletOperatorCfg:
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/xarm_pybullet_sim_config.py:65:    def build(self):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/xarm_pybullet_sim_config.py:69:class XArmEnvCfg:
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/xarm_pybullet_sim_config.py:81:    def build(self):
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/xarm_pybullet_sim_config.py:86:class XarmPybulletSimConfig:
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/xarm_pybullet_sim_config.py:96:    def build(self):
+  /home/demo/beavr-bot/src/beavr/teleop/__init__.py:25:def _setup_root_logger(level: int = logging.DEBUG):
+  /home/demo/beavr-bot/src/beavr/teleop/main.py:142:def main(cfg: MainConfig):
+  /home/demo/beavr-bot/src/beavr/teleop/main.py:28:class MainConfig:
+  /home/demo/beavr-bot/src/beavr/teleop/main.py:49:    def __post_init__(self):
+  /home/demo/beavr-bot/src/beavr/teleop/main.py:66:    def __getattr__(self, item):
+  /home/demo/beavr-bot/src/beavr/teleop/main.py:78:def run_teleop(config: MainConfig):
+
+--- Imports referencing utils ---
+  /home/demo/beavr-bot/src/beavr/teleop/common/math/ops.py:6:from beavr.teleop.utils.network import ZMQKeypointSubscriber
+  /home/demo/beavr-bot/src/beavr/teleop/components/detector/vr/keypoint_transform.py:10:from beavr.teleop.utils.timer import FrequencyTimer
+  /home/demo/beavr-bot/src/beavr/teleop/components/detector/vr/keypoint_transform.py:11:from beavr.teleop.utils.vectorops import moving_average, normalize_vector
+  /home/demo/beavr-bot/src/beavr/teleop/components/detector/vr/keypoint_transform.py:9:from beavr.teleop.utils.network import ZMQKeypointSubscriber, ZMQPublisherManager, cleanup_zmq_resources
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/arm_env.py:5:from beavr.teleop.utils.images import rescale_image
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/hand_env.py:5:from beavr.teleop.utils.images import rescale_image
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/leap_hand_isaac.py:11:from beavr.teleop.utils.network import (
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/leap_hand_isaac.py:17:from beavr.teleop.utils.timer import FrequencyTimer
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/pybullet_base_env_hand.py:10:from beavr.teleop.utils.network import (
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/pybullet_base_env_hand.py:16:from beavr.teleop.utils.timer import FrequencyTimer
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/pybullet_base_env.py:10:from beavr.teleop.utils.network import (
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/pybullet_base_env.py:16:from beavr.teleop.utils.timer import FrequencyTimer
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/rx1_env.py:10:from beavr.teleop.utils.network import ZMQCompressedImageTransmitter
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/rx1_env.py:8:from beavr.teleop.utils.images import rescale_image
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/rx1_env.py:9:from beavr.teleop.utils.logger import RobotLogger
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/xarm_env.py:11:from beavr.teleop.utils.images import rescale_image
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/xarm_env.py:12:from beavr.teleop.utils.logger import RobotLogger
+  /home/demo/beavr-bot/src/beavr/teleop/components/environment/xarm_env.py:13:from beavr.teleop.utils.network import ZMQCompressedImageTransmitter
+  /home/demo/beavr-bot/src/beavr/teleop/components/initializers.py:6:from beavr.teleop.utils.instantiator import instantiate_from_target
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/xarm7_control.py:11:from beavr.teleop.utils.orientation import quat_positive, quat_to_axis_angle
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/rx1_right_robot.py:10:from beavr.teleop.utils.network import EnhancedZMQKeypointSubscriber as ZMQKeypointSubscriber
+  /home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/rx1_right_robot.py:9:from beavr.teleop.utils.network import EnhancedZMQKeypointPublisher as ZMQKeypointPublisher
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/leap_sim.py:12:from beavr.teleop.utils.network import ZMQKeypointPublisher, ZMQKeypointSubscriber
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/leap_sim.py:13:from beavr.teleop.utils.timer import FrequencyTimer
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/leap_sim.py:14:from beavr.teleop.utils.vectorops import coord_in_bound
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/leap_sim.py:9:from beavr.teleop.utils.files import get_path_in_package, get_yaml_data
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/rx1_operator.py:16:from beavr.teleop.utils.logger import PoseLogger
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/rx1_operator.py:17:from beavr.teleop.utils.network import ZMQKeypointPublisher, ZMQKeypointSubscriber
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/rx1_operator.py:18:from beavr.teleop.utils.timer import FrequencyTimer
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/template.py:20:from beavr.teleop.utils.network import ZMQKeypointPublisher, ZMQKeypointSubscriber
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/template.py:21:from beavr.teleop.utils.timer import FrequencyTimer
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/xarm_pybullet_sim.py:16:from beavr.teleop.utils.logger import PoseLogger
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/xarm_pybullet_sim.py:17:from beavr.teleop.utils.network import ZMQKeypointPublisher, ZMQKeypointSubscriber
+  /home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/xarm_pybullet_sim.py:18:from beavr.teleop.utils.timer import FrequencyTimer
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/image.py:7:from beavr.teleop.utils.images import rescale_image
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/image.py:8:from beavr.teleop.utils.network import ZMQCameraSubscriber
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/image.py:9:from beavr.teleop.utils.timer import FrequencyTimer
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/plotters/plotter_2d.py:10:from beavr.teleop.utils.files import check_file, get_npz_data, make_dir
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/plotters/plotter_2d.py:11:from beavr.teleop.utils.network import ZMQCompressedImageTransmitter
+  /home/demo/beavr-bot/src/beavr/teleop/components/visualizer/visualizer_2d.py:7:from beavr.teleop.utils.network import ZMQKeypointSubscriber
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/leap_config.py:16:from beavr.teleop.utils.configs import Laterality, log_laterality_configuration
+  /home/demo/beavr-bot/src/beavr/teleop/configs/robots/xarm7_config.py:18:from beavr.teleop.utils.configs import Laterality, log_laterality_configuration
+  /home/demo/beavr-bot/src/beavr/teleop/main.py:16:from beavr.teleop.utils.configs import (
+  /home/demo/beavr-bot/src/beavr/teleop/main.py:22:from beavr.teleop.utils.logger import setup_root_logger
+
+--- File sizes (top 30) ---
+  36K	/home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/xarm_base.py
+  24K	/home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/xarm7_control.py
+  24K	/home/demo/beavr-bot/src/beavr/teleop/components/environment/leap_hand_isaac.py
+  24K	/home/demo/beavr-bot/src/beavr/teleop/common/messaging/handshake.py
+  20K	/home/demo/beavr-bot/src/beavr/teleop/components/operator/solvers/leap_solver.py
+  20K	/home/demo/beavr-bot/src/beavr/teleop/components/environment/leap_hand_env.py
+  16K	/home/demo/beavr-bot/src/beavr/teleop/configs/robots/xarm7_config.py
+  16K	/home/demo/beavr-bot/src/beavr/teleop/configs/robots/leap_config.py
+  16K	/home/demo/beavr-bot/src/beavr/teleop/configs/constants/models.py
+  16K	/home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/xarm_pybullet_sim.py
+  16K	/home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/template.py
+  16K	/home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/rx1_operator.py
+  16K	/home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/leap_operator.py
+  16K	/home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/xarm7_robot.py
+  16K	/home/demo/beavr-bot/src/beavr/teleop/components/interface/robot/leap_robot.py
+  16K	/home/demo/beavr-bot/src/beavr/teleop/components/environment/xarm_env.py
+  16K	/home/demo/beavr-bot/src/beavr/teleop/components/detector/vr/keypoint_transform.py
+  16K	/home/demo/beavr-bot/src/beavr/teleop/common/messaging/publisher.py
+  16K	/home/demo/beavr-bot/src/beavr/teleop/common/logging/logger.py
+  16K	/home/demo/beavr-bot/src/beavr/teleop/common/config/loader.py
+  12K	/home/demo/beavr-bot/src/beavr/teleop/configs/robots/shared_components.py
+  12K	/home/demo/beavr-bot/src/beavr/teleop/components/visualizer/plotters/xela_plotter.py
+  12K	/home/demo/beavr-bot/src/beavr/teleop/components/operator/robot/leap_sim.py
+  12K	/home/demo/beavr-bot/src/beavr/teleop/components/interface/controller/robot/leap_control.py
+  12K	/home/demo/beavr-bot/src/beavr/teleop/components/detector/vr/oculus.py
+  8.0K	/home/demo/beavr-bot/src/beavr/teleop/main.py
+  8.0K	/home/demo/beavr-bot/src/beavr/teleop/configs/robots/xarm_pybullet_sim_config.py
+  8.0K	/home/demo/beavr-bot/src/beavr/teleop/configs/robots/template_robot_config.py
+  8.0K	/home/demo/beavr-bot/src/beavr/teleop/configs/robots/rx1_right_config.py
+  8.0K	/home/demo/beavr-bot/src/beavr/teleop/configs/robots/leap_sim_isaac_config.py
+

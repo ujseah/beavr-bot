@@ -1,4 +1,4 @@
-name: beavr_dev
+name: beavr
 channels:
   - defaults
   - conda-forge
