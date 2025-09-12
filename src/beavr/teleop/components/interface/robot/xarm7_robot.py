@@ -11,6 +11,7 @@ from beavr.teleop.common.messaging.vr.subscribers import ZMQSubscriber
 from beavr.teleop.components.interface.controller.robot.xarm7_control import DexArmControl
 from beavr.teleop.components.interface.interface_base import RobotWrapper
 from beavr.teleop.components.interface.interface_types import CartesianState, CommandedCartesianState
+from beavr.teleop.components.operator.operator_types import CartesianTarget
 from beavr.teleop.configs.constants import robots
 
 logger = logging.getLogger(__name__)
@@ -62,10 +63,11 @@ class XArm7Robot(RobotWrapper):
         self._data_frequency = robots.VR_FREQ
         
         # Subscribers
-        self._cartesian_coords_subscriber = ZMQSubscriber(
+        self._cartesian_coords_subscriber = ZMQSubscriber[CartesianTarget](
             host = host, 
             port = endeff_subscribe_port,
-            topic = 'endeff_coords'
+            topic = 'endeff_coords',
+            message_type=CartesianTarget,
         )
         
         self._joint_state_subscriber = ZMQSubscriber(
@@ -140,21 +142,22 @@ class XArm7Robot(RobotWrapper):
         self._is_homed = False
 
 
+    # recorder_functions removed in favor of inlined state gathering in publish_current_state()
+
+    @property
+    def name(self):
+        return f"{robots.ROBOT_NAME_XARM7}_{'right' if self._is_right_arm else 'left'}"
+
     @property
     def recorder_functions(self):
-        # Mapping of state keys to getter functions. Values may be typed objects with to_dict()
-        # or native dicts/ndarrays. publish_current_state() will normalize them to the wire format.
+        """Required by abstract base class. Returns mapping of state keys to getter functions."""
         return {
             'joint_states': self.get_joint_state,
             'operator_cartesian_states': self.get_cartesian_state_from_operator,
             'xarm_cartesian_states': self.get_robot_actual_cartesian_position,
             'commanded_cartesian_state': self.get_cartesian_commanded_position,
-            'joint_angles_rad': self.get_joint_position, # These are the robot's joint angles in radians
+            'joint_angles_rad': self.get_joint_position,
         }
-
-    @property
-    def name(self):
-        return f"{robots.ROBOT_NAME_XARM7}_{'right' if self._is_right_arm else 'left'}"
 
     @property
     def data_frequency(self):
@@ -162,7 +165,14 @@ class XArm7Robot(RobotWrapper):
 
     # State information functions
     def get_joint_state(self):
-        return self._controller.get_arm_states()
+        arm_states = self._controller.get_arm_states()
+        if arm_states is None or arm_states.get('joint_position') is None:
+            return None
+        # Publish only the wire-format keys expected downstream
+        return {
+            "joint_position": list(np.array(arm_states['joint_position'], dtype=np.float32)),
+            "timestamp": arm_states.get('timestamp', time.time()),
+        }
     
     def get_joint_velocity(self):
         return self._controller.get_arm_velocity()
@@ -175,7 +185,10 @@ class XArm7Robot(RobotWrapper):
         return cartesian_state
     
     def get_joint_position(self):
-        return self._controller.get_arm_position()
+        arm_position = self._controller.get_arm_position()
+        if arm_position is None:
+            return None
+        return list(np.array(arm_position, dtype=np.float32))
     
     def get_cartesian_position(self):
         return self._controller.get_arm_cartesian_coords()
@@ -218,12 +231,10 @@ class XArm7Robot(RobotWrapper):
     def get_joint_state_from_operator(self):
         if self._latest_joint_state is None:
             return None
-        
-        joint_state_dict = {
-            "joint_position": np.array(self._latest_joint_state, dtype=np.float32),
-            "timestamp": self._latest_joint_state_timestamp
+        return {
+            "joint_position": list(np.array(self._latest_joint_state, dtype=np.float32)),
+            "timestamp": self._latest_joint_state_timestamp,
         }
-        return joint_state_dict
 
     def get_cartesian_commanded_position(self):
         if self._latest_commanded_cartesian_position is None:
@@ -241,17 +252,22 @@ class XArm7Robot(RobotWrapper):
         return CartesianState(position_m=position, timestamp_s=time.time())
     
     def get_robot_actual_joint_position(self):
-        joint_state_dict = self._controller.get_arm_joint_state()
-        return joint_state_dict
+        # Reuse the joint state getter for observed joint data
+        return self.get_joint_state()
     
     def send_robot_pose(self):
-        cartesian_state = self._controller.get_arm_pose()
+        pose_homo = self._controller.get_arm_pose()
         try:
+            h_matrix = tuple(tuple(float(x) for x in row) for row in pose_homo)
+
             self._publisher_manager.publish(
-                self._publisher_host,
-                self._endeff_publish_port,
-                "endeff_homo",
-                cartesian_state,
+                host=self._publisher_host,
+                port=self._endeff_publish_port,
+                topic="endeff_homo",
+                data=CartesianState(
+                    timestamp_s=time.time(),
+                    h_matrix=h_matrix,
+                ),
             )
         except Exception as e:
             logger.error(f"Failed to publish robot pose for {self.name}: {e}")
@@ -313,7 +329,9 @@ class XArm7Robot(RobotWrapper):
                     )
                     self._latest_commanded_cartesian_timestamp = cmd.timestamp_s
 
-                self.move_coords(self._latest_commanded_cartesian_position)
+                # Only move if we have a valid cartesian position
+                if self._latest_commanded_cartesian_position is not None:
+                    self.move_coords(self._latest_commanded_cartesian_position)
 
                 # Publish the current state every cycle so that external
                 # adapters (e.g. MultiRobotAdapter) receive up-to-date joint
@@ -327,22 +345,39 @@ class XArm7Robot(RobotWrapper):
 
     def publish_current_state(self):
         """
-        Gathers all state data defined in recorder_functions
-        and publishes it as a single dictionary via ZMQ using self.name as topic
-        on the state_publish_port.
+        Gathers interface state and publishes a single dictionary via ZMQ using
+        self.name as topic on the state_publish_port. Uses existing types for
+        cartesian data (CartesianState, CommandedCartesianState) and simple
+        dict/list for joints for clarity.
         """
-        current_state_dict = {}
         publish_time = time.time()
 
-        for key, getter_function in self.recorder_functions.items():
-            state_data = getter_function()
-            if state_data is None:
-                continue
-            # Convert typed boundary objects to the legacy wire format
-            if hasattr(state_data, "to_dict") and callable(state_data.to_dict):
-                current_state_dict[key] = state_data.to_dict()
-            else:
-                current_state_dict[key] = state_data
+        # 1) Joint state (dict: joint_position, timestamp)
+        joint_states = self.get_joint_state()
+
+        # 2) Operator cartesian state (CartesianState)
+        operator_cart = self.get_cartesian_state_from_operator()
+
+        # 3) Robot actual cartesian state (CartesianState)
+        robot_cart = self.get_robot_actual_cartesian_position()
+
+        # 4) Commanded cartesian state (CommandedCartesianState)
+        commanded_cart = self.get_cartesian_commanded_position()
+
+        # 5) Convenience raw joint angles list
+        joint_angles_rad = self.get_joint_position()
+
+        current_state_dict = {}
+        if joint_states is not None:
+            current_state_dict['joint_states'] = joint_states
+        if operator_cart is not None:
+            current_state_dict['operator_cartesian_states'] = operator_cart.to_dict()
+        if robot_cart is not None:
+            current_state_dict['xarm_cartesian_states'] = robot_cart.to_dict()
+        if commanded_cart is not None:
+            current_state_dict['commanded_cartesian_state'] = commanded_cart.to_dict()
+        if joint_angles_rad is not None:
+            current_state_dict['joint_angles_rad'] = joint_angles_rad
 
         current_state_dict['timestamp'] = publish_time
 

@@ -41,13 +41,21 @@ class CartesianState:
         {"cartesian_position": [x, y, z], "timestamp": <float>}
     """
 
-    position_m: Tuple[float, float, float]
-    timestamp_s: float
+    position_m: Optional[Tuple[float, float, float]] = None
+    timestamp_s: Optional[float] = None
+    h_matrix: Optional[
+        Tuple[
+            Tuple[float, float, float, float], 
+            Tuple[float, float, float, float], 
+            Tuple[float, float, float, float], 
+            Tuple[float, float, float, float], 
+        ]
+    ] = None
 
     def to_dict(self) -> dict:
         return {
-            "cartesian_position": list(self.position_m),
-            "timestamp": self.timestamp_s,
+            "cartesian_position": list(self.position_m) if self.position_m is not None else [0.0, 0.0, 0.0],
+            "timestamp": self.timestamp_s if self.timestamp_s is not None else 0.0,
         }
 
 
@@ -62,15 +70,14 @@ class CommandedCartesianState:
     """
 
     commanded_cartesian_position: Sequence[float]  # length 7
-    timestamp_s: float
+    timestamp_s: Optional[float] = None
 
     def to_dict(self) -> dict:
         return {
             "commanded_cartesian_position": list(self.commanded_cartesian_position),
             "timestamp": self.timestamp_s,
         }
-
-
+ 
 __all_= [
     "RobotState",
     "ErrorEvent",

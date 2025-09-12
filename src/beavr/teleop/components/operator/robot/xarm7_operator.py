@@ -16,7 +16,8 @@ from beavr.teleop.common.messaging.utils import (
 )
 from beavr.teleop.common.messaging.vr.subscribers import ZMQSubscriber
 from beavr.teleop.common.time.timer import FrequencyTimer
-from beavr.teleop.components.detector.detector_types import InputFrame, SessionCommand
+from beavr.teleop.components.detector.detector_types import ButtonEvent, InputFrame, SessionCommand
+from beavr.teleop.components.interface.interface_types import CartesianState
 from beavr.teleop.components.operator import CartesianTarget
 from beavr.teleop.components.operator.operator_base import Operator
 from beavr.teleop.components.operator.solvers.filters import CompStateFilter
@@ -89,37 +90,43 @@ class XArmOperator(Operator):
         else:  # LEFT
             frame_topic = f"{robots.LEFT}_{robots.TRANSFORMED_HAND_FRAME}"
         
-        self._arm_transformed_keypoint_subscriber = ZMQSubscriber(
+        # Receives InputFrame objects containing frame vectors
+        self._arm_transformed_keypoint_subscriber = ZMQSubscriber[InputFrame](
             host=host,
             port=transformed_keypoints_port,
             topic=frame_topic,
-            context=self._context
+            context=self._context,
+            message_type=InputFrame,
         )
 
         # Optional subscribers
         self._arm_resolution_subscriber = None
         if arm_resolution_port:
-            self._arm_resolution_subscriber = ZMQSubscriber(
+            self._arm_resolution_subscriber = ZMQSubscriber[ButtonEvent](
                 host=host,
                 port=arm_resolution_port,
                 topic='button',
-                context=self._context
+                context=self._context,
+                message_type=ButtonEvent,
             )
 
         self._arm_teleop_state_subscriber = None
         if teleoperation_state_port:
-            self._arm_teleop_state_subscriber = ZMQSubscriber(
+            self._arm_teleop_state_subscriber = ZMQSubscriber[SessionCommand](
                 host=host,
                 port=teleoperation_state_port,
                 topic='pause',
-                context=self._context
+                context=self._context,
+                message_type=SessionCommand,
             )
 
-        self.endeff_homo_subscriber = ZMQSubscriber(
+        # Receives CartesianState with h_matrix set
+        self.endeff_homo_subscriber = ZMQSubscriber[CartesianState](
             host=host,
             port=endeff_subscribe_port,
             topic='endeff_homo',
-            context=self._context
+            context=self._context,
+            message_type=CartesianState,
         )
 
         self._subscribers = {
@@ -368,14 +375,14 @@ class XArmOperator(Operator):
             # Keep the current resolution scale if no new message
             return self.resolution_scale
         try:
-            scale_mode = np.asanyarray(data).reshape(1)[0]
+            # Expect ButtonEvent
+            scale_mode = data.value
+
             # Update internal resolution scale based on mode
             if scale_mode == robots.ARM_HIGH_RESOLUTION:
                 self.resolution_scale = 1.0
             elif scale_mode == robots.ARM_LOW_RESOLUTION:
                 self.resolution_scale = 0.6
-
-
             return self.resolution_scale # Return the updated scale
         except Exception as e:
             logger.error(f"Error processing resolution scale data: {e}")
@@ -392,11 +399,14 @@ class XArmOperator(Operator):
         if data is None:
             return self.arm_teleop_state # Return current state if no new message
         try:
-            state = int(np.asanyarray(data).reshape(1)[0])
-            if state in [robots.ARM_TELEOP_STOP, robots.ARM_TELEOP_CONT]:
-                return state
+            # Expect SessionCommand
+            if data.command == robots.PAUSE:
+                return robots.ARM_TELEOP_STOP
+            elif data.command == robots.RESUME:
+                return robots.ARM_TELEOP_CONT
             else:
-                return self.arm_teleop_state # Return current state if unknown value
+                return self.arm_teleop_state
+
         except Exception:
             return self.arm_teleop_state # Return current state on error
 
@@ -414,20 +424,28 @@ class XArmOperator(Operator):
 
         logger.info(f'****** {self.operator_name}: RESETTING TELEOP ******')
         # Request robot's current pose using a typed contract
-        reset_cmd = SessionCommand(timestamp_s=time.time(), command="reset")
-        self._publisher_manager.publish(self._publisher_host, self._publisher_port, 'reset', reset_cmd)
+        self._publisher_manager.publish(
+            host=self._publisher_host,
+            port=self._publisher_port,
+            topic='reset',
+            data=SessionCommand(timestamp_s=time.time(), command="reset"),
+        )
         robot_frame_homo = self.endeff_homo_subscriber.recv_keypoints()
         
         # Keep trying until we get a response
         while robot_frame_homo is None:
-            reset_cmd = SessionCommand(timestamp_s=time.time(), command="reset")
-            self._publisher_manager.publish(self._publisher_host, self._publisher_port, 'reset', reset_cmd)
+            self._publisher_manager.publish(
+                host=self._publisher_host,
+                port=self._publisher_port,
+                topic='reset',
+                data=SessionCommand(timestamp_s=time.time(), command="reset"),
+            )
             robot_frame_homo = self.endeff_homo_subscriber.recv_keypoints()
             time.sleep(0.01)
         
         try:
-            # Ensure received data is a valid 4x4 matrix
-            self.robot_init_h = np.asanyarray(robot_frame_homo).reshape(4, 4)
+            h = np.array(robot_frame_homo.h_matrix, dtype=np.float64).reshape(4, 4)
+            self.robot_init_h = h
             # Validate if it's close to a homogeneous matrix
             if not np.allclose(self.robot_init_h[3, :], [0, 0, 0, 1]):
                  logger.warning(f"Warning ({self.operator_name}): Received robot frame is not a valid homogeneous matrix. Resetting bottom row.")
@@ -645,10 +663,10 @@ class XArmOperator(Operator):
         if publish_commands:
             try:
                 self._publisher_manager.publish(
-                    self._publisher_host,
-                    self._publisher_port,
-                    "endeff_coords",
-                    cartesian_cmd,
+                    host=self._publisher_host,
+                    port=self._publisher_port,
+                    topic="endeff_coords",
+                    data=cartesian_cmd,
                 )
                 # logger.info(f"Published end-effector command: {command_data}")
             except (ConnectionError, SerializationError) as e:

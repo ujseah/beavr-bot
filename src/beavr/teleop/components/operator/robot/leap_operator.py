@@ -14,7 +14,8 @@ from beavr.teleop.common.messaging.utils import (
 )
 from beavr.teleop.common.messaging.vr.subscribers import ZMQSubscriber
 from beavr.teleop.common.time.timer import FrequencyTimer
-from beavr.teleop.components.operator.base import Operator
+from beavr.teleop.components.operator.operator_base import Operator
+from beavr.teleop.components.operator.operator_types import JointTarget
 from beavr.teleop.components.operator.solvers.leap_solver import LeapHandIKSolver
 from beavr.teleop.configs.constants import robots
 
@@ -263,12 +264,18 @@ class LeapHandOperator(Operator):
                 logger.error(f"Error queuing log data: {e}")
 
         # Publish joint angles using the new publisher manager
+        # Use strongly-typed JointTarget dataclass for operator → interface command
         self._publisher_manager.publish(
-            self._publisher_host,
-            self._joint_angle_publish_port,
-            'joint_angles',
-            desired_joint_angles,
-        )
+            host=self._publisher_host,
+            port=self._joint_angle_publish_port,
+            topic='joint_angles',  # keep topic; payload is now JointTarget
+            joint_target = JointTarget(
+                timestamp_s=time.time(),
+                hand_side=self.hand_side,
+                joint_positions_rad=desired_joint_angles,
+                ),
+            )
+        
 
     def __del__(self):
         # Clean shutdown of logging thread

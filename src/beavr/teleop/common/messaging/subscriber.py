@@ -1,22 +1,29 @@
 import logging
-import pickle
 import threading
 import time
 from abc import ABC, abstractmethod
-from typing import Any, Optional
+from typing import Generic, Optional, Type, TypeVar
 
 import cv2
 import numpy as np
 import zmq
 
+from .serialization import PickleSerializer, Serializer
 from .utils import get_global_context
 
 logger = logging.getLogger(__name__)
 
-class BaseSubscriber(threading.Thread, ABC):
-    """Base class for all subscribers with graceful shutdown support."""
+T = TypeVar("T")
+
+class BaseSubscriber(threading.Thread, ABC, Generic[T]):
+    """Base class for all subscribers with graceful shutdown support.
+
+    Optionally supply ``message_type`` for static and runtime type safety.
+    When provided, received objects are checked with ``isinstance`` and cast to ``T``.
+    """
     def __init__(self, host: str, port: int, topic: str = "", socket_type: int = zmq.SUB, 
-                 context: Optional[zmq.Context] = None):
+                 context: Optional[zmq.Context] = None, message_type: Optional[Type[T]] = None,
+                 serializer: Optional[Serializer[T]] = None):
         """Initialize subscriber.
         
         Args:
@@ -25,6 +32,8 @@ class BaseSubscriber(threading.Thread, ABC):
             topic: The topic to subscribe to (empty for all topics)
             socket_type: The ZMQ socket type (default: SUB)
             context: Optional custom ZMQ context (default: global context)
+            message_type: Optional expected Python type for incoming messages
+            serializer: Optional serializer for payloads; defaults to PickleSerializer[T]
         """
         super().__init__(daemon=True)
         self._host = host
@@ -36,6 +45,10 @@ class BaseSubscriber(threading.Thread, ABC):
         self._context = context or get_global_context()
         # Store socket configuration for creation in worker thread
         self._socket_type = socket_type
+        # Optional runtime type check for received payloads
+        self._message_type: Optional[Type[T]] = message_type
+        # Decoder/encoder for payloads; default to Pickle with expected_type
+        self._serializer: Serializer[T] = serializer or PickleSerializer(message_type)
 
     def _init_socket(self, socket_type: int):
         """Initialize the socket in the worker thread."""
@@ -83,7 +96,7 @@ class BaseSubscriber(threading.Thread, ABC):
             logger.warning("Subscriber thread did not stop gracefully")
 
     @abstractmethod
-    def process_message(self, message: Any) -> None:
+    def process_message(self, message: T) -> None:
         """Process received message.
         
         Args:
@@ -110,8 +123,8 @@ class BaseSubscriber(threading.Thread, ABC):
                         try:
                             _, payload = self._socket.recv_multipart(zmq.NOBLOCK)
                             try:
-                                data = pickle.loads(payload)
-                                self.process_message(data)
+                                data_typed = self._serializer.decode(payload)
+                                self.process_message(data_typed)
                             except Exception as e:
                                 logger.error(f"Failed to process message: {e}")
                         except zmq.Again:
@@ -148,7 +161,8 @@ class ZMQCompressedImageReceiver(BaseSubscriber):
             host: The host address to connect to
             port: The port number to connect to
         """
-        super().__init__(host, port, "image", zmq.SUB)
+        from .serialization import RawBytesSerializer
+        super().__init__(host, port, "image", zmq.SUB, serializer=RawBytesSerializer())
         self._last_image: Optional[np.ndarray] = None
         self.start()  # Start the subscriber thread
 

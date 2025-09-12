@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from typing import Any, Dict
 
 from beavr.teleop.components.detector.vr.keypoint_transform import TransformHandPositionCoords
-from beavr.teleop.components.detector.vr.oculus import BimanualOculusVRHandDetector, OculusVRHandDetector
+from beavr.teleop.components.detector.vr.oculus import OculusVRHandDetector
 from beavr.teleop.components.visualizer.visualizer_2d import Hand2DVisualizer
 from beavr.teleop.configs.constants import network, ports, robots
 
@@ -24,7 +24,7 @@ class SharedComponentRegistry:
     This eliminates the need for complex deduplication logic by ensuring
     only one detector/transform/visualizer exists per hand side across all robots.
     """
-    
+
     _instances: Dict[str, Dict[str, Any]] = {
         'detector': {},      # hand_side -> config instance
         'transform': {},     # hand_side -> config instance  
@@ -39,23 +39,20 @@ class SharedComponentRegistry:
         oculus_pub_port: int = ports.KEYPOINT_STREAM_PORT,
         button_port: int = ports.RESOLUTION_BUTTON_PORT,
         teleop_reset_port: int = ports.TELEOP_RESET_PORT,
-    ) -> 'OculusVRHandDetectorCfg':
+    ) -> 'UnifiedOculusVRHandDetectorCfg':
         
         """Get or create detector config for specified hand side."""
 
         if hand_side not in cls._instances['detector']:
-            # Set hand-side specific ports
-            if hand_side == robots.LEFT:
-                oculus_hand_port = ports.LEFT_HAND_OCULUS_RECEIVER_PORT
-            else:  # RIGHT or default
-                oculus_hand_port = ports.RIGHT_HAND_OCULUS_RECEIVER_PORT
+            # Configure for single hand mode
+            hand_config = robots.LEFT if hand_side == robots.LEFT else robots.RIGHT
             
-            cls._instances['detector'][hand_side] = OculusVRHandDetectorCfg(
+            cls._instances['detector'][hand_side] = UnifiedOculusVRHandDetectorCfg(
                 host=host,
-                oculus_hand_port=oculus_hand_port,
                 oculus_pub_port=oculus_pub_port,
                 button_port=button_port,
                 teleop_reset_port=teleop_reset_port,
+                hand_config=hand_config,
                 hand_side=hand_side
             )
             logger.debug(f"📡 Created shared detector config for {hand_side} hand")
@@ -69,15 +66,17 @@ class SharedComponentRegistry:
         oculus_pub_port: int = ports.KEYPOINT_STREAM_PORT,
         button_port: int = ports.RESOLUTION_BUTTON_PORT,
         teleop_reset_port: int = ports.TELEOP_RESET_PORT,
-    ) -> 'BimanualOculusVRHandDetectorCfg':
+    ) -> 'UnifiedOculusVRHandDetectorCfg':
         """Get or create a bimanual detector config."""
         key = 'bimanual'
         if key not in cls._instances['detector']:
-            cls._instances['detector'][key] = BimanualOculusVRHandDetectorCfg(
+            cls._instances['detector'][key] = UnifiedOculusVRHandDetectorCfg(
                 host=host,
                 oculus_pub_port=oculus_pub_port,
                 button_port=button_port,
                 teleop_reset_port=teleop_reset_port,
+                hand_config=robots.BIMANUAL,
+                hand_side='bimanual'  # For identification purposes
             )
             logger.debug("📡 Created shared bimanual detector config")
         return cls._instances['detector'][key]
@@ -155,15 +154,63 @@ class SharedComponentRegistry:
 
 
 @dataclass
+class UnifiedOculusVRHandDetectorCfg:
+    """Configuration for unified OculusVRHandDetector that handles any laterality."""
+
+    host: str = network.HOST_ADDRESS
+    oculus_pub_port: int = ports.KEYPOINT_STREAM_PORT
+    button_port: int = ports.RESOLUTION_BUTTON_PORT
+    teleop_reset_port: int = ports.TELEOP_RESET_PORT
+    hand_config: str = robots.RIGHT
+    hand_side: str = robots.RIGHT  # For identification purposes
+
+    def __post_init__(self):
+        """Validate port configuration."""
+        all_ports = [self.oculus_pub_port, self.button_port, self.teleop_reset_port]
+        if len(set(all_ports)) != len(all_ports):
+            logger.error("Duplicate ports found in UnifiedOculusVRHandDetector configuration!")
+            raise ValueError("Duplicate ports in configuration")
+        
+        # Validate port ranges
+        for port_name, port_value in [
+            ("oculus_pub_port", self.oculus_pub_port),
+            ("button_port", self.button_port),
+            ("teleop_reset_port", self.teleop_reset_port)
+        ]:
+            if not (1 <= port_value <= 65535):
+                raise ValueError(f"{port_name} out of valid range (1-65535): {port_value}")
+
+    def build(self):
+        # Configure ports based on hand configuration
+        kwargs = {
+            'host': self.host,
+            'oculus_pub_port': self.oculus_pub_port,
+            'button_port': self.button_port,
+            'teleop_reset_port': self.teleop_reset_port,
+            'hand_config': self.hand_config,
+        }
+        
+        # Set appropriate hand ports based on configuration
+        if self.hand_config in [robots.RIGHT, robots.BIMANUAL]:
+            kwargs['right_hand_port'] = ports.RIGHT_HAND_OCULUS_RECEIVER_PORT
+            
+        if self.hand_config in [robots.LEFT, robots.BIMANUAL]:
+            kwargs['left_hand_port'] = ports.LEFT_HAND_OCULUS_RECEIVER_PORT
+        
+        return OculusVRHandDetector(**kwargs)
+
+
+# Legacy configurations for backward compatibility
+@dataclass
 class OculusVRHandDetectorCfg:
-    """Configuration for :class:`beavr.components.detector.oculus.OculusVRHandDetector`."""
+    """Legacy configuration for backward compatibility."""
 
     host: str = network.HOST_ADDRESS
     oculus_hand_port: int = ports.RIGHT_HAND_OCULUS_RECEIVER_PORT
-    oculus_pub_port: int = ports.KEYPOINT_STREAM_PORT  # alias: unified data
+    oculus_pub_port: int = ports.KEYPOINT_STREAM_PORT
     button_port: int = ports.RESOLUTION_BUTTON_PORT
     teleop_reset_port: int = ports.TELEOP_RESET_PORT
-    hand_side: str = robots.RIGHT  # Will be overridden based on laterality
+    hand_side: str = robots.RIGHT
 
     def __post_init__(self):
         """Validate port configuration."""
@@ -183,33 +230,15 @@ class OculusVRHandDetectorCfg:
                 raise ValueError(f"{port_name} out of valid range (1-65535): {port_value}")
 
     def build(self):
+        # Use unified detector with legacy parameter support
+        hand_config = robots.LEFT if self.hand_side == robots.LEFT else robots.RIGHT
         return OculusVRHandDetector(
             host=self.host,
-            oculus_hand_port=self.oculus_hand_port,
             oculus_pub_port=self.oculus_pub_port,
             button_port=self.button_port,
             teleop_reset_port=self.teleop_reset_port,
-        )
-    
-@dataclass
-class BimanualOculusVRHandDetectorCfg:
-    """Configuration for BimanualOculusVRHandDetector."""
-
-    host: str = network.HOST_ADDRESS
-    right_hand_port: int = ports.RIGHT_HAND_OCULUS_RECEIVER_PORT
-    left_hand_port: int = ports.LEFT_HAND_OCULUS_RECEIVER_PORT
-    oculus_pub_port: int = ports.KEYPOINT_STREAM_PORT
-    button_port: int = ports.RESOLUTION_BUTTON_PORT
-    teleop_reset_port: int = ports.TELEOP_RESET_PORT
-
-    def build(self):
-        return BimanualOculusVRHandDetector(
-            host=self.host,
-            right_hand_port=self.right_hand_port,
-            left_hand_port=self.left_hand_port,
-            oculus_pub_port=self.oculus_pub_port,
-            button_port=self.button_port,
-            teleop_reset_port=self.teleop_reset_port,
+            hand_config=hand_config,
+            oculus_hand_port=self.oculus_hand_port,  # Legacy support
         )
 
 

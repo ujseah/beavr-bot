@@ -13,6 +13,8 @@ from beavr.teleop.common.messaging.vr import ZMQKeypointSubscriber
 from beavr.teleop.components.interface.controller.base_controller import RobotWrapper
 from beavr.teleop.components.interface.controller.robot.leap_control import DexArmControl
 from beavr.teleop.configs.constants import robots
+from beavr.teleop.components.interface.interface_types import RobotState
+from beavr.teleop.components.operator.operator_types import JointTarget
 
 logger = logging.getLogger(__name__)
 
@@ -155,11 +157,15 @@ class LeapHandRobot(RobotWrapper):
 
     # State information functions
     def get_joint_state(self):
-        """Get current joint state"""
-        return {
-            'position': np.array(self._state, dtype=np.float32),
-            'timestamp': time.time()
-        }
+        """Get current joint state as RobotState dataclass."""
+        if not hasattr(self, '_state') or self._state is None:
+            return None
+        return RobotState(
+            timestamp_s=time.time(),
+            joint_positions_rad=list(np.array(self._state, dtype=np.float32)),
+            ee_position_m=(0.0, 0.0, 0.0),
+            ee_orientation_xyzw=(0.0, 0.0, 0.0, 1.0),
+        )
 
     def get_commanded_joint_state(self):
         return self._state
@@ -174,13 +180,15 @@ class LeapHandRobot(RobotWrapper):
         return self._controller.get_hand_torque()
 
     def get_commanded_joint_position(self):
-        """Get current commanded action"""
+        """Get current commanded action as RobotState for recording."""
         if self._action is None:
             return self.get_joint_state()
-        return {
-            'position': np.array(self._action, dtype=np.float32),
-            'timestamp': time.time()
-        }
+        return RobotState(
+            timestamp_s=time.time(),
+            joint_positions_rad=list(np.array(self._action, dtype=np.float32)),
+            ee_position_m=(0.0, 0.0, 0.0),
+            ee_orientation_xyzw=(0.0, 0.0, 0.0, 1.0),
+        )
 
     # Movement functions
     def home(self):
@@ -286,8 +294,19 @@ class LeapHandRobot(RobotWrapper):
             self._action = msg
                 
             if msg is not None:
+                # Accept both legacy ndarray payloads and new JointTarget dataclass
+                try:
+                    if isinstance(msg, JointTarget):
+                        desired = np.array(msg.joint_positions_rad, dtype=np.float32)
+                    elif isinstance(msg, dict) and 'joint_positions_rad' in msg:
+                        desired = np.array(msg['joint_positions_rad'], dtype=np.float32)
+                    else:
+                        desired = np.array(msg, dtype=np.float32)
+                except Exception:
+                    desired = msg
+
                 # Process the command
-                self.move(msg)
+                self.move(desired)
                 
                 # Track timing for jitter calculation
                 msg_time = time.time()

@@ -3,8 +3,9 @@
 # -----------------------------------------------------------------------------
 
 import os
-
+from enum import Enum
 import numpy as np
+
 
 ROBOT_NAME_LEAP = "leap"
 ROBOT_NAME_XARM7 = "xarm7"
@@ -104,9 +105,10 @@ VR_DETECTOR = 'vr detector'
 KEYPOINTS = 'keypoints'
 BUTTON = 'button'
 PAUSE = 'pause'
-RIGHT = 'right'
-LEFT = 'left'
-BIMANUAL = 'bimanual'
+RESUME = 'resume'
+RIGHT = "right"
+LEFT = "left"
+BIMANUAL = "bimanual"
 
 # -----------------------------------------------------------------------------
 # Keypoint transform constants
