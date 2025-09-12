@@ -1,11 +1,9 @@
-from .keypoints import (
+from .subscribers import (
     ZMQButtonFeedbackSubscriber,
-    ZMQKeypointPublisher,
-    ZMQKeypointSubscriber,
+    ZMQSubscriber,
 )
 
 __all__ = [
-    "ZMQKeypointPublisher",
-    "ZMQKeypointSubscriber",
+    "ZMQSubscriber",
     "ZMQButtonFeedbackSubscriber",
 ]

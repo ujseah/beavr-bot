@@ -8,14 +8,15 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any
 
+from beavr.teleop.common.config.loader import Laterality, log_laterality_configuration
+from beavr.teleop.components.interface.robot.xarm7_robot import XArm7Robot
+
 # Import shared constants and utilities
 from beavr.teleop.configs.constants import network, ports, robots
 from beavr.teleop.configs.robots import TeleopRobotConfig
 
 # Import shared component configurations
 from beavr.teleop.configs.robots.shared_components import SharedComponentRegistry
-from beavr.teleop.interfaces.xarm7_robot import XArm7Robot
-from beavr.teleop.utils.configs import Laterality, log_laterality_configuration
 
 logger = logging.getLogger(__name__)
 
@@ -129,10 +130,10 @@ class XArm7OperatorCfg:
     def build(self):
         # Import here to avoid circular imports
         if self.hand_side == robots.RIGHT:
-            from beavr.teleop.components.operators.xarm7_right import XArm7RightOperator
+            from beavr.teleop.components.operator.robot.xarm7_right import XArm7RightOperator
             operator_class = XArm7RightOperator
         else:  # LEFT
-            from beavr.teleop.components.operators.xarm7_left import XArm7LeftOperator
+            from beavr.teleop.components.operator.robot.xarm7_left import XArm7LeftOperator
             operator_class = XArm7LeftOperator
         
         return operator_class(

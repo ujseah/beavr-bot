@@ -1,47 +1,14 @@
 import logging
-import pickle
 from typing import Any, Optional
 
 import zmq
 
-from ..publisher import BasePublisher
 from ..subscriber import BaseSubscriber
-from ..utils import SerializationError
 
 logger = logging.getLogger(__name__)
 
-class ZMQKeypointPublisher(BasePublisher):
-    """Publisher for keypoint data using multipart messaging."""
-    
-    def __init__(self, host: str, port: int):
-        super().__init__(host, port, zmq.PUB)
 
-    def pub_keypoints(self, keypoint_array: Any, topic_name: str) -> None:
-        """Publish keypoints using multipart messaging.
-        
-        Args:
-            keypoint_array: The keypoint data to publish
-            topic_name: The topic to publish to
-            
-        Raises:
-            ConnectionError: If socket operation fails
-            SerializationError: If serialization fails
-        """
-        try:
-            buffer = pickle.dumps(keypoint_array, protocol=-1)
-            try:
-                self._socket.send_multipart([
-                    topic_name.encode('utf-8'),
-                    buffer
-                ], zmq.NOBLOCK)
-            except zmq.Again:
-                logger.warning(f"High water mark reached for {topic_name}, dropping message")
-            except zmq.ZMQError as e:
-                raise ConnectionError(f"Failed to send keypoints: {e}") from e
-        except Exception as e:
-            raise SerializationError(f"Failed to serialize keypoints: {e}") from e
-
-class ZMQKeypointSubscriber(BaseSubscriber):
+class ZMQSubscriber(BaseSubscriber):
     """Subscriber for keypoint data using multipart messaging."""
     
     def __init__(self, host: str, port: int, topic: str, context: Optional[zmq.Context] = None):

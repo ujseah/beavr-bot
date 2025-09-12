@@ -1,4 +1,4 @@
-from .types import (
+from .detector_types import (
     ButtonEvent,
     HandSide,
     InputFrame,

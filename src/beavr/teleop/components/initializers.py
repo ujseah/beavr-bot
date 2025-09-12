@@ -3,7 +3,7 @@ import os
 from abc import ABC, abstractmethod
 from multiprocessing import Process
 
-from beavr.teleop.utils.instantiator import instantiate_from_target
+from beavr.teleop.common.factory.instantiator import instantiate_from_target
 
 logger = logging.getLogger(__name__)
 

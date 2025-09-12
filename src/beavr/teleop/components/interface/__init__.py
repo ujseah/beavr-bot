@@ -1,4 +1,4 @@
-from .types import (
+from .interface_types import (
     ErrorEvent,
     RobotState,
 )

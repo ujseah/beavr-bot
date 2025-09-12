@@ -2,8 +2,8 @@ import logging
 
 import numpy as np
 
+from beavr.teleop.common.messaging.vr.subscribers import ZMQSubscriber
 from beavr.teleop.configs.constants import robots
-from beavr.teleop.utils.network import ZMQKeypointSubscriber
 
 logger = logging.getLogger(__name__)
 
@@ -11,7 +11,7 @@ class Ops:
     """
     Class to handle operations for the robot. Checks if operation is stopped or continued.
     """
-    def __init__(self, arm_teleop_state_subscriber: ZMQKeypointSubscriber, arm_teleop_state: int = robots.ARM_TELEOP_CONT):
+    def __init__(self, arm_teleop_state_subscriber: ZMQSubscriber, arm_teleop_state: int = robots.ARM_TELEOP_CONT):
         self._arm_teleop_state_subscriber = arm_teleop_state_subscriber
         self.arm_teleop_state = arm_teleop_state
 

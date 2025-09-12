@@ -1,4 +1,4 @@
-from .types import (
+from .operator_types import (
     CartesianTarget,
     GripperCommand,
     HandSide,

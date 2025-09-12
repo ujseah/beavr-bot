@@ -7,6 +7,8 @@ import threading
 import time
 from typing import Any, Dict, Optional, Tuple
 
+import cv2
+import numpy as np
 import zmq
 
 from .utils import get_global_context
@@ -158,6 +160,25 @@ class PublisherThread(threading.Thread):
         """
         return self._started.wait(timeout=timeout)
 
+# Publisher for image visualizers
+class ZMQCompressedImageTransmitter(BasePublisher):
+    """Publisher for compressed images using multipart messaging."""
+    
+    def __init__(self, host: str, port: int):
+        super().__init__(host, port, zmq.PUB)
+
+    def send_image(self, rgb_image: np.ndarray) -> None:
+        """Send a compressed RGB image.
+        
+        Args:
+            rgb_image: The RGB image array to publish
+            
+        Raises:
+            ConnectionError: If socket operation fails
+            SerializationError: If compression fails
+        """
+        _, buffer = cv2.imencode('.jpg', rgb_image, [int(cv2.IMWRITE_WEBP_QUALITY), 10])
+        self._socket.send_multipart([b"image", np.array(buffer).tobytes()], zmq.NOBLOCK)
 
 # Improved Pub/Sub classes with shared context
 class ZMQPublisherManager:

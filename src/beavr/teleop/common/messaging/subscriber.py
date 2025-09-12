@@ -5,6 +5,8 @@ import time
 from abc import ABC, abstractmethod
 from typing import Any, Optional
 
+import cv2
+import numpy as np
 import zmq
 
 from .utils import get_global_context
@@ -135,3 +137,34 @@ class BaseSubscriber(threading.Thread, ABC):
                 except Exception as e:
                     logger.warning(f"Error closing socket in cleanup: {e}")
                 self._socket = None
+
+class ZMQCompressedImageReceiver(BaseSubscriber):
+    """Subscriber for compressed images using multipart messaging."""
+    
+    def __init__(self, host: str, port: int):
+        """Initialize compressed image receiver.
+        
+        Args:
+            host: The host address to connect to
+            port: The port number to connect to
+        """
+        super().__init__(host, port, "image", zmq.SUB)
+        self._last_image: Optional[np.ndarray] = None
+        self.start()  # Start the subscriber thread
+
+    def process_message(self, data: bytes) -> None:
+        """Process received image data.
+        
+        Args:
+            data: Raw bytes of compressed image data
+        """
+        encoded_data = np.fromstring(data, np.uint8)
+        self._last_image = cv2.imdecode(encoded_data, 1)
+
+    def recv_image(self) -> Optional[np.ndarray]:
+        """Get the latest received image.
+        
+        Returns:
+            The latest image array if available, None otherwise
+        """
+        return self._last_image

@@ -4,8 +4,7 @@ from copy import deepcopy as copy
 from typing import Any, Dict, Optional
 
 import numpy as np
-import zmq
-from scipy.spatial.transform import Rotation, Slerp
+from scipy.spatial.transform import Rotation
 
 from beavr.teleop.common.logging.logger import PoseLogger
 from beavr.teleop.common.messaging.handshake import HandshakeCoordinator
@@ -15,96 +14,15 @@ from beavr.teleop.common.messaging.utils import (
     cleanup_zmq_resources,
     get_global_context,
 )
-from beavr.teleop.common.messaging.vr import ZMQKeypointSubscriber
+from beavr.teleop.common.messaging.vr.subscribers import ZMQSubscriber
 from beavr.teleop.common.time.timer import FrequencyTimer
-from beavr.teleop.components.operator.base import Operator
+from beavr.teleop.components.detector.detector_types import InputFrame, SessionCommand
+from beavr.teleop.components.operator import CartesianTarget
+from beavr.teleop.components.operator.operator_base import Operator
+from beavr.teleop.components.operator.solvers.filters import CompStateFilter
 from beavr.teleop.configs.constants import robots
 
 logger = logging.getLogger(__name__)
-
-# Simple complementary filter with SLERP for orientation (same as Allegro)
-class CompStateFilter:
-    """
-    A complementary filter for smoothing pose data (position and orientation).
-    It uses linear interpolation for position and SLERP for orientation,
-    with adaptive filtering based on velocity.
-    """
-    def __init__(self, init_state: np.ndarray, pos_ratio: float = 0.6, ori_ratio: float = 0.8, adaptive: bool = True):
-        """
-        Initializes the filter.
-
-        Args:
-            init_state: Initial pose [x, y, z, qx, qy, qz, qw].
-            pos_ratio: Base filtering ratio for position (0-1). Higher means more smoothing.
-            ori_ratio: Base filtering ratio for orientation (0-1). Higher means more smoothing.
-            adaptive: Whether to adapt filtering ratios based on speed.
-        """
-        self.pos_state: np.ndarray = init_state[:3]
-        self.ori_state: np.ndarray = init_state[3:7]
-        self.pos_ratio: float = pos_ratio
-        self.ori_ratio: float = ori_ratio
-        self.adaptive: bool = adaptive
-        self.prev_pos: np.ndarray = init_state[:3]
-        self.velocity: np.ndarray = np.zeros(3)
-        self.prev_quat: np.ndarray = init_state[3:7]
-
-    def __call__(self, next_state: np.ndarray) -> np.ndarray:
-        """
-        Applies the filter to the next state measurement.
-
-        Args:
-            next_state: The new pose measurement [x, y, z, qx, qy, qz, qw].
-
-        Returns:
-            The filtered pose [x, y, z, qx, qy, qz, qw].
-        """
-        # Calculate velocity
-        current_pos = next_state[:3]
-        self.velocity = current_pos - self.prev_pos
-        speed = np.linalg.norm(self.velocity)
-
-        # Adaptive filtering for position
-        actual_pos_ratio = self.pos_ratio
-        if self.adaptive:
-            # Increase filtering when movement is small (reduce jitter)
-            # Decrease filtering when movement is large (reduce lag)
-            threshold = 0.005  # Adjust based on your units
-            if speed < threshold:
-                actual_pos_ratio = min(0.95, self.pos_ratio + 0.1)  # More filtering for small movements
-            else:
-                # Less filtering for large movements, capped at a minimum
-                actual_pos_ratio = max(0.7, self.pos_ratio - 0.1 * (speed / threshold))
-
-        # Apply position filtering (Linear Interpolation - LERP)
-        self.pos_state = self.pos_state * actual_pos_ratio + current_pos * (1 - actual_pos_ratio)
-
-        # Always use stronger filtering for orientation (less affected by adaptive)
-        # and ensure orientation ratio is at least as high as position ratio
-        actual_ori_ratio = max(actual_pos_ratio, self.ori_ratio)
-
-        # Apply orientation filtering (Spherical Linear Interpolation - SLERP)
-        # Ensure quaternions are normalized and handle potential flips for stable SLERP
-        current_quat = next_state[3:7]
-        if np.dot(self.ori_state, current_quat) < 0:
-             current_quat = -current_quat # Flip if necessary
-
-        # Normalize quaternions before SLERP
-        self.ori_state /= np.linalg.norm(self.ori_state)
-        current_quat /= np.linalg.norm(current_quat)
-
-        try:
-            ori_interp = Slerp([0, 1], Rotation.from_quat([self.ori_state, current_quat]))
-            self.ori_state = ori_interp([1 - actual_ori_ratio])[0].as_quat()
-            self.ori_state /= np.linalg.norm(self.ori_state) # Re-normalize after SLERP
-        except ValueError as e:
-            # Handle potential Slerp errors (e.g., identical quaternions after normalization/flip)
-            logger.warning(f"SLERP Warning: {e}. Using previous orientation state.")
-            # Keep self.ori_state as is
-
-        self.prev_pos = current_pos
-        self.prev_quat = current_quat # Store the (potentially flipped) current quat for next iteration's dot product check
-
-        return np.concatenate([self.pos_state, self.ori_state])
 
 
 class XArmOperator(Operator):
@@ -167,59 +85,53 @@ class XArmOperator(Operator):
         
         # Determine the correct topic based on hand side
         if hand_side == robots.RIGHT:
-            frame_topic = robots.TRANSFORMED_HAND_FRAME
+            frame_topic = f"{robots.RIGHT}_{robots.TRANSFORMED_HAND_FRAME}"
         else:  # LEFT
             frame_topic = f"{robots.LEFT}_{robots.TRANSFORMED_HAND_FRAME}"
         
-        try:
-            self._arm_transformed_keypoint_subscriber = ZMQKeypointSubscriber(
+        self._arm_transformed_keypoint_subscriber = ZMQSubscriber(
+            host=host,
+            port=transformed_keypoints_port,
+            topic=frame_topic,
+            context=self._context
+        )
+
+        # Optional subscribers
+        self._arm_resolution_subscriber = None
+        if arm_resolution_port:
+            self._arm_resolution_subscriber = ZMQSubscriber(
                 host=host,
-                port=transformed_keypoints_port,
-                topic=frame_topic,
+                port=arm_resolution_port,
+                topic='button',
                 context=self._context
             )
 
-            # Optional subscribers
-            self._arm_resolution_subscriber = None
-            if arm_resolution_port:
-                self._arm_resolution_subscriber = ZMQKeypointSubscriber(
-                    host=host,
-                    port=arm_resolution_port,
-                    topic='button',
-                    context=self._context
-                )
-
-            self._arm_teleop_state_subscriber = None
-            if teleoperation_state_port:
-                self._arm_teleop_state_subscriber = ZMQKeypointSubscriber(
-                    host=host,
-                    port=teleoperation_state_port,
-                    topic='pause',
-                    context=self._context
-                )
-
-            self.endeff_homo_subscriber = ZMQKeypointSubscriber(
+        self._arm_teleop_state_subscriber = None
+        if teleoperation_state_port:
+            self._arm_teleop_state_subscriber = ZMQSubscriber(
                 host=host,
-                port=endeff_subscribe_port,
-                topic='endeff_homo',
+                port=teleoperation_state_port,
+                topic='pause',
                 context=self._context
             )
 
-            self._subscribers = {
-                'endeff_homo': self.endeff_homo_subscriber,
-                'teleop_state': self._arm_teleop_state_subscriber,
-                'resolution_scale': self._arm_resolution_subscriber
-            }
+        self.endeff_homo_subscriber = ZMQSubscriber(
+            host=host,
+            port=endeff_subscribe_port,
+            topic='endeff_homo',
+            context=self._context
+        )
 
-            # Using the centralized publisher manager
-            self._publisher_manager = ZMQPublisherManager.get_instance(self._context)
-            self._publisher_host = host
-            self._publisher_port = endeff_publish_port
+        self._subscribers = {
+            'endeff_homo': self.endeff_homo_subscriber,
+            'teleop_state': self._arm_teleop_state_subscriber,
+            'resolution_scale': self._arm_resolution_subscriber
+        }
 
-        except (zmq.ZMQError, ConnectionError) as e:
-            logger.error(f"Failed to initialize ZMQ sockets for {operator_name}: {e}")
-            self.cleanup()
-            raise
+        # Using the centralized publisher manager
+        self._publisher_manager = ZMQPublisherManager.get_instance(self._context)
+        self._publisher_host = host
+        self._publisher_port = endeff_publish_port
 
         self._stream_oculus = stream_oculus
         self.stream_configs = stream_configs
@@ -301,7 +213,7 @@ class XArmOperator(Operator):
         return self._robot
 
     @property
-    def transformed_arm_keypoint_subscriber(self) -> ZMQKeypointSubscriber:
+    def transformed_arm_keypoint_subscriber(self) -> ZMQSubscriber:
         """Returns the subscriber for transformed hand keypoints."""
         return self._arm_transformed_keypoint_subscriber
 
@@ -330,17 +242,22 @@ class XArmOperator(Operator):
         data = self._arm_transformed_keypoint_subscriber.recv_keypoints()
 
         if data is not None:
-            # Process new data
+            # Process new data - expect InputFrame object with frame_vectors
             try:
-                frame_data = np.asanyarray(data).reshape(4, 3)  # shape (4,3)
-                self.last_valid_hand_frame = frame_data  # Cache the new valid frame
-                return frame_data
+                if data.frame_vectors is not None:
+                    # frame_vectors should be a sequence of 4 tuples (origin + 3 basis vectors)
+                    # Convert from Tuple[Tuple[float, float, float], ...] to numpy array (4, 3)
+                    frame_data = np.array(data.frame_vectors, dtype=np.float64).reshape(4, 3)
+                    self.last_valid_hand_frame = frame_data  # Cache the new valid frame
+                    return frame_data
+
             except Exception as e:
-                logger.error(f"Error processing hand frame data: {e}")
+                logger.error(f"Error processing InputFrame data: {e}")
                 # Fall through to return cached frame if processing fails
         
         # If no new data or processing failed, return the cached frame if it exists
         if self.last_valid_hand_frame is not None:
+            logger.info(f"No new data, returning cached frame: {self.last_valid_hand_frame}")
             return self.last_valid_hand_frame
 
         # If no new data and no cached frame, return None
@@ -496,13 +413,15 @@ class XArmOperator(Operator):
         """
 
         logger.info(f'****** {self.operator_name}: RESETTING TELEOP ******')
-        # Request robot's current pose
-        self._publisher_manager.publish(self._publisher_host, self._publisher_port, 'reset', 1)
+        # Request robot's current pose using a typed contract
+        reset_cmd = SessionCommand(timestamp_s=time.time(), command="reset")
+        self._publisher_manager.publish(self._publisher_host, self._publisher_port, 'reset', reset_cmd)
         robot_frame_homo = self.endeff_homo_subscriber.recv_keypoints()
         
         # Keep trying until we get a response
         while robot_frame_homo is None:
-            self._publisher_manager.publish(self._publisher_host, self._publisher_port, 'reset', 1)
+            reset_cmd = SessionCommand(timestamp_s=time.time(), command="reset")
+            self._publisher_manager.publish(self._publisher_host, self._publisher_port, 'reset', reset_cmd)
             robot_frame_homo = self.endeff_homo_subscriber.recv_keypoints()
             time.sleep(0.01)
         
@@ -708,12 +627,19 @@ class XArmOperator(Operator):
             if orientation_quat[3] < 0:  # w component negative → flip sign
                 orientation_quat = -orientation_quat
 
-        # 11. Publish Command (quaternion-based orientation)
-        command_data = {
-            "position": position.tolist(),  # xyz in metres
-            "orientation": orientation_quat.tolist(),  # qx, qy, qz, qw with qw >= 0
-            "timestamp": time.time(),
-        }
+        # 11. Build contract to publish directly
+        cartesian_cmd = CartesianTarget(
+            timestamp_s=time.time(),
+            hand_side=self.hand_side,
+            frame_id="base",
+            position_m=(float(position[0]), float(position[1]), float(position[2])),
+            orientation_xyzw=(
+                float(orientation_quat[0]),
+                float(orientation_quat[1]),
+                float(orientation_quat[2]),
+                float(orientation_quat[3]),
+            ),
+        )
         
         # Publish only if tele-operation is in CONT mode
         if publish_commands:
@@ -722,7 +648,7 @@ class XArmOperator(Operator):
                     self._publisher_host,
                     self._publisher_port,
                     "endeff_coords",
-                    command_data
+                    cartesian_cmd,
                 )
                 # logger.info(f"Published end-effector command: {command_data}")
             except (ConnectionError, SerializationError) as e:
@@ -768,6 +694,8 @@ class XArmOperator(Operator):
         if not queue:
              return action # Or return np.zeros_like(action) or raise error
         return np.mean(queue, axis=0)
+
+    
 
     def run(self):
         """The main execution loop for the operator."""

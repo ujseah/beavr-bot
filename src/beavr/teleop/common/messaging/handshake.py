@@ -227,27 +227,21 @@ class HandshakeCoordinator:
             logger.warning(f"Server for '{subscriber_id}' already running")
             return
             
-        try:
-            # Mark server as running (socket will be created in worker thread)
-            self._servers[subscriber_id] = None
-            
-            # Start server thread with socket creation in worker thread
-            server_thread = threading.Thread(
-                target=self._run_server,
-                args=(subscriber_id, bind_host, port),
-                daemon=True,
-                name=f"HandshakeServer-{subscriber_id}"
-            )
-            server_thread.start()
-            self._server_threads[subscriber_id] = server_thread
-            
-            logger.info(f"Started handshake server for '{subscriber_id}' on {bind_host}:{port}")
-            
-        except Exception as e:
-            logger.error(f"Failed to start handshake server for '{subscriber_id}': {e}")
-            if subscriber_id in self._servers:
-                del self._servers[subscriber_id]
-            raise
+        # Mark server as running (socket will be created in worker thread)
+        self._servers[subscriber_id] = None
+        
+        # Start server thread with socket creation in worker thread
+        # Let any thread creation errors bubble up immediately
+        server_thread = threading.Thread(
+            target=self._run_server,
+            args=(subscriber_id, bind_host, port),
+            daemon=True,
+            name=f"HandshakeServer-{subscriber_id}"
+        )
+        server_thread.start()
+        self._server_threads[subscriber_id] = server_thread
+        
+        logger.info(f"Started handshake server for '{subscriber_id}' on {bind_host}:{port}")
     
     def stop_server(self, subscriber_id: str) -> None:
         """Stop a handshake server for a subscriber.
@@ -279,18 +273,17 @@ class HandshakeCoordinator:
             bind_host: Host to bind the server to
             port: Port to bind the server to
         """
-        server_socket = None
+        # Create socket in the worker thread - fail fast on initialization errors
+        server_socket = self._context.socket(zmq.REP)
+        server_socket.bind(f"tcp://{bind_host}:{port}")
+        
+        # Mark server as running with socket reference
+        self._servers[subscriber_id] = server_socket
+        
+        poller = zmq.Poller()
+        poller.register(server_socket, zmq.POLLIN)
+        
         try:
-            # Create socket in the worker thread
-            server_socket = self._context.socket(zmq.REP)
-            server_socket.bind(f"tcp://{bind_host}:{port}")
-            
-            # Mark server as running with socket reference
-            self._servers[subscriber_id] = server_socket
-            
-            poller = zmq.Poller()
-            poller.register(server_socket, zmq.POLLIN)
-            
             while self._running and subscriber_id in self._servers:
                 try:
                     # Poll with timeout to check if we should stop
@@ -314,8 +307,6 @@ class HandshakeCoordinator:
             
             logger.debug(f"Handshake server '{subscriber_id}' stopped")
             
-        except Exception as e:
-            logger.error(f"Failed to initialize handshake server socket for '{subscriber_id}': {e}")
         finally:
             # Ensure socket is closed when thread exits
             if server_socket:
@@ -323,7 +314,6 @@ class HandshakeCoordinator:
                     server_socket.close()
                 except Exception as e:
                     logger.warning(f"Error closing handshake server socket for '{subscriber_id}': {e}")
-                server_socket = None
     
     def request_acknowledgments(self, subscriber_ids: list[str], timeout: float = 3.0, 
                               ping: bytes = b"PING", ack: bytes = b"ACK") -> bool:
@@ -353,14 +343,11 @@ class HandshakeCoordinator:
                     
                     sub_info = self._subscribers[subscriber_id]
                     if sub_info['client'] is None:
-                        try:
-                            client = self._context.socket(zmq.REQ)
-                            client.connect(f"tcp://{sub_info['host']}:{sub_info['port']}")
-                            sub_info['client'] = client
-                            clients_to_close.append(subscriber_id)
-                        except Exception as e:
-                            logger.error(f"Failed to create client for '{subscriber_id}': {e}")
-                            return False
+                        # Fail fast on client creation - configuration issues should be immediate
+                        client = self._context.socket(zmq.REQ)
+                        client.connect(f"tcp://{sub_info['host']}:{sub_info['port']}")
+                        sub_info['client'] = client
+                        clients_to_close.append(subscriber_id)
             
             # Send ping to all subscribers and collect responses
             successful_acks = []

@@ -7,14 +7,30 @@ from beavr.teleop.common.math.ops import Ops
 from beavr.teleop.common.messaging.handshake import HandshakeCoordinator
 from beavr.teleop.common.messaging.publisher import ZMQPublisherManager
 from beavr.teleop.common.messaging.utils import cleanup_zmq_resources
-from beavr.teleop.common.messaging.vr import ZMQKeypointSubscriber
-from beavr.teleop.components.interface.base import RobotWrapper
+from beavr.teleop.common.messaging.vr.subscribers import ZMQSubscriber
 from beavr.teleop.components.interface.controller.robot.xarm7_control import DexArmControl
+from beavr.teleop.components.interface.interface_base import RobotWrapper
+from beavr.teleop.components.interface.interface_types import CartesianState, CommandedCartesianState
 from beavr.teleop.configs.constants import robots
 
 logger = logging.getLogger(__name__)
 
 class XArm7Robot(RobotWrapper):
+    """XArm7 teleop interface and state publisher.
+
+    Data flow overview:
+    - Subscribers receive operator inputs on topics: 'endeff_coords', 'joint', 'reset', 'home', 'pause'.
+    - Internal getters return strongly typed boundary objects (e.g., CartesianState) or native dicts.
+    - publish_current_state() serializes those boundary objects back to the legacy wire format expected by
+      downstream consumers (see BeavrBot in beavrbot.py and config paths in configs.py).
+
+    Wire format (unchanged):
+    - 'joint_states' -> { 'joint_position': List[float], 'timestamp': float }
+    - 'operator_cartesian_states' -> { 'cartesian_position': [x, y, z], 'timestamp': float }
+    - 'xarm_cartesian_states' -> { 'cartesian_position': [x, y, z], 'timestamp': float }
+    - 'commanded_cartesian_state' -> { 'commanded_cartesian_position': [x,y,z,qx,qy,qz,qw], 'timestamp': float }
+    - plus 'joint_angles_rad' for convenience (not consumed by BeavrBot)
+    """
     def __init__(
             self, host, endeff_subscribe_port, joint_subscribe_port, home_subscribe_port,
             reset_subscribe_port, teleoperation_state_port, robot_ip,
@@ -46,27 +62,27 @@ class XArm7Robot(RobotWrapper):
         self._data_frequency = robots.VR_FREQ
         
         # Subscribers
-        self._cartesian_coords_subscriber = ZMQKeypointSubscriber(
+        self._cartesian_coords_subscriber = ZMQSubscriber(
             host = host, 
             port = endeff_subscribe_port,
             topic = 'endeff_coords'
         )
         
-        self._joint_state_subscriber = ZMQKeypointSubscriber(
+        self._joint_state_subscriber = ZMQSubscriber(
             host = host, 
             port = joint_subscribe_port,
             topic = 'joint'
         )
 
         # Dedicated RESET subscriber -------------------------------------------------
-        self._reset_subscriber = ZMQKeypointSubscriber(
+        self._reset_subscriber = ZMQSubscriber(
             host = host,
             port = reset_subscribe_port,
             topic = 'reset'
         )
 
         # Dedicated HOME subscriber --------------------------------------------------
-        self._home_subscriber = ZMQKeypointSubscriber(
+        self._home_subscriber = ZMQSubscriber(
             host = host,
             port = home_subscribe_port,
             topic = 'home'
@@ -75,7 +91,7 @@ class XArm7Robot(RobotWrapper):
         # Ops state subscriber --------------------------------------------------------
         # Checks if operation is stopped or continued.
         self._arm_teleop_state_subscriber = Ops(
-            arm_teleop_state_subscriber=ZMQKeypointSubscriber(
+            arm_teleop_state_subscriber=ZMQSubscriber(
                 host=host,
                 port=teleoperation_state_port,
                 topic='pause',
@@ -114,21 +130,20 @@ class XArm7Robot(RobotWrapper):
         self._handshake_server_id = f"{self.name}_handshake"
         
         # Start handshake server for this robot
-        try:
-            self._handshake_coordinator.start_server(
-                subscriber_id=self._handshake_server_id,
-                bind_host="*", 
-                port=robots.TELEOP_HANDSHAKE_PORT + (1 if self._is_right_arm else 2)  # Unique ports
-            )
-            logger.info(f"Handshake server started for {self.name}")
-        except Exception as e:
-            logging.warning(f"Failed to start handshake server for {self.name}: {e}")
+        self._handshake_coordinator.start_server(
+            subscriber_id=self._handshake_server_id,
+            bind_host="*", 
+            port=robots.TELEOP_HANDSHAKE_PORT + (1 if self._is_right_arm else 2)  # Unique ports
+        )
+        logger.info(f"Handshake server started for {self.name}")
 
         self._is_homed = False
 
 
     @property
     def recorder_functions(self):
+        # Mapping of state keys to getter functions. Values may be typed objects with to_dict()
+        # or native dicts/ndarrays. publish_current_state() will normalize them to the wire format.
         return {
             'joint_states': self.get_joint_state,
             'operator_cartesian_states': self.get_cartesian_state_from_operator,
@@ -149,10 +164,10 @@ class XArm7Robot(RobotWrapper):
     def get_joint_state(self):
         return self._controller.get_arm_states()
     
-    def get_arm_velocity(self):
+    def get_joint_velocity(self):
         return self._controller.get_arm_velocity()
 
-    def get_arm_torque(self):
+    def get_joint_torque(self):
         return self._controller.get_arm_torque()
 
     def get_cartesian_state(self):
@@ -196,12 +211,9 @@ class XArm7Robot(RobotWrapper):
     def get_cartesian_state_from_operator(self):
         if self._latest_cartesian_coords is None:
             return None
-
-        cartesian_state_dict = {
-            "cartesian_position": np.array(self._latest_cartesian_coords, dtype=np.float32),
-            "timestamp": self._latest_cartesian_state_timestamp
-        }
-        return cartesian_state_dict
+        # Keep typed boundary internally; publish as dict via to_dict() later
+        position = tuple(np.asarray(self._latest_cartesian_coords, dtype=np.float32).tolist())
+        return CartesianState(position_m=position, timestamp_s=self._latest_cartesian_state_timestamp)
 
     def get_joint_state_from_operator(self):
         if self._latest_joint_state is None:
@@ -216,18 +228,17 @@ class XArm7Robot(RobotWrapper):
     def get_cartesian_commanded_position(self):
         if self._latest_commanded_cartesian_position is None:
             return None
-        return {
-            "commanded_cartesian_position": self._latest_commanded_cartesian_position,
-            "timestamp": self._latest_commanded_cartesian_timestamp,
-        }
+        return CommandedCartesianState(
+            commanded_cartesian_position=self._latest_commanded_cartesian_position.tolist()
+            if isinstance(self._latest_commanded_cartesian_position, np.ndarray)
+            else list(self._latest_commanded_cartesian_position),
+            timestamp_s=self._latest_commanded_cartesian_timestamp,
+        )
 
     def get_robot_actual_cartesian_position(self):
         cartesian_state=self.get_cartesian_position()
-        cartesian_dict = {
-            "cartesian_position": np.array(cartesian_state, dtype=np.float32),
-            "timestamp": time.time()
-        }
-        return cartesian_dict
+        position = tuple(np.asarray(cartesian_state, dtype=np.float32).tolist())
+        return CartesianState(position_m=position, timestamp_s=time.time())
     
     def get_robot_actual_joint_position(self):
         joint_state_dict = self._controller.get_arm_joint_state()
@@ -267,14 +278,6 @@ class XArm7Robot(RobotWrapper):
         target_interval = 1.0 / self._data_frequency
         next_frame_time = time.time()
         
-        # At the top of the stream() method, **before the main loop**:
-        avg_start_time  = time.time() # window start for average frequency
-        msg_counter     = 0           # how many commands arrived in this window
-        
-        # For jitter calculation
-        last_msg_time = None
-        msg_intervals = []
-        
         while True:
             current_time = time.time()
 
@@ -300,48 +303,22 @@ class XArm7Robot(RobotWrapper):
                     continue
 
                 msg = self._cartesian_coords_subscriber.recv_keypoints()
-                if msg is not None:
+                cmd = msg
+                if cmd is not None:
                     self._latest_commanded_cartesian_position = np.concatenate(
-                        [np.asarray(msg["position"], dtype=np.float32),
-                         np.asarray(msg["orientation"], dtype=np.float32)]
+                        [
+                            np.asarray(cmd.position_m, dtype=np.float32),
+                            np.asarray(cmd.orientation_xyzw, dtype=np.float32),
+                        ]
                     )
-                    self._latest_commanded_cartesian_timestamp = msg["timestamp"]
-                    self.move_coords(self._latest_commanded_cartesian_position)
-                    
-                    # Track timing for jitter calculation
-                    msg_time = time.time()
-                    if last_msg_time is not None:
-                        interval = (msg_time - last_msg_time) * 1000  # Convert to ms
-                        msg_intervals.append(interval)
-                        # Keep only recent intervals for jitter calculation
-                        if len(msg_intervals) > 100:  # Keep last 100 intervals
-                            msg_intervals = msg_intervals[-100:]
-                    last_msg_time = msg_time
+                    self._latest_commanded_cartesian_timestamp = cmd.timestamp_s
 
-                now = time.time()
-
-                msg_counter += 1
-                if now - avg_start_time >= 1.0:
-                    avg_freq = msg_counter / (now - avg_start_time)
-                    
-                    # Calculate jitter from individual message intervals
-                    jitter_ms = 0.0
-                    if len(msg_intervals) > 1:
-                        import statistics
-                        jitter_ms = statistics.stdev(msg_intervals)
-                    
-                    target_interval_ms = 1000.0 / self._data_frequency
-                    logger.debug(f"XARM: Average cmd freq over last second: {avg_freq:6.2f} Hz, Jitter: {jitter_ms:.2f}ms (target interval: {target_interval_ms:.1f}ms)")
-                    avg_start_time = now
-                    msg_counter = 0
+                self.move_coords(self._latest_commanded_cartesian_position)
 
                 # Publish the current state every cycle so that external
                 # adapters (e.g. MultiRobotAdapter) receive up-to-date joint
                 # information for observation building.
-                try:
-                    self.publish_current_state()
-                except Exception as e:
-                    logging.error(f"Failed to publish current state for {self.name}: {e}")
+                self.publish_current_state()
 
                 # Calculate sleep time to maintain consistent frequency
                 sleep_time = max(0, next_frame_time - time.time())
@@ -358,35 +335,27 @@ class XArm7Robot(RobotWrapper):
         publish_time = time.time()
 
         for key, getter_function in self.recorder_functions.items():
-            try:
-                state_data = getter_function()
-                if state_data is not None:
-                    current_state_dict[key] = state_data
-            except Exception as e:
-                logging.error(f"Failed to get state for '{key}' on robot '{self.name}': {e}")
-                current_state_dict[key] = None
+            state_data = getter_function()
+            if state_data is None:
+                continue
+            # Convert typed boundary objects to the legacy wire format
+            if hasattr(state_data, "to_dict") and callable(state_data.to_dict):
+                current_state_dict[key] = state_data.to_dict()
+            else:
+                current_state_dict[key] = state_data
 
         current_state_dict['timestamp'] = publish_time
 
         # Publish the state dictionary using the dedicated state publisher and self.name topic
-        try:
-            self._publisher_manager.publish(
-                self._publisher_host,
-                self._state_publish_port,
-                self.name,
-                current_state_dict,
-            )
-        except Exception as e:
-            logging.error(f"Error publishing state dictionary for robot '{self.name}': {e}")
+        self._publisher_manager.publish(
+            host=self._publisher_host,
+            port=self._state_publish_port,
+            topic=self.name,
+            data=current_state_dict,
+        )
     
     def __del__(self):
         # Stop handshake server for this robot
         if hasattr(self, '_handshake_coordinator') and hasattr(self, '_handshake_server_id'):
-            try:
-                self._handshake_coordinator.stop_server(self._handshake_server_id)
-            except Exception as e:
-                logging.warning(f"Error stopping handshake server for {self.name}: {e}")
-        
-        for subscriber in self._subscribers.values():
-            subscriber.stop()
+            self._handshake_coordinator.stop_server(self._handshake_server_id)
         cleanup_zmq_resources()

@@ -9,15 +9,10 @@ from beavr.lerobot.common.datasets.utils import Frame
 from beavr.lerobot.common.robot_devices.cameras.configs import CameraConfig, OpenCVCameraConfig
 from beavr.lerobot.common.robot_devices.cameras.opencv import OpenCVCamera
 from beavr.lerobot.common.robot_devices.robots.utils import Robot
+from beavr.teleop.common.messaging.handshake import HandshakeCoordinator, publish_with_guaranteed_delivery
+from beavr.teleop.common.messaging.publisher import ZMQPublisherManager
+from beavr.teleop.common.messaging.vr import ZMQKeypointSubscriber
 from beavr.teleop.configs.constants import robots
-
-# Network helpers
-from beavr.teleop.utils.network import (
-    HandshakeCoordinator,
-    ZMQKeypointSubscriber,
-    ZMQPublisherManager,
-    publish_with_guaranteed_delivery,
-)
 
 
 class BeavrBot(Robot):

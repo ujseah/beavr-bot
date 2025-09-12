@@ -9,9 +9,9 @@ import logging
 from dataclasses import dataclass
 from typing import Any, Dict
 
-from beavr.teleop.components.detector.keypoint_transform import TransformHandPositionCoords
-from beavr.teleop.components.detector.oculus import BimanualOculusVRHandDetector, OculusVRHandDetector
-from beavr.teleop.components.visualizers.visualizer_2d import Hand2DVisualizer
+from beavr.teleop.components.detector.vr.keypoint_transform import TransformHandPositionCoords
+from beavr.teleop.components.detector.vr.oculus import BimanualOculusVRHandDetector, OculusVRHandDetector
+from beavr.teleop.components.visualizer.visualizer_2d import Hand2DVisualizer
 from beavr.teleop.configs.constants import network, ports, robots
 
 logger = logging.getLogger(__name__)

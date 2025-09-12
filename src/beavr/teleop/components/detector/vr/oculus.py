@@ -7,6 +7,11 @@ from beavr.teleop.common.messaging.publisher import ZMQPublisherManager
 from beavr.teleop.common.messaging.utils import create_pull_socket
 from beavr.teleop.common.time.timer import FrequencyTimer
 from beavr.teleop.components import Component
+from beavr.teleop.components.detector.detector_types import (
+    ButtonEvent,
+    InputFrame,
+    SessionCommand,
+)
 from beavr.teleop.configs.constants import network, ports, robots
 
 logger = logging.getLogger(__name__)
@@ -51,37 +56,27 @@ class OculusVRHandDetector(Component):
         
         # Determine hand side based on port
         if self.oculus_hand_port == network.LEFT_HAND_PORT:
-            self.hand_side = robots.LEFT
+            self.hand_side = "left"
         elif self.oculus_hand_port == network.RIGHT_HAND_PORT:
-            self.hand_side = robots.RIGHT
+            self.hand_side = "right"
         else:
             raise ValueError(f"Invalid hand side: {self.oculus_hand_port}")
-        
-        # logger.info(f"VR detector initialized for {self.hand_side} hand")
-        
+                
     def _process_keypoints(self, data):
-        """Process raw keypoint data into a list of values."""
+        """Process raw keypoint data into a list of coordinate values."""
         data_str = data.decode().strip()
-        is_relative = not data_str.startswith(robots.ABSOLUTE)
-        values = [1 if is_relative else 0]
+        values = []
         
         # Parse coordinates (format: <hand>:x,y,z|x,y,z|x,y,z)
         coords = data_str.split(':')[1].strip().split('|')
         for coord in coords:
             values.extend(float(val) for val in coord.split(',')[:3])
-            
+        
         return values
-        
-    def _process_button(self, data):
-        """Convert button data to resolution value."""
-        return robots.ARM_LOW_RESOLUTION if data == b'Low' else robots.ARM_HIGH_RESOLUTION
-        
-    def _process_pause(self, data):
-        """Convert pause data to teleop status."""
-        return robots.ARM_TELEOP_CONT if data == b'Low' else robots.ARM_TELEOP_STOP
+
         
     def _receive_data(self, socket_name):
-        """Receive data from a socket with timeout handling."""
+        """Receive data from a socket."""
         try:
             data = self.sockets[socket_name].recv()
             self.last_received[socket_name] = time.time()
@@ -91,65 +86,79 @@ class OculusVRHandDetector(Component):
             
     def stream(self):
         """Main streaming loop for VR hand detection."""
-        # logger.info(f"Starting VR detector stream for {self.hand_side} hand")
         consecutive_timeouts = 0
         max_timeouts = 50  # 5 seconds of no data before stopping
 
-        try:
-            while True:
-                self.timer.start_loop()
-                # Receive keypoint data (required)
-                keypoint_data = self._receive_data(robots.KEYPOINTS)
-                if keypoint_data is None:
-                    consecutive_timeouts += 1
-                    if consecutive_timeouts >= max_timeouts:
-                        logger.warning(f"No data received for {max_timeouts} consecutive attempts. Stopping.")
-                        break
-                    continue
-                
-                consecutive_timeouts = 0
-                
-                # Process and publish keypoints
-                keypoints = self._process_keypoints(keypoint_data)
-                try:
-                    self.publisher_manager.publish(
-                        host=self.host,
-                        port=self.oculus_pub_port,
-                        topic=self.hand_side,
-                        data=keypoints
+        while True:
+            self.timer.start_loop()
+            #-------------------------------- Receive keypoint data --------------------------------#
+            keypoint_data = self._receive_data(robots.KEYPOINTS)
+            #---------------------------------------------------------------------------------------#
+
+            if keypoint_data is None:
+                consecutive_timeouts += 1
+                if consecutive_timeouts >= max_timeouts:
+                    logger.warning(f"No data received for {max_timeouts} consecutive attempts. Stopping.")
+                    break
+                continue
+            
+            consecutive_timeouts = 0
+
+            # Process and publish keypoints
+            keypoints = self._process_keypoints(keypoint_data)
+            is_relative = not keypoint_data.decode().strip().startswith(robots.ABSOLUTE)
+
+            #-------------------------------- Publish keypoints --------------------------------#
+            self.publisher_manager.publish(
+                host=self.host,
+                port=self.oculus_pub_port,
+                topic=self.hand_side,
+                data=InputFrame(
+                    timestamp_s=time.time(),
+                    hand_side=self.hand_side,
+                    keypoints=keypoints,
+                    is_relative=is_relative,
+                    frame_vectors=None,
+                )
+            )
+            #---------------------------------------------------------------------------------------#
+
+            #-------------------------------- Publish button state --------------------------------#
+            # Process and publish button state
+            if button_data := self._receive_data(robots.BUTTON):
+                self.publisher_manager.publish(
+                    host=self.host,
+                    port=self.oculus_pub_port,
+                    topic=robots.BUTTON,
+                    data=ButtonEvent(
+                        timestamp_s=time.time(),
+                        hand_side=self.hand_side,
+                        name=robots.BUTTON,
+                        value=robots.ARM_LOW_RESOLUTION if button_data == b'Low' else robots.ARM_HIGH_RESOLUTION,
                     )
-                except Exception as e:
-                    logger.error(f"Failed to publish keypoints: {e}")
-                
-                # Process and publish button state
-                if button_data := self._receive_data(robots.BUTTON):
-                    button_state = self._process_button(button_data)
-                    self.publisher_manager.publish(
-                        host=self.host,
-                        port=self.oculus_pub_port,
-                        topic=robots.BUTTON,
-                        data=button_state
+                )
+            #---------------------------------------------------------------------------------------#
+
+            #-------------------------------- Publish pause state --------------------------------#
+            # Process and publish pause state
+            if pause_data := self._receive_data(robots.PAUSE):
+                self.publisher_manager.publish(
+                    host=self.host,
+                    port=self.oculus_pub_port,
+                    topic=robots.PAUSE,
+                    data=SessionCommand(
+                        timestamp_s=time.time(),
+                        command="resume" if pause_data == b'Low' else "pause",
                     )
-                
-                # Process and publish pause state
-                if pause_data := self._receive_data(robots.PAUSE):
-                    pause_state = self._process_pause(pause_data)
-                    self.publisher_manager.publish(
-                        host=self.host,
-                        port=self.oculus_pub_port,
-                        topic=robots.PAUSE,
-                        data=pause_state
-                    )
-                
-                self.timer.end_loop()
-                
-        except Exception as e:
-            logger.error(f"Error in stream loop: {e}")
-        finally:
-            for name, socket in self.sockets.items():
-                socket.close()
-                logger.info(f"Closed {name} socket")
-            logger.info('Stopped VR hand detection process.')
+                )
+            #---------------------------------------------------------------------------------------#
+            
+            self.timer.end_loop()
+            
+        for name, socket in self.sockets.items():
+            socket.close()
+            logger.info(f"Closed {name} socket")
+        logger.info('Stopped VR hand detection process.')
 
 
 class BimanualOculusVRHandDetector(Component):
@@ -174,8 +183,8 @@ class BimanualOculusVRHandDetector(Component):
         self.teleop_reset_port = teleop_reset_port
 
         self.sockets = {
-            'right': create_pull_socket(host, self.right_hand_port),
-            'left': create_pull_socket(host, self.left_hand_port),
+            robots.RIGHT: create_pull_socket(host, self.right_hand_port),
+            robots.LEFT: create_pull_socket(host, self.left_hand_port),
             robots.BUTTON: create_pull_socket(host, self.button_port),
             robots.PAUSE: create_pull_socket(host, self.teleop_reset_port),
         }
@@ -185,18 +194,11 @@ class BimanualOculusVRHandDetector(Component):
 
     def _process_keypoints(self, data):
         data_str = data.decode().strip()
-        is_relative = not data_str.startswith(robots.ABSOLUTE)
-        values = [1 if is_relative else 0]
+        values = []
         coords = data_str.split(':')[1].strip().split('|')
         for coord in coords:
             values.extend(float(val) for val in coord.split(',')[:3])
         return values
-
-    def _process_button(self, data):
-        return robots.ARM_LOW_RESOLUTION if data == b'Low' else robots.ARM_HIGH_RESOLUTION
-
-    def _process_pause(self, data):
-        return robots.ARM_TELEOP_CONT if data == b'Low' else robots.ARM_TELEOP_STOP
 
     def _receive_data(self, socket_name):
         try:
@@ -205,38 +207,51 @@ class BimanualOculusVRHandDetector(Component):
             return None
 
     def stream(self):
-        try:
-            while True:
-                self.timer.start_loop()
+        while True:
+            self.timer.start_loop()
 
-                for name, topic in [('right', robots.RIGHT), ('left', robots.LEFT)]:
-                    if data := self._receive_data(name):
-                        keypoints = self._process_keypoints(data)
-                        self.publisher_manager.publish(
-                            host=self.host,
-                            port=self.oculus_pub_port,
-                            topic=topic,
-                            data=keypoints,
-                        )
-
-                if button_data := self._receive_data(robots.BUTTON):
+            for name, topic in [('right', robots.RIGHT), ('left', robots.LEFT)]:
+                if data := self._receive_data(name):
+                    keypoints = self._process_keypoints(data)
+                    is_relative = not data.decode().strip().startswith(robots.ABSOLUTE)
                     self.publisher_manager.publish(
                         host=self.host,
                         port=self.oculus_pub_port,
-                        topic=robots.BUTTON,
-                        data=self._process_button(button_data),
+                        topic=topic,
+                        data=InputFrame(
+                            timestamp_s=time.time(),
+                            hand_side=topic,
+                            keypoints=keypoints,
+                            is_relative=is_relative,
+                            frame_vectors=None,
+                        ),
                     )
 
-                if pause_data := self._receive_data(robots.PAUSE):
-                    self.publisher_manager.publish(
-                        host=self.host,
-                        port=self.oculus_pub_port,
-                        topic=robots.PAUSE,
-                        data=self._process_pause(pause_data),
-                    )
+            if button_data := self._receive_data(robots.BUTTON):
+                self.publisher_manager.publish(
+                    host=self.host,
+                    port=self.oculus_pub_port,
+                    topic=robots.BUTTON,
+                    data=ButtonEvent(
+                        timestamp_s=time.time(),
+                        hand_side=topic,
+                        name=robots.BUTTON,
+                        value=robots.ARM_LOW_RESOLUTION if button_data == b'Low' else robots.ARM_HIGH_RESOLUTION,
+                    ),
+                )
 
-                self.timer.end_loop()
-        finally:
-            for socket in self.sockets.values():
-                socket.close()
-            logger.info('Stopped bimanual VR hand detection process.')
+            if pause_data := self._receive_data(robots.PAUSE):
+                self.publisher_manager.publish(
+                    host=self.host,
+                    port=self.oculus_pub_port,
+                    topic=robots.PAUSE,
+                    data=SessionCommand(
+                        timestamp_s=time.time(),
+                        command="resume" if pause_data == b'Low' else "pause",
+                    ),
+                )
+
+            self.timer.end_loop()
+        for socket in self.sockets.values():
+            socket.close()
+        logger.info('Stopped bimanual VR hand detection process.')

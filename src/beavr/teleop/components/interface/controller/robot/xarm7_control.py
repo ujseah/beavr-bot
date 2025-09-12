@@ -4,11 +4,11 @@ import time
 from enum import Enum
 
 import numpy as np
-from scipy.spatial.transform import Rotation as R
+from scipy.spatial.transform import Rotation
 from xarm import XArmAPI
 
+from beavr.teleop.common.math.orientation import quat_positive, quat_to_axis_angle
 from beavr.teleop.configs.constants import robots
-from beavr.teleop.utils.orientation import quat_positive, quat_to_axis_angle
 
 
 class RobotControlMode(Enum):
@@ -57,12 +57,7 @@ class Robot(XArmAPI):
         time.sleep(0.3)  # Wait for transition to READY
         
         # Check if we're in the expected mode and READY state
-        if self.mode == mode and self.state == 2:
-            # print(f"Robot ready: Mode={mode}, State={self.state} (READY)")
-            return True
-        else:
-            # print(f"Warning: Robot not ready. Mode={self.mode} (expected {mode}), State={self.state} (expected 2)")
-            return False
+        return self.mode == mode and self.state == 2
 
     def reset(self):
         """Reset arm to home position with proper mode setting"""
@@ -402,7 +397,7 @@ class Robot(XArmAPI):
             np.ndarray: 4x4 affine matrix [[R, t],[0, 1]]
         """
 
-        rotation = R.from_rotvec(pose_aa[3:]).as_matrix()
+        rotation = Rotation.from_rotvec(pose_aa[3:]).as_matrix()
         translation = np.array(pose_aa[:3]) / robots.XARM_SCALE_FACTOR
 
         return np.block([[rotation, translation[:, np.newaxis]],
@@ -479,12 +474,12 @@ class DexArmControl:
         velocity = self.robot.get_arm_velocity()
         torque = self.robot.get_arm_torque()
         
-        joint_state_dict = dict(
-            joint_position = position,
-            joint_velocity = velocity,
-            joint_torque = torque,
-            timestamp = time.time()
-        )
+        joint_state_dict = {
+            "joint_position": position,
+            "joint_velocity": velocity,
+            "joint_torque": torque,
+            "timestamp": time.time()
+        }
         return joint_state_dict
     
     def get_arm_position(self):
@@ -506,10 +501,10 @@ class DexArmControl:
     def get_cartesian_state(self):
         """Get the current cartesian state"""
         cartesian_state = self.robot.get_arm_cartesian_coords()
-        cartesian_dict = dict(
-            cartesian_position = np.array(cartesian_state, dtype=np.float32),
-            timestamp = time.time()
-        )
+        cartesian_dict = {
+            "cartesian_position": np.array(cartesian_state, dtype=np.float32),
+            "timestamp": time.time()
+        }
         return cartesian_dict
     
     def get_arm_pose(self):

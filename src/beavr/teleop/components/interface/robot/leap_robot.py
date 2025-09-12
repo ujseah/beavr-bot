@@ -10,7 +10,7 @@ from beavr.teleop.common.math.ops import Ops
 from beavr.teleop.common.messaging.publisher import ZMQPublisherManager
 from beavr.teleop.common.messaging.utils import cleanup_zmq_resources
 from beavr.teleop.common.messaging.vr import ZMQKeypointSubscriber
-from beavr.teleop.components.interface.base import RobotWrapper
+from beavr.teleop.components.interface.controller.base_controller import RobotWrapper
 from beavr.teleop.components.interface.controller.robot.leap_control import DexArmControl
 from beavr.teleop.configs.constants import robots
 

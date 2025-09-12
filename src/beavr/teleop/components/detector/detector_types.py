@@ -1,7 +1,14 @@
 from dataclasses import dataclass
 from typing import Literal, Optional, Sequence, Tuple
 
-# Detector → Operator contracts: minimal fields required by operators.
+"""
+Detector → Operator contracts: minimal fields required by operators.
+
+Notes:
+- Units: positions in meters, orientations as XYZW unit quaternions,
+  velocities in m/s and rad/s, time is seconds (monotonic).
+- "hand_side" distinguishes left/right streams when bimanual.
+"""
 
 
 HandSide = Literal["left", "right"]
@@ -56,5 +63,3 @@ __all__ = [
     "SessionCommand",
     "InputFrame",
 ]
-
-

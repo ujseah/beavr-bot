@@ -12,7 +12,7 @@ from beavr.teleop.common.messaging.utils import (
     cleanup_zmq_resources,
     get_global_context,
 )
-from beavr.teleop.common.messaging.vr import ZMQKeypointSubscriber
+from beavr.teleop.common.messaging.vr.subscribers import ZMQSubscriber
 from beavr.teleop.common.time.timer import FrequencyTimer
 from beavr.teleop.components.operator.base import Operator
 from beavr.teleop.components.operator.solvers.leap_solver import LeapHandIKSolver
@@ -48,14 +48,14 @@ class LeapHandOperator(Operator):
             frame_topic = f"{robots.LEFT}_{robots.TRANSFORMED_HAND_FRAME}"
 
         # Subscriber for the transformed hand keypoints
-        self._transformed_hand_keypoint_subscriber = ZMQKeypointSubscriber(
+        self._transformed_hand_keypoint_subscriber = ZMQSubscriber(
             host=self._host,
             port=self._port,
             topic=coords_topic,
             context=self._context,
         )
         # Subscriber for the transformed arm frame
-        self._transformed_arm_keypoint_subscriber = ZMQKeypointSubscriber(
+        self._transformed_arm_keypoint_subscriber = ZMQSubscriber(
             host=self._host,
             port=self._port,
             topic=frame_topic,
@@ -67,7 +67,7 @@ class LeapHandOperator(Operator):
         self._joint_angle_publish_port = joint_angle_publish_port
         self._reset_publish_port = reset_publish_port  # Currently unused
 
-        self._joint_angle_subscriber = ZMQKeypointSubscriber(
+        self._joint_angle_subscriber = ZMQSubscriber(
             host=host,
             port=joint_angle_subscribe_port,
             topic='joint_angles',

@@ -12,14 +12,14 @@ from typing import Any
 
 import draccus
 
-from beavr.teleop.configs.constants.models import TeleopConfig
-from beavr.teleop.utils.configs import (
+from beavr.teleop.common.config.loader import (
     Laterality,
     apply_yaml_preserving_cli,
     load_robot_config,
     load_yaml_config,
 )
-from beavr.teleop.utils.logger import setup_root_logger
+from beavr.teleop.common.logging.logger import setup_root_logger
+from beavr.teleop.configs.constants.models import TeleopConfig
 
 logger = logging.getLogger(__name__)
 
