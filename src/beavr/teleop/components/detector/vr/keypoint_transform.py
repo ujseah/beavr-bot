@@ -167,7 +167,7 @@ class TransformHandPositionCoords(Component):
 
 
     def transform_keypoints(self, hand_coords):
-        """Transform hand keypoints to the robot frame."""
+        """Transform hand keypoints to create a coordinate frame."""
         translated_coords = copy(hand_coords) - hand_coords[0]
         
         # Use the new, more stable coordinate frame method

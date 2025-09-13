@@ -2,11 +2,12 @@ import logging
 import threading
 import time
 from abc import ABC, abstractmethod
-from typing import Generic, Optional, Type, TypeVar
+from typing import Optional, Type, TypeVar
 
 import cv2
 import numpy as np
 import zmq
+from typing_extensions import Generic
 
 from .serialization import PickleSerializer, Serializer
 from .utils import get_global_context

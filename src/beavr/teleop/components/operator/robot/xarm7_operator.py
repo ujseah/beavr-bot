@@ -91,7 +91,7 @@ class XArmOperator(Operator):
             frame_topic = f"{robots.LEFT}_{robots.TRANSFORMED_HAND_FRAME}"
         
         # Receives InputFrame objects containing frame vectors
-        self._arm_transformed_keypoint_subscriber = ZMQSubscriber[InputFrame](
+        self._arm_transformed_keypoint_subscriber = ZMQSubscriber(
             host=host,
             port=transformed_keypoints_port,
             topic=frame_topic,
@@ -102,7 +102,7 @@ class XArmOperator(Operator):
         # Optional subscribers
         self._arm_resolution_subscriber = None
         if arm_resolution_port:
-            self._arm_resolution_subscriber = ZMQSubscriber[ButtonEvent](
+            self._arm_resolution_subscriber = ZMQSubscriber(
                 host=host,
                 port=arm_resolution_port,
                 topic='button',
@@ -112,7 +112,7 @@ class XArmOperator(Operator):
 
         self._arm_teleop_state_subscriber = None
         if teleoperation_state_port:
-            self._arm_teleop_state_subscriber = ZMQSubscriber[SessionCommand](
+            self._arm_teleop_state_subscriber = ZMQSubscriber(
                 host=host,
                 port=teleoperation_state_port,
                 topic='pause',
@@ -121,7 +121,7 @@ class XArmOperator(Operator):
             )
 
         # Receives CartesianState with h_matrix set
-        self.endeff_homo_subscriber = ZMQSubscriber[CartesianState](
+        self.endeff_homo_subscriber = ZMQSubscriber(
             host=host,
             port=endeff_subscribe_port,
             topic='endeff_homo',
