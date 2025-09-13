@@ -4,6 +4,7 @@ from copy import deepcopy as copy
 from enum import IntEnum
 
 import numpy as np
+
 from beavr.teleop.common.math.vectorops import moving_average, normalize_vector
 from beavr.teleop.common.messaging.publisher import ZMQPublisherManager
 from beavr.teleop.common.messaging.utils import cleanup_zmq_resources

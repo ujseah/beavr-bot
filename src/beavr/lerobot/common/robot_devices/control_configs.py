@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import draccus
+
 from beavr.lerobot.common.robot_devices.robots.configs import RobotConfig
 from beavr.lerobot.configs import parser
 from beavr.lerobot.configs.policies import PreTrainedConfig

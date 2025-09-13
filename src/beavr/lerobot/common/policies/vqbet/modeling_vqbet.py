@@ -25,6 +25,8 @@ import numpy as np
 import torch
 import torch.nn.functional as F  # noqa: N812
 import torchvision
+from torch import Tensor, nn
+
 from beavr.lerobot.common.policies.normalize import Normalize, Unnormalize
 from beavr.lerobot.common.policies.pretrained import PreTrainedPolicy
 from beavr.lerobot.common.policies.utils import (
@@ -34,7 +36,6 @@ from beavr.lerobot.common.policies.utils import (
 )
 from beavr.lerobot.common.policies.vqbet.configuration_vqbet import VQBeTConfig
 from beavr.lerobot.common.policies.vqbet.vqbet_utils import GPT, ResidualVQ
-from torch import Tensor, nn
 
 # ruff: noqa: N806
 

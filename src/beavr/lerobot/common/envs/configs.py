@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 
 import draccus
+
 from beavr.lerobot.common.constants import (
     ACTION,
     OBS_ENV_STATE,

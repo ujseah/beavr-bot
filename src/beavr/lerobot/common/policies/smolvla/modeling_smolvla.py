@@ -57,6 +57,9 @@ from collections import deque
 
 import torch
 import torch.nn.functional as F  # noqa: N812
+from torch import Tensor, nn
+from transformers import AutoProcessor
+
 from beavr.lerobot.common.constants import ACTION, OBS_ROBOT
 from beavr.lerobot.common.policies.normalize import (
     Normalize,
@@ -71,8 +74,6 @@ from beavr.lerobot.common.policies.utils import (
     populate_queues,
 )
 from beavr.lerobot.common.utils.utils import get_safe_dtype
-from torch import Tensor, nn
-from transformers import AutoProcessor
 
 
 def create_sinusoidal_pos_embedding(

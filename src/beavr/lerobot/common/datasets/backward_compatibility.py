@@ -53,8 +53,7 @@ As we cannot ensure forward compatibility with it, please update your current ve
 """
 
 
-class CompatibilityError(Exception):
-    ...
+class CompatibilityError(Exception): ...
 
 
 class BackwardCompatibilityError(CompatibilityError):

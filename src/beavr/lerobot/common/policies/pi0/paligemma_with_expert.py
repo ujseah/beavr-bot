@@ -16,7 +16,6 @@ from typing import List, Optional, Union
 
 import torch
 import torch.version
-from beavr.lerobot.common.policies.pi0.flex_attention import flex_attention_forward
 from pytest import Cache
 from torch import nn
 from transformers import (
@@ -27,6 +26,8 @@ from transformers import (
     PreTrainedModel,
 )
 from transformers.models.auto import CONFIG_MAPPING
+
+from beavr.lerobot.common.policies.pi0.flex_attention import flex_attention_forward
 
 
 def apply_rope(x, positions, max_wavelength=10_000):

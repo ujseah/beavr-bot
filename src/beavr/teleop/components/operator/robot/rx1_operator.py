@@ -4,6 +4,8 @@ from copy import deepcopy as copy
 
 import numpy as np
 import zmq
+from scipy.spatial.transform import Rotation, Slerp
+
 from beavr.teleop.common.logging.logger import PoseLogger
 from beavr.teleop.common.messaging.publisher import ZMQPublisherManager
 from beavr.teleop.common.messaging.vr.subscribers import ZMQSubscriber
@@ -16,7 +18,6 @@ from beavr.teleop.configs.constants.robots import (
     ARM_TELEOP_STOP,
     VR_FREQ,
 )
-from scipy.spatial.transform import Rotation, Slerp
 
 logger = logging.getLogger(__name__)
 

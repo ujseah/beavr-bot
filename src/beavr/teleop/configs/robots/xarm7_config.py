@@ -2,6 +2,7 @@
 
 This config can be used for single-arm (right/left) or dual-arm (bimanual) XArm7 setups.
 """
+
 from __future__ import annotations
 
 import logging

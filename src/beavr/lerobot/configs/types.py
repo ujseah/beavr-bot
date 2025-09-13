@@ -32,8 +32,7 @@ class NormalizationMode(str, Enum):
 
 
 class DictLike(Protocol):
-    def __getitem__(self, key: Any) -> Any:
-        ...
+    def __getitem__(self, key: Any) -> Any: ...
 
 
 @dataclass

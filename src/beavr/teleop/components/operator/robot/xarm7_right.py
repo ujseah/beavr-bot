@@ -1,6 +1,7 @@
 from typing import Any, Dict, Optional
 
 import numpy as np
+
 from beavr.teleop.configs.constants import robots
 
 # Import the base class

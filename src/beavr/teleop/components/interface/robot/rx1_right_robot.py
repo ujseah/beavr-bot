@@ -4,9 +4,10 @@ import time
 
 import numpy as np
 import zmq
+from scipy.spatial.transform import Rotation
+
 from beavr.teleop.common.messaging.publisher import ZMQPublisherManager
 from beavr.teleop.common.messaging.vr.subscribers import ZMQSubscriber
-from scipy.spatial.transform import Rotation
 
 logger = logging.getLogger(__name__)
 

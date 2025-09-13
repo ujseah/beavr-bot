@@ -33,6 +33,8 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F  # noqa: N812
+from torch import Tensor
+
 from beavr.lerobot.common.constants import OBS_ENV, OBS_ROBOT
 from beavr.lerobot.common.policies.normalize import Normalize, Unnormalize
 from beavr.lerobot.common.policies.pretrained import PreTrainedPolicy
@@ -42,7 +44,6 @@ from beavr.lerobot.common.policies.utils import (
     get_output_shape,
     populate_queues,
 )
-from torch import Tensor
 
 
 class TDMPCPolicy(PreTrainedPolicy):
@@ -615,9 +616,9 @@ class TDMPCTOLD(nn.Module):
 
         self.apply(_apply_fn)
         for m in [self._reward, *self._Qs]:
-            assert isinstance(
-                m[-1], nn.Linear
-            ), "Sanity check. The last linear layer needs 0 initialization on weights."
+            assert isinstance(m[-1], nn.Linear), (
+                "Sanity check. The last linear layer needs 0 initialization on weights."
+            )
             nn.init.zeros_(m[-1].weight)
             nn.init.zeros_(m[-1].bias)  # this has already been done, but keep this line here for good measure
 

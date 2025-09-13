@@ -21,6 +21,7 @@ from copy import deepcopy
 
 import numpy as np
 import tqdm
+
 from beavr.lerobot.common.robot_devices.motors.configs import FeetechMotorsBusConfig
 from beavr.lerobot.common.robot_devices.utils import (
     RobotDeviceAlreadyConnectedError,
@@ -257,7 +258,7 @@ class FeetechMotorsBus:
     ```bash
     python lerobot/scripts/find_motors_bus_port.py
     >>> Finding all available ports for the MotorsBus.
-    >>> ['/dev/tty.usbmodem575E0032081', '/dev/tty.usbmodem575E0031751']
+    >>> ["/dev/tty.usbmodem575E0032081", "/dev/tty.usbmodem575E0031751"]
     >>> Remove the usb cable from your FeetechMotorsBus and press Enter when done.
     >>> The port of this FeetechMotorsBus is /dev/tty.usbmodem575E0031751.
     >>> Reconnect the usb cable.

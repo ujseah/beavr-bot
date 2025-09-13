@@ -15,6 +15,7 @@
 from typing import Protocol
 
 import numpy as np
+
 from beavr.lerobot.common.robot_devices.cameras.configs import (
     CameraConfig,
     IntelRealSenseCameraConfig,
@@ -24,17 +25,13 @@ from beavr.lerobot.common.robot_devices.cameras.configs import (
 
 # Defines a camera type
 class Camera(Protocol):
-    def connect(self):
-        ...
+    def connect(self): ...
 
-    def read(self, temporary_color: str | None = None) -> np.ndarray:
-        ...
+    def read(self, temporary_color: str | None = None) -> np.ndarray: ...
 
-    def async_read(self) -> np.ndarray:
-        ...
+    def async_read(self) -> np.ndarray: ...
 
-    def disconnect(self):
-        ...
+    def disconnect(self): ...
 
 
 def make_cameras_from_configs(camera_configs: dict[str, CameraConfig]) -> list[Camera]:

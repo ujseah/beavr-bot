@@ -2,6 +2,7 @@ import logging
 import time
 
 import numpy as np
+
 from beavr.teleop.common.messaging.handshake import HandshakeCoordinator
 from beavr.teleop.common.messaging.publisher import ZMQPublisherManager
 from beavr.teleop.common.messaging.utils import cleanup_zmq_resources

@@ -18,6 +18,7 @@
 import time
 
 import numpy as np
+
 from beavr.lerobot.common.robot_devices.motors.feetech import (
     CalibrationMode,
     TorqueMode,

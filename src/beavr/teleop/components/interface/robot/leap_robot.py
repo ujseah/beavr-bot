@@ -4,6 +4,7 @@ import time
 from queue import Queue
 
 import numpy as np
+
 from beavr.teleop.common.factory.registry import GlobalRegistry
 from beavr.teleop.common.messaging.publisher import ZMQPublisherManager
 from beavr.teleop.common.messaging.utils import cleanup_zmq_resources

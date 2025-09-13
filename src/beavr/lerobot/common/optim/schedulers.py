@@ -19,11 +19,12 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 import draccus
+from torch.optim import Optimizer
+from torch.optim.lr_scheduler import LambdaLR, LRScheduler
+
 from beavr.lerobot.common.constants import SCHEDULER_STATE
 from beavr.lerobot.common.datasets.utils import write_json
 from beavr.lerobot.common.utils.io_utils import deserialize_json_into_object
-from torch.optim import Optimizer
-from torch.optim.lr_scheduler import LambdaLR, LRScheduler
 
 
 @dataclass

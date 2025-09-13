@@ -27,6 +27,8 @@ from pathlib import Path
 from threading import Thread
 
 import numpy as np
+from PIL import Image
+
 from beavr.lerobot.common.robot_devices.cameras.configs import OpenCVCameraConfig
 from beavr.lerobot.common.robot_devices.utils import (
     RobotDeviceAlreadyConnectedError,
@@ -34,7 +36,6 @@ from beavr.lerobot.common.robot_devices.utils import (
     busy_wait,
 )
 from beavr.lerobot.common.utils.utils import capture_timestamp_utc
-from PIL import Image
 
 # The maximum opencv device index depends on your operating system. For instance,
 # if you have 3 cameras, they should be associated to index 0, 1, and 2. This is the case

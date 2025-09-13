@@ -19,6 +19,10 @@ from pathlib import Path
 from typing import Type, TypeVar
 
 import draccus
+from huggingface_hub import hf_hub_download
+from huggingface_hub.constants import CONFIG_NAME
+from huggingface_hub.errors import HfHubHTTPError
+
 from beavr.lerobot.common.optim.optimizers import OptimizerConfig
 from beavr.lerobot.common.optim.schedulers import LRSchedulerConfig
 from beavr.lerobot.common.utils.hub import HubMixin
@@ -28,9 +32,6 @@ from beavr.lerobot.common.utils.utils import (
     is_torch_device_available,
 )
 from beavr.lerobot.configs.types import FeatureType, NormalizationMode, PolicyFeature
-from huggingface_hub import hf_hub_download
-from huggingface_hub.constants import CONFIG_NAME
-from huggingface_hub.errors import HfHubHTTPError
 
 # Generic variable that is either PreTrainedConfig or a subclass thereof
 T = TypeVar("T", bound="PreTrainedConfig")

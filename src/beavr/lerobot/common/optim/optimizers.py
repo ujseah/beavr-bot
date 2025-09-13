@@ -19,13 +19,14 @@ from pathlib import Path
 
 import draccus
 import torch
+from safetensors.torch import load_file, save_file
+
 from beavr.lerobot.common.constants import (
     OPTIMIZER_PARAM_GROUPS,
     OPTIMIZER_STATE,
 )
 from beavr.lerobot.common.datasets.utils import flatten_dict, unflatten_dict, write_json
 from beavr.lerobot.common.utils.io_utils import deserialize_json_into_object
-from safetensors.torch import load_file, save_file
 
 
 @dataclass

@@ -16,6 +16,8 @@
 
 import logging
 
+from torch import nn
+
 from beavr.lerobot.common.datasets.lerobot_dataset import LeRobotDatasetMetadata
 from beavr.lerobot.common.datasets.utils import dataset_to_policy_features
 from beavr.lerobot.common.envs.configs import EnvConfig
@@ -32,7 +34,6 @@ from beavr.lerobot.common.policies.tdmpc.configuration_tdmpc import TDMPCConfig
 from beavr.lerobot.common.policies.vqbet.configuration_vqbet import VQBeTConfig
 from beavr.lerobot.configs.policies import PreTrainedConfig
 from beavr.lerobot.configs.types import FeatureType
-from torch import nn
 
 
 def get_policy_class(name: str) -> PreTrainedPolicy:

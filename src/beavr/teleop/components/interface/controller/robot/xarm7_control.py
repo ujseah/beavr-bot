@@ -4,10 +4,11 @@ import time
 from enum import Enum
 
 import numpy as np
-from beavr.teleop.common.math.orientation import quat_positive, quat_to_axis_angle
-from beavr.teleop.configs.constants import robots
 from scipy.spatial.transform import Rotation
 from xarm import XArmAPI
+
+from beavr.teleop.common.math.orientation import quat_positive, quat_to_axis_angle
+from beavr.teleop.configs.constants import robots
 
 
 class RobotControlMode(Enum):

@@ -16,6 +16,7 @@
 # TODO(rcadene, aliberts): move this logic into the robot code when refactoring
 
 import numpy as np
+
 from beavr.lerobot.common.robot_devices.motors.dynamixel import (
     CalibrationMode,
     TorqueMode,

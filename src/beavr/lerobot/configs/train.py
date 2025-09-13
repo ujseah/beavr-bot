@@ -18,6 +18,9 @@ from pathlib import Path
 from typing import Type
 
 import draccus
+from huggingface_hub import hf_hub_download
+from huggingface_hub.errors import HfHubHTTPError
+
 from beavr.lerobot.common import envs
 from beavr.lerobot.common.optim import OptimizerConfig
 from beavr.lerobot.common.optim.schedulers import LRSchedulerConfig
@@ -25,8 +28,6 @@ from beavr.lerobot.common.utils.hub import HubMixin
 from beavr.lerobot.configs import parser
 from beavr.lerobot.configs.default import DatasetConfig, EvalConfig, WandBConfig
 from beavr.lerobot.configs.policies import PreTrainedConfig
-from huggingface_hub import hf_hub_download
-from huggingface_hub.errors import HfHubHTTPError
 
 TRAIN_CONFIG_NAME = "train_config.json"
 

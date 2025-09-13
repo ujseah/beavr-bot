@@ -20,10 +20,11 @@ import einops
 import gymnasium as gym
 import numpy as np
 import torch
+from torch import Tensor
+
 from beavr.lerobot.common.envs.configs import EnvConfig
 from beavr.lerobot.common.utils.utils import get_channel_first_image_shape
 from beavr.lerobot.configs.types import FeatureType, PolicyFeature
-from torch import Tensor
 
 
 def preprocess_observation(observations: dict[str, np.ndarray]) -> dict[str, Tensor]:

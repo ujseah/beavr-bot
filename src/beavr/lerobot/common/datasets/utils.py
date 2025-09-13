@@ -29,6 +29,12 @@ import jsonlines
 import numpy as np
 import packaging.version
 import torch
+from datasets.table import embed_table_storage
+from huggingface_hub import DatasetCard, DatasetCardData, HfApi
+from huggingface_hub.errors import RevisionNotFoundError
+from PIL import Image as PILImage
+from torchvision import transforms
+
 from beavr.lerobot.common.datasets.backward_compatibility import (
     V21_MESSAGE,
     BackwardCompatibilityError,
@@ -37,11 +43,6 @@ from beavr.lerobot.common.datasets.backward_compatibility import (
 from beavr.lerobot.common.robot_devices.robots.utils import Robot
 from beavr.lerobot.common.utils.utils import is_valid_numpy_dtype_string
 from beavr.lerobot.configs.types import DictLike, FeatureType, PolicyFeature
-from datasets.table import embed_table_storage
-from huggingface_hub import DatasetCard, DatasetCardData, HfApi
-from huggingface_hub.errors import RevisionNotFoundError
-from PIL import Image as PILImage
-from torchvision import transforms
 
 DEFAULT_CHUNK_SIZE = 1000  # Max number of episodes per chunk
 

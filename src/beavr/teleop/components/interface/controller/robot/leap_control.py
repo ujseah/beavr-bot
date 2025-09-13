@@ -4,7 +4,6 @@ import time
 from queue import Queue
 
 import numpy as np
-from beavr.teleop.configs.constants import network
 from dynamixel_sdk import (
     COMM_SUCCESS,
     DXL_HIBYTE,
@@ -16,6 +15,8 @@ from dynamixel_sdk import (
     PacketHandler,
     PortHandler,
 )
+
+from beavr.teleop.configs.constants import network
 
 logger = logging.getLogger(__name__)
 

@@ -3,6 +3,9 @@ from copy import deepcopy as copy
 
 import numpy as np
 import zmq
+from numpy.linalg import pinv
+from scipy.spatial.transform import Rotation, Slerp
+
 from beavr.teleop.common.messaging.publisher import ZMQPublisherManager
 from beavr.teleop.common.messaging.vr.subscribers import ZMQSubscriber
 from beavr.teleop.common.time.timer import FrequencyTimer
@@ -15,10 +18,8 @@ from beavr.teleop.configs.constants.robots import (
     ARM_TELEOP_STOP,
     OCULUS_JOINTS,
     VR_FREQ,
+    XARM_SCALE_FACTOR as SCALE_FACTOR,
 )
-from beavr.teleop.configs.constants.robots import XARM_SCALE_FACTOR as SCALE_FACTOR
-from numpy.linalg import pinv
-from scipy.spatial.transform import Rotation, Slerp
 
 logger = logging.getLogger(__name__)
 

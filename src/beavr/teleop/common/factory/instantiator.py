@@ -7,7 +7,7 @@ class DotDict(dict):
 
     Example
     -------
-    >>> cfg = DotDict({'a': 1, 'b': {'c': 2}})
+    >>> cfg = DotDict({"a": 1, "b": {"c": 2}})
     >>> cfg.a
     1
     >>> cfg.b.c

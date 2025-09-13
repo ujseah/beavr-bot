@@ -25,6 +25,11 @@ import packaging.version
 import PIL.Image
 import torch
 import torch.utils
+from datasets import concatenate_datasets, load_dataset
+from huggingface_hub import HfApi, snapshot_download
+from huggingface_hub.constants import REPOCARD_NAME
+from huggingface_hub.errors import RevisionNotFoundError
+
 from beavr.lerobot.common.constants import HF_LEROBOT_HOME
 from beavr.lerobot.common.datasets.compute_stats import (
     aggregate_stats,
@@ -71,10 +76,6 @@ from beavr.lerobot.common.datasets.video_utils import (
     get_video_info,
 )
 from beavr.lerobot.common.robot_devices.robots.utils import Robot
-from datasets import concatenate_datasets, load_dataset
-from huggingface_hub import HfApi, snapshot_download
-from huggingface_hub.constants import REPOCARD_NAME
-from huggingface_hub.errors import RevisionNotFoundError
 
 CODEBASE_VERSION = "v2.1"
 

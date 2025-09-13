@@ -21,6 +21,7 @@ from copy import deepcopy
 
 import numpy as np
 import tqdm
+
 from beavr.lerobot.common.robot_devices.motors.configs import DynamixelMotorsBusConfig
 from beavr.lerobot.common.robot_devices.utils import (
     RobotDeviceAlreadyConnectedError,
@@ -278,7 +279,7 @@ class DynamixelMotorsBus:
     ```bash
     python lerobot/scripts/find_motors_bus_port.py
     >>> Finding all available ports for the MotorBus.
-    >>> ['/dev/tty.usbmodem575E0032081', '/dev/tty.usbmodem575E0031751']
+    >>> ["/dev/tty.usbmodem575E0032081", "/dev/tty.usbmodem575E0031751"]
     >>> Remove the usb cable from your DynamixelMotorsBus and press Enter when done.
     >>> The port of this DynamixelMotorsBus is /dev/tty.usbmodem575E0031751.
     >>> Reconnect the usb cable.

@@ -19,10 +19,11 @@ import re
 from glob import glob
 from pathlib import Path
 
-from beavr.lerobot.common.constants import PRETRAINED_MODEL_DIR
-from beavr.lerobot.configs.train import TrainPipelineConfig
 from huggingface_hub.constants import SAFETENSORS_SINGLE_FILE
 from termcolor import colored
+
+from beavr.lerobot.common.constants import PRETRAINED_MODEL_DIR
+from beavr.lerobot.configs.train import TrainPipelineConfig
 
 
 def cfg_to_group(cfg: TrainPipelineConfig, return_list: bool = False) -> list[str] | str:

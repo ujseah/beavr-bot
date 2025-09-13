@@ -16,6 +16,10 @@
 import logging
 from pathlib import Path
 
+from termcolor import colored
+from torch.optim import Optimizer
+from torch.optim.lr_scheduler import LRScheduler
+
 from beavr.lerobot.common.constants import (
     CHECKPOINTS_DIR,
     LAST_CHECKPOINT_LINK,
@@ -35,9 +39,6 @@ from beavr.lerobot.common.optim.schedulers import (
 from beavr.lerobot.common.policies.pretrained import PreTrainedPolicy
 from beavr.lerobot.common.utils.random_utils import load_rng_state, save_rng_state
 from beavr.lerobot.configs.train import TrainPipelineConfig
-from termcolor import colored
-from torch.optim import Optimizer
-from torch.optim.lr_scheduler import LRScheduler
 
 
 def log_output_dir(out_dir):

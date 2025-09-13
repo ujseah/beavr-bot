@@ -1,4 +1,5 @@
 """Auto-generated strongly-typed config for robot `leap_pybullet`."""
+
 from __future__ import annotations
 
 import logging

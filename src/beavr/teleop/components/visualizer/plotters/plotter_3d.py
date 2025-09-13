@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+
 from beavr.teleop.configs.constants import robots
 
 from .plotter import Plotter

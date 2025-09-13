@@ -1,4 +1,5 @@
 import numpy as np
+
 from beavr.teleop.components.interface.interface_types import CartesianState
 
 

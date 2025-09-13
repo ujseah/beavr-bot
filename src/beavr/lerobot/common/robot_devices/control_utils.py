@@ -31,6 +31,9 @@ from functools import cache
 import numpy as np
 import rerun as rr
 import torch
+from deepdiff import DeepDiff
+from termcolor import colored
+
 from beavr.lerobot.common.datasets.image_writer import safe_stop_image_writer
 from beavr.lerobot.common.datasets.lerobot_dataset import LeRobotDataset
 from beavr.lerobot.common.datasets.utils import get_features_from_robot
@@ -38,8 +41,6 @@ from beavr.lerobot.common.policies.pretrained import PreTrainedPolicy
 from beavr.lerobot.common.robot_devices.robots.utils import Robot
 from beavr.lerobot.common.robot_devices.utils import busy_wait
 from beavr.lerobot.common.utils.utils import get_safe_torch_device, has_method
-from deepdiff import DeepDiff
-from termcolor import colored
 
 
 def log_control_info(robot: Robot, dt_s, episode_index=None, frame_index=None, fps=None):

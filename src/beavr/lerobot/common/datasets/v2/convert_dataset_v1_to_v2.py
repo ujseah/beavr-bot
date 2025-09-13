@@ -114,6 +114,11 @@ import datasets
 import pyarrow.compute as pc
 import pyarrow.parquet as pq
 import torch
+from datasets import Dataset
+from huggingface_hub import HfApi
+from huggingface_hub.errors import EntryNotFoundError, HfHubHTTPError
+from safetensors.torch import load_file
+
 from beavr.lerobot.common.datasets.utils import (
     DEFAULT_CHUNK_SIZE,
     DEFAULT_PARQUET_PATH,
@@ -138,10 +143,6 @@ from beavr.lerobot.common.datasets.video_utils import (
 )
 from beavr.lerobot.common.robot_devices.robots.configs import RobotConfig
 from beavr.lerobot.common.robot_devices.robots.utils import make_robot_config
-from datasets import Dataset
-from huggingface_hub import HfApi
-from huggingface_hub.errors import EntryNotFoundError, HfHubHTTPError
-from safetensors.torch import load_file
 
 V16 = "v1.6"
 V20 = "v2.0"

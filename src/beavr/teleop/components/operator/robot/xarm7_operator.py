@@ -4,6 +4,8 @@ from copy import deepcopy as copy
 from typing import Any, Dict, Optional
 
 import numpy as np
+from scipy.spatial.transform import Rotation
+
 from beavr.teleop.common.logging.logger import PoseLogger
 from beavr.teleop.common.messaging.handshake import HandshakeCoordinator
 from beavr.teleop.common.messaging.publisher import ZMQPublisherManager
@@ -24,7 +26,6 @@ from beavr.teleop.components.operator import CartesianTarget
 from beavr.teleop.components.operator.operator_base import Operator
 from beavr.teleop.components.operator.solvers.filters import CompStateFilter
 from beavr.teleop.configs.constants import robots
-from scipy.spatial.transform import Rotation
 
 logger = logging.getLogger(__name__)
 

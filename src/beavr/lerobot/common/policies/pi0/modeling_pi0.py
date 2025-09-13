@@ -54,6 +54,9 @@ from collections import deque
 
 import torch
 import torch.nn.functional as F  # noqa: N812
+from torch import Tensor, nn
+from transformers import AutoTokenizer
+
 from beavr.lerobot.common.constants import ACTION, OBS_ROBOT
 from beavr.lerobot.common.policies.normalize import Normalize, Unnormalize
 from beavr.lerobot.common.policies.pi0.configuration_pi0 import PI0Config
@@ -63,8 +66,6 @@ from beavr.lerobot.common.policies.pi0.paligemma_with_expert import (
 )
 from beavr.lerobot.common.policies.pretrained import PreTrainedPolicy
 from beavr.lerobot.common.utils.utils import get_safe_dtype
-from torch import Tensor, nn
-from transformers import AutoTokenizer
 
 
 def create_sinusoidal_pos_embedding(

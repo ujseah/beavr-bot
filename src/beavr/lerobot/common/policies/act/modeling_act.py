@@ -29,12 +29,13 @@ import numpy as np
 import torch
 import torch.nn.functional as F  # noqa: N812
 import torchvision
-from beavr.lerobot.common.policies.act.configuration_act import ACTConfig
-from beavr.lerobot.common.policies.normalize import Normalize, Unnormalize
-from beavr.lerobot.common.policies.pretrained import PreTrainedPolicy
 from torch import Tensor, nn
 from torchvision.models._utils import IntermediateLayerGetter
 from torchvision.ops.misc import FrozenBatchNorm2d
+
+from beavr.lerobot.common.policies.act.configuration_act import ACTConfig
+from beavr.lerobot.common.policies.normalize import Normalize, Unnormalize
+from beavr.lerobot.common.policies.pretrained import PreTrainedPolicy
 
 
 class ACTPolicy(PreTrainedPolicy):
@@ -211,7 +212,7 @@ class ACTTemporalEnsembler:
                 continue
             avg *= exp_weights[:i].sum()
             avg += item * exp_weights[i]
-            avg /= exp_weights[:i+1].sum()
+            avg /= exp_weights[: i + 1].sum()
         print("online", avg)
         ```
         """
@@ -414,9 +415,9 @@ class ACT(nn.Module):
             latent dimension.
         """
         if self.config.use_vae and self.training:
-            assert (
-                "action" in batch
-            ), "actions must be provided when using the variational objective in training mode."
+            assert "action" in batch, (
+                "actions must be provided when using the variational objective in training mode."
+            )
 
         if "observation.images" in batch:
             batch_size = batch["observation.images"][0].shape[0]

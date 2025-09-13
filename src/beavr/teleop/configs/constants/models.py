@@ -34,9 +34,9 @@ class NetworkConfig:
             assert len(ip_parts) == 4, f"{ip_name} must be IPv4 format, got: {ip_addr}"
 
         # Validate handshake port range
-        assert (
-            1 <= self.teleop_handshake_port <= 65535
-        ), f"handshake port out of range: {self.teleop_handshake_port}"
+        assert 1 <= self.teleop_handshake_port <= 65535, (
+            f"handshake port out of range: {self.teleop_handshake_port}"
+        )
 
 
 @dataclass

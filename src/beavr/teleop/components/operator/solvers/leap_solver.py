@@ -10,6 +10,7 @@ import os
 
 import numpy as np
 import pybullet as p
+
 from beavr.teleop.configs.constants import robots
 
 logger = logging.getLogger(__name__)

@@ -3,6 +3,7 @@ import time
 from typing import Optional, Union
 
 import zmq
+
 from beavr.teleop.common.messaging.publisher import ZMQPublisherManager
 from beavr.teleop.common.messaging.utils import create_pull_socket
 from beavr.teleop.common.time.timer import FrequencyTimer

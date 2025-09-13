@@ -2,6 +2,9 @@ import logging
 from copy import deepcopy as copy
 
 import numpy as np
+from shapely.geometry import Point, Polygon
+from shapely.ops import nearest_points
+
 from beavr.teleop.common.io.files import get_path_in_package, get_yaml_data
 from beavr.teleop.common.math.vectorops import coord_in_bound
 
@@ -16,8 +19,6 @@ from beavr.teleop.configs.constants.robots import (
     OCULUS_JOINTS,
     VR_FREQ,
 )
-from shapely.geometry import Point, Polygon
-from shapely.ops import nearest_points
 
 logger = logging.getLogger(__name__)
 

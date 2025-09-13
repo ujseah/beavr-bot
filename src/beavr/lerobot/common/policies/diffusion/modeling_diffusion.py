@@ -29,6 +29,10 @@ import numpy as np
 import torch
 import torch.nn.functional as F  # noqa: N812
 import torchvision
+from diffusers.schedulers.scheduling_ddim import DDIMScheduler
+from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
+from torch import Tensor, nn
+
 from beavr.lerobot.common.constants import OBS_ENV, OBS_ROBOT
 from beavr.lerobot.common.policies.diffusion.configuration_diffusion import (
     DiffusionConfig,
@@ -41,9 +45,6 @@ from beavr.lerobot.common.policies.utils import (
     get_output_shape,
     populate_queues,
 )
-from diffusers.schedulers.scheduling_ddim import DDIMScheduler
-from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
-from torch import Tensor, nn
 
 
 class DiffusionPolicy(PreTrainedPolicy):

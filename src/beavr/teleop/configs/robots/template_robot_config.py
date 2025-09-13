@@ -1,4 +1,5 @@
 """Auto-generated strongly-typed config for robot `template_robot`."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field

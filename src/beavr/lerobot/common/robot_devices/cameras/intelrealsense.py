@@ -29,6 +29,8 @@ from pathlib import Path
 from threading import Thread
 
 import numpy as np
+from PIL import Image
+
 from beavr.lerobot.common.robot_devices.cameras.configs import (
     IntelRealSenseCameraConfig,
 )
@@ -38,7 +40,6 @@ from beavr.lerobot.common.robot_devices.utils import (
     busy_wait,
 )
 from beavr.lerobot.common.utils.utils import capture_timestamp_utc
-from PIL import Image
 
 SERIAL_NUMBER_INDEX = 1
 
@@ -203,7 +204,9 @@ class IntelRealSenseCamera:
     ```python
     config = IntelRealSenseCameraConfig(serial_number=128422271347, fps=30, width=1280, height=720)
     config = IntelRealSenseCameraConfig(serial_number=128422271347, fps=90, width=640, height=480)
-    config = IntelRealSenseCameraConfig(serial_number=128422271347, fps=90, width=640, height=480, color_mode="bgr")
+    config = IntelRealSenseCameraConfig(
+        serial_number=128422271347, fps=90, width=640, height=480, color_mode="bgr"
+    )
     # Note: might error out upon `camera.connect()` if these settings are not compatible with the camera
     ```
 

@@ -49,16 +49,17 @@ from functools import partial
 import numpy as np
 import torch
 import torch.nn.functional as F  # noqa: N812
-from beavr.lerobot.common.constants import ACTION, OBS_STATE
-from beavr.lerobot.common.policies.normalize import Normalize, Unnormalize
-from beavr.lerobot.common.policies.pi0fast.configuration_pi0fast import PI0FASTConfig
-from beavr.lerobot.common.policies.pretrained import PreTrainedPolicy
 from PIL import Image
 from scipy.fft import idct
 from torch import Tensor, nn
 from transformers import AutoProcessor, AutoTokenizer, PaliGemmaForConditionalGeneration
 from transformers.cache_utils import HybridCache, StaticCache
 from transformers.models.auto import CONFIG_MAPPING
+
+from beavr.lerobot.common.constants import ACTION, OBS_STATE
+from beavr.lerobot.common.policies.normalize import Normalize, Unnormalize
+from beavr.lerobot.common.policies.pi0fast.configuration_pi0fast import PI0FASTConfig
+from beavr.lerobot.common.policies.pretrained import PreTrainedPolicy
 
 PRECISION = {
     "float16": torch.float16,
@@ -793,9 +794,9 @@ class PI0FAST(nn.Module):
         self.called_time_horizon = self.time_horizon
         self.called_action_dim = self.action_dim
 
-        assert (
-            self.time_horizon is not None and self.action_dim is not None
-        ), "Tokenizer not initialized, call encode() once or pass in time_horizon and action_dim."
+        assert self.time_horizon is not None and self.action_dim is not None, (
+            "Tokenizer not initialized, call encode() once or pass in time_horizon and action_dim."
+        )
 
         decoded_actions = []
         for token in tokens:
@@ -819,13 +820,12 @@ class PI0FAST(nn.Module):
                         )
 
                 decoded_dct_coeff = decoded_dct_coeff.reshape(-1, self.action_dim)
-                assert (
-                    decoded_dct_coeff.shape
-                    == (
-                        self.time_horizon,
-                        self.action_dim,
-                    )
-                ), f"Decoded DCT coefficients have shape {decoded_dct_coeff.shape}, expected ({self.time_horizon}, {self.action_dim})"
+                assert decoded_dct_coeff.shape == (
+                    self.time_horizon,
+                    self.action_dim,
+                ), (
+                    f"Decoded DCT coefficients have shape {decoded_dct_coeff.shape}, expected ({self.time_horizon}, {self.action_dim})"
+                )
             except Exception as e:
                 print(f"Error decoding tokens: {e}")
                 print(f"Tokens: {token}")
