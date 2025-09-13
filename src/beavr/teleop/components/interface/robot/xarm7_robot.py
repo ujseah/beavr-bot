@@ -64,15 +64,15 @@ class XArm7Robot(RobotWrapper):
         self._data_frequency = robots.VR_FREQ
         
         # Subscribers
-        self._cartesian_coords_subscriber = ZMQSubscriber[CartesianTarget](
-            host = host, 
+        self._cartesian_coords_subscriber = ZMQSubscriber(
+            host = host,
             port = endeff_subscribe_port,
             topic = 'endeff_coords',
             message_type=CartesianTarget,
         )
 
         # Dedicated RESET subscriber -------------------------------------------------
-        self._reset_subscriber = ZMQSubscriber[SessionCommand](
+        self._reset_subscriber = ZMQSubscriber(
             host = host,
             port = reset_subscribe_port,
             topic = 'reset',
@@ -80,7 +80,7 @@ class XArm7Robot(RobotWrapper):
         )
 
         # Dedicated HOME subscriber --------------------------------------------------
-        self._home_subscriber = ZMQSubscriber[SessionCommand](
+        self._home_subscriber = ZMQSubscriber(
             host = host,
             port = home_subscribe_port,
             topic = 'home',
@@ -90,7 +90,7 @@ class XArm7Robot(RobotWrapper):
         # Ops state subscriber --------------------------------------------------------
         # Checks if operation is stopped or continued.
         self._arm_teleop_state_subscriber = Ops(
-            arm_teleop_state_subscriber=ZMQSubscriber[SessionCommand](
+            arm_teleop_state_subscriber=ZMQSubscriber(
                 host=host,
                 port=teleoperation_state_port,
                 topic='pause',

@@ -11,7 +11,7 @@ authors = [
 ]
 readme = "README.md"
 license = { text = "Apache-2.0" }
-requires-python = ">=3.10"
+requires-python = ">=3.10,<4.0"
 keywords = ["robotics", "deep learning", "pytorch", "teleoperation", "vr"]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -25,6 +25,7 @@ classifiers = [
 ]
 dependencies = [
     # Core shared dependencies (LeRobot compatible)
+    "typing_extensions>=4.9.0",
     "datasets>=2.19.0,<=3.6.0",
     "huggingface-hub[hf-transfer,cli]>=0.27.1",
     "draccus==0.10.0",
@@ -112,6 +113,14 @@ requires-poetry = ">=2.1"
 packages = [
     { include = "beavr", from = "src" }
 ]
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.4.2"
+pytest-timeout = "^2.4.0"
+pytest-cov = "^7.0.0"
+black = "^25.1.0"
+isort = "^6.0.1"
+pre-commit = "^4.3.0"
 
 [tool.ruff]
 line-length = 110
