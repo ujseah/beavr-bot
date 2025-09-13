@@ -29,12 +29,10 @@ import numpy as np
 import torch
 import torch.nn.functional as F  # noqa: N812
 import torchvision
-from diffusers.schedulers.scheduling_ddim import DDIMScheduler
-from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
-from torch import Tensor, nn
-
 from beavr.lerobot.common.constants import OBS_ENV, OBS_ROBOT
-from beavr.lerobot.common.policies.diffusion.configuration_diffusion import DiffusionConfig
+from beavr.lerobot.common.policies.diffusion.configuration_diffusion import (
+    DiffusionConfig,
+)
 from beavr.lerobot.common.policies.normalize import Normalize, Unnormalize
 from beavr.lerobot.common.policies.pretrained import PreTrainedPolicy
 from beavr.lerobot.common.policies.utils import (
@@ -43,6 +41,9 @@ from beavr.lerobot.common.policies.utils import (
     get_output_shape,
     populate_queues,
 )
+from diffusers.schedulers.scheduling_ddim import DDIMScheduler
+from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
+from torch import Tensor, nn
 
 
 class DiffusionPolicy(PreTrainedPolicy):
@@ -209,7 +210,10 @@ class DiffusionModel(nn.Module):
 
     # ========= inference  ============
     def conditional_sample(
-        self, batch_size: int, global_cond: Tensor | None = None, generator: torch.Generator | None = None
+        self,
+        batch_size: int,
+        global_cond: Tensor | None = None,
+        generator: torch.Generator | None = None,
     ) -> Tensor:
         device = get_device_from_parameters(self)
         dtype = get_dtype_from_parameters(self)
@@ -254,7 +258,10 @@ class DiffusionModel(nn.Module):
                 # Separate batch and sequence dims back out. The camera index dim gets absorbed into the
                 # feature dim (effectively concatenating the camera features).
                 img_features = einops.rearrange(
-                    img_features_list, "(n b s) ... -> b s (n ...)", b=batch_size, s=n_obs_steps
+                    img_features_list,
+                    "(n b s) ... -> b s (n ...)",
+                    b=batch_size,
+                    s=n_obs_steps,
                 )
             else:
                 # Combine batch, sequence, and "which camera" dims before passing to shared encoder.
@@ -264,7 +271,10 @@ class DiffusionModel(nn.Module):
                 # Separate batch dim and sequence dim back out. The camera index dim gets absorbed into the
                 # feature dim (effectively concatenating the camera features).
                 img_features = einops.rearrange(
-                    img_features, "(b s n) ... -> b s (n ...)", b=batch_size, s=n_obs_steps
+                    img_features,
+                    "(b s n) ... -> b s (n ...)",
+                    b=batch_size,
+                    s=n_obs_steps,
                 )
             global_cond_feats.append(img_features)
 
@@ -515,7 +525,9 @@ class DiffusionRgbEncoder(nn.Module):
 
 
 def _replace_submodules(
-    root_module: nn.Module, predicate: Callable[[nn.Module], bool], func: Callable[[nn.Module], nn.Module]
+    root_module: nn.Module,
+    predicate: Callable[[nn.Module], bool],
+    func: Callable[[nn.Module], nn.Module],
 ) -> nn.Module:
     """
     Args:
@@ -633,10 +645,14 @@ class DiffusionConditionalUnet1d(nn.Module):
         self.mid_modules = nn.ModuleList(
             [
                 DiffusionConditionalResidualBlock1d(
-                    config.down_dims[-1], config.down_dims[-1], **common_res_block_kwargs
+                    config.down_dims[-1],
+                    config.down_dims[-1],
+                    **common_res_block_kwargs,
                 ),
                 DiffusionConditionalResidualBlock1d(
-                    config.down_dims[-1], config.down_dims[-1], **common_res_block_kwargs
+                    config.down_dims[-1],
+                    config.down_dims[-1],
+                    **common_res_block_kwargs,
                 ),
             ]
         )

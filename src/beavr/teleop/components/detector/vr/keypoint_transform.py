@@ -4,7 +4,6 @@ from copy import deepcopy as copy
 from enum import IntEnum
 
 import numpy as np
-
 from beavr.teleop.common.math.vectorops import moving_average, normalize_vector
 from beavr.teleop.common.messaging.publisher import ZMQPublisherManager
 from beavr.teleop.common.messaging.utils import cleanup_zmq_resources
@@ -16,21 +15,24 @@ from beavr.teleop.configs.constants import robots
 
 logger = logging.getLogger(__name__)
 
+
 class HandMode(IntEnum):
     ABSOLUTE = 1
     RELATIVE = 0
 
+
 class TransformHandPositionCoords(Component):
-    def __init__(self,
+    def __init__(
+        self,
         host: str,
         keypoint_sub_port: int,
         keypoint_transform_pub_port: int,
         hand_side: str = robots.RIGHT,
-        moving_average_limit: int = 5
+        moving_average_limit: int = 5,
     ):
         """
         Initialize the unified keypoint transform component for both left and right hands.
-        
+
         Args:
             host: Network host address
             keypoint_sub_port: Port to subscribe to keypoints from
@@ -41,24 +43,24 @@ class TransformHandPositionCoords(Component):
         # Validate hand_side parameter
         if hand_side not in [robots.LEFT, robots.RIGHT]:
             raise ValueError(f"hand_side must be {robots.LEFT} or {robots.RIGHT}")
-        
+
         self.hand_side = hand_side
-        
+
         # Notify component start with appropriate name
         component_name = f"{hand_side}_hand_keypoint_transform"
         self.notify_component_start(component_name)
-        
+
         # Store connection info
         self.host = host
         self.keypoint_sub_port = keypoint_sub_port
         self.keypoint_transform_pub_port = keypoint_transform_pub_port
-        
+
         # Initialize subscriber based on hand side
         if hand_side == robots.RIGHT:
             self.keypoint_subscriber = ZMQSubscriber(self.host, self.keypoint_sub_port, robots.RIGHT)
         else:  # left hand
             self.keypoint_subscriber = ZMQSubscriber(self.host, self.keypoint_sub_port, robots.LEFT)
-        
+
         # Use publisher manager for both hands consistently
         self.publisher_manager = ZMQPublisherManager.get_instance()
 
@@ -73,25 +75,24 @@ class TransformHandPositionCoords(Component):
             self.frame_topic = f"{robots.LEFT}_{robots.TRANSFORMED_HAND_FRAME}"
             self.absolute_mode = robots.ABSOLUTE
             self.relative_mode = robots.RELATIVE
-        
+
         # Timer
         self.timer = FrequencyTimer(robots.VR_FREQ)
-        
+
         # Define key landmark indices for stable frame calculation
         self.wrist_idx = 0  # Wrist is typically the first point
-        self.index_knuckle_idx = robots.OCULUS_JOINTS['knuckles'][0]  # Index finger knuckle
-        self.middle_knuckle_idx = robots.OCULUS_JOINTS['knuckles'][1]  # Middle finger knuckle
-        self.pinky_knuckle_idx = robots.OCULUS_JOINTS['knuckles'][-1]  # Pinky finger knuckle
-        
+        self.index_knuckle_idx = robots.OCULUS_JOINTS["knuckles"][0]  # Index finger knuckle
+        self.middle_knuckle_idx = robots.OCULUS_JOINTS["knuckles"][1]  # Middle finger knuckle
+        self.pinky_knuckle_idx = robots.OCULUS_JOINTS["knuckles"][-1]  # Pinky finger knuckle
+
         # Moving average queue
         self.moving_average_limit = moving_average_limit
         # Create a queue for moving average
         self.coord_moving_average_queue, self.frame_moving_average_queue = [], []
-        
 
     def _get_hand_coords(self):
         """Get hand coordinates from the subscriber.
-        
+
         Returns:
             Tuple of (data_type, coordinates) or (None, None) if no data received
         """
@@ -107,20 +108,19 @@ class TransformHandPositionCoords(Component):
 
         return data_type, keypoints.reshape(robots.OCULUS_NUM_KEYPOINTS, 3)
 
-
     def _orthogonalize_frame(self, x_vec, y_vec, z_vec):
         """Ensure three vectors form an orthogonal frame using Gram-Schmidt process"""
         # Ensure x is normalized
         x_vec = normalize_vector(x_vec)
-        
+
         # Make y orthogonal to x
         y_vec = y_vec - np.dot(y_vec, x_vec) * x_vec
         y_vec = normalize_vector(y_vec)
-        
+
         # Make z orthogonal to both x and y
         z_vec = np.cross(x_vec, y_vec)
         z_vec = normalize_vector(z_vec)
-        
+
         return x_vec, y_vec, z_vec
 
     def _get_stable_coord_frame(self, hand_coords):
@@ -162,31 +162,28 @@ class TransformHandPositionCoords(Component):
 
         # Orthogonalize explicitly
         x_vec, y_vec, z_vec = self._orthogonalize_frame(cross_product, palm_normal, palm_direction)
-        
-        return [wrist, x_vec, y_vec, z_vec]
 
+        return [wrist, x_vec, y_vec, z_vec]
 
     def transform_keypoints(self, hand_coords):
         """Transform hand keypoints to create a coordinate frame."""
         translated_coords = copy(hand_coords) - hand_coords[0]
-        
+
         # Use the new, more stable coordinate frame method
         original_coord_frame = self._get_stable_coord_frame(translated_coords)
 
         # Finding the rotation matrix and rotating the coordinates
         rotation_matrix = np.linalg.solve(original_coord_frame, np.eye(3)).T
         transformed_hand_coords = (rotation_matrix @ translated_coords.T).T
-        
+
         # Use the new, more stable hand direction frame method
         hand_dir_frame = self._get_stable_hand_dir_frame(hand_coords)
 
         return transformed_hand_coords, hand_dir_frame
 
-
     def stream(self):
         """Main streaming loop for processing hand keypoints."""
         while True:
-
             self.timer.start_loop()
             data_type, hand_coords = self._get_hand_coords()
 
@@ -196,22 +193,25 @@ class TransformHandPositionCoords(Component):
                 continue
 
             # Shift the points to required axes
-            transformed_hand_coords, translated_hand_coord_frame = self.transform_keypoints(hand_coords)
+            (
+                transformed_hand_coords,
+                translated_hand_coord_frame,
+            ) = self.transform_keypoints(hand_coords)
 
             # Passing the transformed coords into a moving average
             self.averaged_hand_coords = moving_average(
-                transformed_hand_coords, 
-                self.coord_moving_average_queue, 
-                self.moving_average_limit
+                transformed_hand_coords,
+                self.coord_moving_average_queue,
+                self.moving_average_limit,
             )
 
             # Apply moving average to frame vectors
             self.averaged_hand_frame = moving_average(
-                translated_hand_coord_frame, 
-                self.frame_moving_average_queue, 
-                self.moving_average_limit
+                translated_hand_coord_frame,
+                self.frame_moving_average_queue,
+                self.moving_average_limit,
             )
-            
+
             # Ensure frame vectors remain orthogonal regardless of data type
             # Keep origin point as is
             origin = self.averaged_hand_frame[0]
@@ -219,29 +219,28 @@ class TransformHandPositionCoords(Component):
             x_vec = normalize_vector(self.averaged_hand_frame[1])
             y_vec = normalize_vector(self.averaged_hand_frame[2])
             z_vec = normalize_vector(self.averaged_hand_frame[3])
-            
+
             # Re-orthogonalize the frame
             x_vec, y_vec, z_vec = self._orthogonalize_frame(x_vec, y_vec, z_vec)
-            
+
             # Reconstruct orthogonal frame
             self.averaged_hand_frame = [origin, x_vec, y_vec, z_vec]
 
-            
             self.publisher_manager.publish(
-                host=self.host, 
-                port=self.keypoint_transform_pub_port, 
-                topic=self.frame_topic, 
+                host=self.host,
+                port=self.keypoint_transform_pub_port,
+                topic=self.frame_topic,
                 data=InputFrame(
                     timestamp_s=time.time(),
                     hand_side=self.hand_side,
                     keypoints=self.averaged_hand_coords,
                     is_relative=data_type == self.relative_mode,
                     frame_vectors=self.averaged_hand_frame,
-                )
+                ),
             )
-            
+
             self.timer.end_loop()
-        
+
     # Cleanup
     def cleanup(self):
         self.keypoint_subscriber.stop()

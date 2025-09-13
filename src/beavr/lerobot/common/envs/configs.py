@@ -17,8 +17,13 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 
 import draccus
-
-from beavr.lerobot.common.constants import ACTION, OBS_ENV_STATE, OBS_IMAGE, OBS_IMAGES, OBS_STATE
+from beavr.lerobot.common.constants import (
+    ACTION,
+    OBS_ENV_STATE,
+    OBS_IMAGE,
+    OBS_IMAGES,
+    OBS_STATE,
+)
 from beavr.lerobot.common.robot_devices.control_configs import TeleoperateControlConfig
 from beavr.lerobot.common.robot_devices.robots.configs import RobotConfig
 from beavr.lerobot.configs.types import FeatureType, PolicyFeature

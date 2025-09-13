@@ -15,7 +15,6 @@
 from typing import Protocol
 
 import numpy as np
-
 from beavr.lerobot.common.robot_devices.cameras.configs import (
     CameraConfig,
     IntelRealSenseCameraConfig,
@@ -25,10 +24,17 @@ from beavr.lerobot.common.robot_devices.cameras.configs import (
 
 # Defines a camera type
 class Camera(Protocol):
-    def connect(self): ...
-    def read(self, temporary_color: str | None = None) -> np.ndarray: ...
-    def async_read(self) -> np.ndarray: ...
-    def disconnect(self): ...
+    def connect(self):
+        ...
+
+    def read(self, temporary_color: str | None = None) -> np.ndarray:
+        ...
+
+    def async_read(self) -> np.ndarray:
+        ...
+
+    def disconnect(self):
+        ...
 
 
 def make_cameras_from_configs(camera_configs: dict[str, CameraConfig]) -> list[Camera]:
@@ -41,7 +47,9 @@ def make_cameras_from_configs(camera_configs: dict[str, CameraConfig]) -> list[C
             cameras[key] = OpenCVCamera(cfg)
 
         elif cfg.type == "intelrealsense":
-            from beavr.lerobot.common.robot_devices.cameras.intelrealsense import IntelRealSenseCamera
+            from beavr.lerobot.common.robot_devices.cameras.intelrealsense import (
+                IntelRealSenseCamera,
+            )
 
             cameras[key] = IntelRealSenseCamera(cfg)
         else:
@@ -58,7 +66,9 @@ def make_camera(camera_type, **kwargs) -> Camera:
         return OpenCVCamera(config)
 
     elif camera_type == "intelrealsense":
-        from beavr.lerobot.common.robot_devices.cameras.intelrealsense import IntelRealSenseCamera
+        from beavr.lerobot.common.robot_devices.cameras.intelrealsense import (
+            IntelRealSenseCamera,
+        )
 
         config = IntelRealSenseCameraConfig(**kwargs)
         return IntelRealSenseCamera(config)

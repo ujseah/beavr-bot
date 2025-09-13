@@ -16,14 +16,14 @@
 
 import logging
 
-from torch import nn
-
 from beavr.lerobot.common.datasets.lerobot_dataset import LeRobotDatasetMetadata
 from beavr.lerobot.common.datasets.utils import dataset_to_policy_features
 from beavr.lerobot.common.envs.configs import EnvConfig
 from beavr.lerobot.common.envs.utils import env_to_policy_features
 from beavr.lerobot.common.policies.act.configuration_act import ACTConfig
-from beavr.lerobot.common.policies.diffusion.configuration_diffusion import DiffusionConfig
+from beavr.lerobot.common.policies.diffusion.configuration_diffusion import (
+    DiffusionConfig,
+)
 from beavr.lerobot.common.policies.pi0.configuration_pi0 import PI0Config
 from beavr.lerobot.common.policies.pi0fast.configuration_pi0fast import PI0FASTConfig
 from beavr.lerobot.common.policies.pretrained import PreTrainedPolicy
@@ -32,6 +32,7 @@ from beavr.lerobot.common.policies.tdmpc.configuration_tdmpc import TDMPCConfig
 from beavr.lerobot.common.policies.vqbet.configuration_vqbet import VQBeTConfig
 from beavr.lerobot.configs.policies import PreTrainedConfig
 from beavr.lerobot.configs.types import FeatureType
+from torch import nn
 
 
 def get_policy_class(name: str) -> PreTrainedPolicy:
@@ -41,7 +42,9 @@ def get_policy_class(name: str) -> PreTrainedPolicy:
 
         return TDMPCPolicy
     elif name == "diffusion":
-        from beavr.lerobot.common.policies.diffusion.modeling_diffusion import DiffusionPolicy
+        from beavr.lerobot.common.policies.diffusion.modeling_diffusion import (
+            DiffusionPolicy,
+        )
 
         return DiffusionPolicy
     elif name == "act":

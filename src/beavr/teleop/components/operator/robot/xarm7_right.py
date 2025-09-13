@@ -1,7 +1,6 @@
 from typing import Any, Dict, Optional
 
 import numpy as np
-
 from beavr.teleop.configs.constants import robots
 
 # Import the base class
@@ -11,20 +10,11 @@ from .xarm7_operator import XArmOperator
 # These map points/vectors from the source frame (Robot base R, Hand Tracking T)
 # to the common VR base frame (V).
 # H_R_V: Transformation from Robot base frame to VR base frame
-H_R_V_RIGHT = np.array([
-    [ 0,  0,  1,  0],
-    [ 0, -1,  0,  0],
-    [-1,  0,  0,  0],
-    [ 0,  0,  0,  1]
-])
+H_R_V_RIGHT = np.array([[0, 0, 1, 0], [0, -1, 0, 0], [-1, 0, 0, 0], [0, 0, 0, 1]])
 
 # H_T_V: Transformation from Hand Tracking base frame to VR base frame
-H_T_V_RIGHT = np.array([
-    [ 0, -1,  0,  0],
-    [ 0,  0, -1,  0],
-    [-1,  0,  0,  0],
-    [ 0,  0,  0,  1]
-])
+H_T_V_RIGHT = np.array([[0, -1, 0, 0], [0, 0, -1, 0], [-1, 0, 0, 0], [0, 0, 0, 1]])
+
 
 class XArm7RightOperator(XArmOperator):
     """
@@ -32,6 +22,7 @@ class XArm7RightOperator(XArmOperator):
     Inherits common logic from XArmOperator and provides right-arm specific
     transformation matrices.
     """
+
     def __init__(
         self,
         host: str,
@@ -64,7 +55,7 @@ class XArm7RightOperator(XArmOperator):
         """
         # Call the base class constructor with right-arm specific parameters
         super().__init__(
-            operator_name='xarm7_right_operator', # Specific name for this instance
+            operator_name="xarm7_right_operator",  # Specific name for this instance
             host=host,
             transformed_keypoints_port=transformed_keypoints_port,
             stream_configs=stream_configs,
@@ -72,8 +63,8 @@ class XArm7RightOperator(XArmOperator):
             endeff_publish_port=endeff_publish_port,
             endeff_subscribe_port=endeff_subscribe_port,
             moving_average_limit=moving_average_limit,
-            h_r_v=H_R_V_RIGHT, # Pass the right arm's H_R_V
-            h_t_v=H_T_V_RIGHT, # Pass the right arm's H_T_V
+            h_r_v=H_R_V_RIGHT,  # Pass the right arm's H_R_V
+            h_t_v=H_T_V_RIGHT,  # Pass the right arm's H_T_V
             use_filter=use_filter,
             arm_resolution_port=arm_resolution_port,
             teleoperation_state_port=teleoperation_state_port,

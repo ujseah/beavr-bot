@@ -4,14 +4,15 @@ import time
 from queue import Queue
 
 import numpy as np
-
 from beavr.teleop.common.factory.registry import GlobalRegistry
 from beavr.teleop.common.messaging.publisher import ZMQPublisherManager
 from beavr.teleop.common.messaging.utils import cleanup_zmq_resources
 from beavr.teleop.common.messaging.vr import ZMQKeypointSubscriber
 from beavr.teleop.common.ops import Ops
 from beavr.teleop.components.interface.controller.base_controller import RobotWrapper
-from beavr.teleop.components.interface.controller.robot.leap_control import DexArmControl
+from beavr.teleop.components.interface.controller.robot.leap_control import (
+    DexArmControl,
+)
 from beavr.teleop.components.interface.interface_types import RobotState
 from beavr.teleop.components.operator.operator_types import JointTarget
 from beavr.teleop.configs.constants import robots
@@ -34,7 +35,7 @@ class LeapHandRobot(RobotWrapper):
         **kwargs,
     ):
         """Initialize the robot adapter for data acquisition.
-        
+
         Args:
             host: Network host address
             joint_angle_subscribe_port: Port for joint angle command subscription
@@ -51,47 +52,41 @@ class LeapHandRobot(RobotWrapper):
         # Set arm side first (needed for name property)
         self._is_right_arm = is_right_arm
         self._is_homed = False
-        
+
         # Store recorder config if provided
-        self.recorder_config = kwargs.get('recorder_config', {})
-        self.robot_identifier = self.recorder_config.get('robot_identifier', self.name)
-        
+        self.recorder_config = kwargs.get("recorder_config", {})
+        self.robot_identifier = self.recorder_config.get("robot_identifier", self.name)
+
         if simulation_mode:
             self._controller = None  # Skip hardware initialization in sim mode
         else:
             self._controller = DexArmControl(is_right_arm=is_right_arm)  # Pass hand side to controller
-        
+
         self._data_frequency = robots.VR_FREQ
         self._command_queue = Queue(maxsize=1)
         self._last_command = None
         self._movement_thread = threading.Thread(target=self._execute_movement_loop, daemon=True)
         self._movement_thread.start()
 
-        logger.info(f"LeapHandRobot '{self.name}' initialized with command frequency: {self._data_frequency}Hz")
-        logger.info(f"  Publishing state dictionary on tcp://{host}:{state_publish_port} with topic '{self.name}'")
+        logger.info(
+            f"LeapHandRobot '{self.name}' initialized with command frequency: {self._data_frequency}Hz"
+        )
+        logger.info(
+            f"  Publishing state dictionary on tcp://{host}:{state_publish_port} with topic '{self.name}'"
+        )
 
         # Subscribers
         self._joint_angle_subscriber = ZMQKeypointSubscriber(
-            host = host,
-            port = joint_angle_subscribe_port,
-            topic = 'joint_angles'
+            host=host, port=joint_angle_subscribe_port, topic="joint_angles"
         )
-        self._reset_subscriber = ZMQKeypointSubscriber(
-            host = host,
-            port = reset_subscribe_port,
-            topic = 'reset'
-        )
+        self._reset_subscriber = ZMQKeypointSubscriber(host=host, port=reset_subscribe_port, topic="reset")
 
-        self._home_subscriber = ZMQKeypointSubscriber(
-            host = host,
-            port = home_subscribe_port,
-            topic = 'home'
-        )
+        self._home_subscriber = ZMQKeypointSubscriber(host=host, port=home_subscribe_port, topic="home")
 
         self._subscribers = {
-            'joint_angles': self._joint_angle_subscriber,
-            'reset': self._reset_subscriber,
-            'home': self._home_subscriber
+            "joint_angles": self._joint_angle_subscriber,
+            "reset": self._reset_subscriber,
+            "home": self._home_subscriber,
         }
 
         # Ops state subscriber --------------------------------------------------------
@@ -100,7 +95,7 @@ class LeapHandRobot(RobotWrapper):
             arm_teleop_state_subscriber=ZMQKeypointSubscriber(
                 host=host,
                 port=teleoperation_state_port,
-                topic='pause',
+                topic="pause",
             )
         )
 
@@ -112,13 +107,13 @@ class LeapHandRobot(RobotWrapper):
 
         # Add recording control
         self._is_recording_enabled = False
-        
+
         # Add caches for data collection
         self._latest_joint_angles = None
         self._latest_joint_angles_timestamp = 0
         self._latest_commanded_angles = None
         self._latest_commanded_angles_timestamp = 0
-        
+
         # Reference to the operator will be set when it's available
         self._operator = None
 
@@ -130,10 +125,10 @@ class LeapHandRobot(RobotWrapper):
     def recorder_functions(self):
         """Define available recording functions for the robot"""
         return {
-            'joint_states': self.get_joint_state, 
-            'commanded_joint_states': self.get_commanded_joint_position,
-            'transformed_keypoints': self.get_transformed_keypoints,
-            'joint_angles_rad': self.get_joint_position,
+            "joint_states": self.get_joint_state,
+            "commanded_joint_states": self.get_commanded_joint_position,
+            "transformed_keypoints": self.get_transformed_keypoints,
+            "joint_angles_rad": self.get_joint_position,
         }
 
     @property
@@ -158,7 +153,7 @@ class LeapHandRobot(RobotWrapper):
     # State information functions
     def get_joint_state(self):
         """Get current joint state as RobotState dataclass."""
-        if not hasattr(self, '_state') or self._state is None:
+        if not hasattr(self, "_state") or self._state is None:
             return None
         return RobotState(
             timestamp_s=time.time(),
@@ -203,18 +198,18 @@ class LeapHandRobot(RobotWrapper):
         """Non-blocking move command"""
         try:
             if isinstance(desired_angles, dict):
-                desired_angles = desired_angles['position']
-            
+                desired_angles = desired_angles["position"]
+
             # Update command queue (clear old commands)
             while not self._command_queue.empty():
                 self._command_queue.get_nowait()
             self._command_queue.put(desired_angles)
-            
+
             # Update cache for recording if enabled
             if self._is_recording_enabled:
                 self._latest_commanded_angles = desired_angles
                 self._latest_commanded_angles_timestamp = time.time()
-                
+
             self._last_command = desired_angles
         except Exception as e:
             logger.error(f"Error queueing command: {e}")
@@ -222,7 +217,7 @@ class LeapHandRobot(RobotWrapper):
     def _execute_movement_loop(self):
         """Background thread that executes movements"""
         logger.info("Movement thread started")
-        
+
         while True:
             try:
                 if not self._command_queue.empty():
@@ -235,7 +230,7 @@ class LeapHandRobot(RobotWrapper):
             except Exception as e:
                 logger.error(f"Movement error: {e}")
                 time.sleep(1 / self._data_frequency)
-    
+
     def check_reset(self):
         """Check if a reset message was received"""
         reset_bool = self._reset_subscriber.recv_keypoints()
@@ -251,25 +246,25 @@ class LeapHandRobot(RobotWrapper):
             return False
 
         return False
-    
+
     def get_teleop_state(self):
         """Get the teleop state"""
         return self._arm_teleop_state_subscriber.get_arm_teleop_state()
-    
+
     def stream(self):
         """Stream loop for LeapHand"""
         self.home()
-        
+
         target_interval = 1.0 / self._data_frequency
         next_frame_time = time.time()
 
-        avg_start_time  = time.time() # window start for average frequency
-        msg_counter     = 0           # how many commands arrived in this window
-        
+        avg_start_time = time.time()  # window start for average frequency
+        msg_counter = 0  # how many commands arrived in this window
+
         # For jitter calculation
         last_msg_time = None
         msg_intervals = []
-        
+
         while True:
             current_time = time.time()
 
@@ -292,14 +287,14 @@ class LeapHandRobot(RobotWrapper):
             # Get joint angles with non-blocking receive
             msg = self._joint_angle_subscriber.recv_keypoints()
             self._action = msg
-                
+
             if msg is not None:
                 # Accept both legacy ndarray payloads and new JointTarget dataclass
                 try:
                     if isinstance(msg, JointTarget):
                         desired = np.array(msg.joint_positions_rad, dtype=np.float32)
-                    elif isinstance(msg, dict) and 'joint_positions_rad' in msg:
-                        desired = np.array(msg['joint_positions_rad'], dtype=np.float32)
+                    elif isinstance(msg, dict) and "joint_positions_rad" in msg:
+                        desired = np.array(msg["joint_positions_rad"], dtype=np.float32)
                     else:
                         desired = np.array(msg, dtype=np.float32)
                 except Exception:
@@ -307,7 +302,7 @@ class LeapHandRobot(RobotWrapper):
 
                 # Process the command
                 self.move(desired)
-                
+
                 # Track timing for jitter calculation
                 msg_time = time.time()
                 if last_msg_time is not None:
@@ -317,18 +312,18 @@ class LeapHandRobot(RobotWrapper):
                     if len(msg_intervals) > 100:  # Keep last 100 intervals
                         msg_intervals = msg_intervals[-100:]
                 last_msg_time = msg_time
-                
+
             # Update the joint state cache if recording is enabled
             if self._is_recording_enabled:
                 current_joint_position = self._controller.get_hand_position()
                 self._latest_joint_angles = current_joint_position
                 self._latest_joint_angles_timestamp = time.time()
-                
+
             # Publish current state regardless of recording state
             self._publisher_manager.publish(
                 self._publisher_host,
                 self._joint_angle_publish_port,
-                'joint_angles',
+                "joint_angles",
                 self.get_joint_position(),
             )
             self._state = self.get_joint_position()
@@ -338,43 +333,46 @@ class LeapHandRobot(RobotWrapper):
             msg_counter += 1
             if now - avg_start_time >= 1.0:
                 avg_freq = msg_counter / (now - avg_start_time)
-                
+
                 # Calculate jitter from individual message intervals
                 jitter_ms = 0.0
                 if len(msg_intervals) > 1:
                     import statistics
+
                     jitter_ms = statistics.stdev(msg_intervals)
-                
+
                 target_interval_ms = 1000.0 / self._data_frequency
-                logger.debug(f"LEAP: Average cmd freq over last second: {avg_freq:6.2f} Hz, Jitter: {jitter_ms:.2f}ms (target interval: {target_interval_ms:.1f}ms)")
+                logger.debug(
+                    f"LEAP: Average cmd freq over last second: {avg_freq:6.2f} Hz, Jitter: {jitter_ms:.2f}ms (target interval: {target_interval_ms:.1f}ms)"
+                )
                 avg_start_time = now
                 msg_counter = 0
-                
+
             # Publish comprehensive state data for recording
             self.publish_current_state()
-                
+
             # Check for reset signal
             if self.check_reset():
                 # Automatically start recording after reset
                 self.start_recording()
-                
-            time.sleep(1/self._data_frequency)
+
+            time.sleep(1 / self._data_frequency)
 
     def _get_operator(self):
         """Get or retrieve the operator reference"""
         if self._operator is None:
-            self._operator = GlobalRegistry.get('leap_hand_operator')
+            self._operator = GlobalRegistry.get("leap_hand_operator")
         return self._operator
-        
+
     def get_transformed_keypoints(self):
         """Get the transformed keypoints from the operator"""
         if not self._is_recording_enabled:
             return None
-            
+
         operator = self._get_operator()
         if operator is None:
             return None
-            
+
         return operator.get_latest_transformed_keypoints()
 
     def publish_current_state(self):
@@ -394,7 +392,7 @@ class LeapHandRobot(RobotWrapper):
                 logger.error(f"Failed to get state for '{key}' on robot '{self.name}': {e}")
                 current_state_dict[key] = None
 
-        current_state_dict['timestamp'] = publish_time
+        current_state_dict["timestamp"] = publish_time
 
         # Publish the state dictionary using self.name as topic
         try:

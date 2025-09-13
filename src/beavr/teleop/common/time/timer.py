@@ -19,12 +19,13 @@ class FrequencyTimer(object):
 
     def end_loop(self):
         wait_time = self.time_available + self.start_time
-        
+
         while time.time_ns() < wait_time:
             continue
 
+
 class SocketChecker(object):
-    def __init__(self, host, port, topic_name, print_data, data_type = None):
+    def __init__(self, host, port, topic_name, print_data, data_type=None):
         self.data = None
         self.previous_data = None
         self.print_data = print_data
@@ -36,8 +37,8 @@ class SocketChecker(object):
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.SUB)
         self.socket.setsockopt(zmq.CONFLATE, 1)
-        self.socket.setsockopt(zmq.SUBSCRIBE, bytes(self.topic_name, 'utf-8'))
-        self.socket.connect('tcp://{}:{}'.format(host, port))
+        self.socket.setsockopt(zmq.SUBSCRIBE, bytes(self.topic_name, "utf-8"))
+        self.socket.connect("tcp://{}:{}".format(host, port))
 
     def _reinit_counter(self):
         self.counter = 0
@@ -47,9 +48,7 @@ class SocketChecker(object):
         return self.counter / (time.time() - self.start_time)
 
     def _decode_array(self):
-        processed_data = self.data.lstrip(
-            bytes("{} ".format(self.topic_name), 'utf-8')
-        )
+        processed_data = self.data.lstrip(bytes("{} ".format(self.topic_name), "utf-8"))
         logger.info(pickle.loads(processed_data))
 
     def _decode_rgb_image(self):
@@ -66,13 +65,13 @@ class SocketChecker(object):
             if self.data is not None and self.data is not self.previous_data:
                 # To see the data - usually reduces the actual frequency. Use it to just see the stream
                 if self.print_data:
-                    if self.data_type == 'FloatArray':
+                    if self.data_type == "FloatArray":
                         self._decode_array()
                     else:
                         self._decode_rgb_image()
 
                 self.counter += 1
-                logger.info('Frequency: {}'.format(self._calculate_frequency()))
+                logger.info("Frequency: {}".format(self._calculate_frequency()))
 
                 if self.counter > 10:
                     self._reinit_counter()

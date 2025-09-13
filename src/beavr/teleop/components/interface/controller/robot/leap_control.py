@@ -4,6 +4,7 @@ import time
 from queue import Queue
 
 import numpy as np
+from beavr.teleop.configs.constants import network
 from dynamixel_sdk import (
     COMM_SUCCESS,
     DXL_HIBYTE,
@@ -15,8 +16,6 @@ from dynamixel_sdk import (
     PacketHandler,
     PortHandler,
 )
-
-from beavr.teleop.configs.constants import network
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +30,7 @@ ADDR_OPERATING_MODE = 11
 # Data Lengths
 LEN_PRESENT_POSITION = 4  # Position data is 4 bytes
 LEN_PRESENT_VELOCITY = 4  # Velocity data is 4 bytes
-LEN_PRESENT_CURRENT = 2   # Current data is 2 bytes
+LEN_PRESENT_CURRENT = 2  # Current data is 2 bytes
 
 # Protocol version
 PROTOCOL_VERSION = 2.0
@@ -41,10 +40,25 @@ BAUDRATE = 4000000  # 4 Mbps
 
 LEAP_HOME_VALUES = [2048] * 16  # Neutral position for all motors
 
-MOTOR_IDS = [0, 1, 2, 3,        # Index
-             4, 5, 6, 7,        # Middle
-             8, 9, 10, 11,      # Ring
-             12, 13, 14, 15 ]   # Thumb
+MOTOR_IDS = [
+    0,
+    1,
+    2,
+    3,  # Index
+    4,
+    5,
+    6,
+    7,  # Middle
+    8,
+    9,
+    10,
+    11,  # Ring
+    12,
+    13,
+    14,
+    15,
+]  # Thumb
+
 
 class DynamixelClient:
     def __init__(self, is_right_arm: bool):
@@ -74,7 +88,7 @@ class DynamixelClient:
         self.groupBulkReadPosition = GroupBulkRead(self.portHandler, self.packetHandler)
         self.groupBulkReadVelocity = GroupBulkRead(self.portHandler, self.packetHandler)
         self.groupBulkReadCurrent = GroupBulkRead(self.portHandler, self.packetHandler)
-        
+
         # Add parameters for each bulk read handler
         for motor_id in self.motor_ids:
             # Position (existing)
@@ -88,7 +102,7 @@ class DynamixelClient:
                 logger.error(f"[ID:{motor_id}] groupBulkRead addparam failed for current")
 
     def _read_motor_value(self, motor_id, address, byte_length):
-        """ Reads a value from a motor register """
+        """Reads a value from a motor register"""
         if byte_length == 2:
             value, _, _ = self.packetHandler.read2ByteTxRx(self.portHandler, motor_id, address)
         elif byte_length == 4:
@@ -106,10 +120,10 @@ class DynamixelClient:
         try:
             # Clear any existing parameters
             self.groupBulkWrite.clearParam()
-            
+
             # Convert radians to raw values
             raw_positions = self._convert_radians_to_raw(positions)
-            
+
             # Add parameters for each motor
             for i, motor_id in enumerate(self.motor_ids):
                 position = raw_positions[i]  # Already converted to raw int
@@ -117,19 +131,19 @@ class DynamixelClient:
                     DXL_LOBYTE(DXL_LOWORD(position)),
                     DXL_HIBYTE(DXL_LOWORD(position)),
                     DXL_LOBYTE(DXL_HIWORD(position)),
-                    DXL_HIBYTE(DXL_HIWORD(position))
+                    DXL_HIBYTE(DXL_HIWORD(position)),
                 ]
                 result = self.groupBulkWrite.addParam(motor_id, ADDR_GOAL_POSITION, 4, param)
                 if not result:
                     logger.error(f"Failed to add parameter for motor {motor_id}")
                     return False
-            
+
             # Execute bulk write
             result = self.groupBulkWrite.txPacket()
             if result != COMM_SUCCESS:
                 logger.error(f"Failed to execute bulk write: {self.packetHandler.getTxRxResult(result)}")
                 return False
-                
+
             return True
 
         except Exception as e:
@@ -147,7 +161,9 @@ class DynamixelClient:
             try:
                 comm_result = group_handler.txRxPacket()
                 if comm_result != COMM_SUCCESS:
-                    logger.error(f"Bulk read failed (attempt {attempt + 1}/{max_retries}): {self.packetHandler.getTxRxResult(comm_result)}")
+                    logger.error(
+                        f"Bulk read failed (attempt {attempt + 1}/{max_retries}): {self.packetHandler.getTxRxResult(comm_result)}"
+                    )
                     continue
 
                 values = []
@@ -169,18 +185,22 @@ class DynamixelClient:
 
     def get_motor_positions(self):
         """Get all motor positions using bulk read"""
-        return self._bulk_read_values(self.groupBulkReadPosition, ADDR_PRESENT_POSITION, 
-                                    LEN_PRESENT_POSITION, 2048)  # Uses LEAP_HOME_VALUE as default
+        return self._bulk_read_values(
+            self.groupBulkReadPosition,
+            ADDR_PRESENT_POSITION,
+            LEN_PRESENT_POSITION,
+            2048,
+        )  # Uses LEAP_HOME_VALUE as default
 
     def get_motor_velocities(self):
         """Get all motor velocities using bulk read"""
-        return self._bulk_read_values(self.groupBulkReadVelocity, ADDR_PRESENT_VELOCITY, 
-                                    LEN_PRESENT_VELOCITY, 0)
+        return self._bulk_read_values(
+            self.groupBulkReadVelocity, ADDR_PRESENT_VELOCITY, LEN_PRESENT_VELOCITY, 0
+        )
 
     def get_motor_torques(self):
         """Get all motor torques using bulk read"""
-        return self._bulk_read_values(self.groupBulkReadCurrent, ADDR_PRESENT_CURRENT, 
-                                    LEN_PRESENT_CURRENT, 0)
+        return self._bulk_read_values(self.groupBulkReadCurrent, ADDR_PRESENT_CURRENT, LEN_PRESENT_CURRENT, 0)
 
     def close(self):
         # Disable torque before closing
@@ -190,16 +210,17 @@ class DynamixelClient:
 
     def __del__(self):
         # Clean up bulk write group
-        if hasattr(self, 'groupBulkWrite'):
+        if hasattr(self, "groupBulkWrite"):
             self.groupBulkWrite.clearParam()
         # Clean up all bulk read groups
-        if hasattr(self, 'groupBulkReadPosition'):
+        if hasattr(self, "groupBulkReadPosition"):
             self.groupBulkReadPosition.clearParam()
-        if hasattr(self, 'groupBulkReadVelocity'):
+        if hasattr(self, "groupBulkReadVelocity"):
             self.groupBulkReadVelocity.clearParam()
-        if hasattr(self, 'groupBulkReadCurrent'):
+        if hasattr(self, "groupBulkReadCurrent"):
             self.groupBulkReadCurrent.clearParam()
         # ... rest of cleanup code ...
+
 
 class DexArmControl:
     def __init__(self, is_right_arm: bool = True):
@@ -210,17 +231,17 @@ class DexArmControl:
         self._movement_thread.start()
 
     def _convert_radians_to_raw(self, radians):
-        """ Converts angles from [-pi, pi] to raw Dynamixel values [0, 4095] """
+        """Converts angles from [-pi, pi] to raw Dynamixel values [0, 4095]"""
         return np.clip(((radians + np.pi) / (2 * np.pi)) * 4095, 0, 4095).astype(int)
-    
+
     def _convert_raw_to_radians(self, raw_values):
-        """ Converts raw Dynamixel values [0, 4095] to angles in [-pi, pi] """
+        """Converts raw Dynamixel values [0, 4095] to angles in [-pi, pi]"""
         if raw_values is None:
             return np.zeros(len(self._client.motor_ids), dtype=np.float32)
         return ((raw_values / 4095) * (2 * np.pi)) - np.pi
-    
+
     def _convert_rpm_to_rad_per_sec(self, rpm):
-        """ Converts RPM to rad/s """
+        """Converts RPM to rad/s"""
         return rpm * (2 * np.pi) / 60
 
     def move_hand(self, target_joints_radians):
@@ -259,7 +280,7 @@ class DexArmControl:
         return {
             "position": self._last_successful_position,
             "velocity": np.zeros(16),  # We don't need velocity feedback
-            "effort": np.zeros(16)     # We don't need effort feedback
+            "effort": np.zeros(16),  # We don't need effort feedback
         }
 
     def get_commanded_hand_state(self):

@@ -3,19 +3,19 @@
 # -----------------------------------------------------------------------------
 
 # Generic ports
-KEYPOINT_STREAM_PORT = 8088        # All keypoint data from VR/Oculus
-CONTROL_STREAM_PORT = 8086         # All control signals (buttons, resets)
-ROBOT_STATE_PORT = 8090            # Robot state information
-ROBOT_COMMAND_PORT = 8091          # Robot commands
+KEYPOINT_STREAM_PORT = 8088  # All keypoint data from VR/Oculus
+CONTROL_STREAM_PORT = 8086  # All control signals (buttons, resets)
+ROBOT_STATE_PORT = 8090  # Robot state information
+ROBOT_COMMAND_PORT = 8091  # Robot commands
 
 # Oculus/VR ports
-RIGHT_HAND_OCULUS_RECEIVER_PORT = 8087        # Raw data from Oculus
-LEFT_HAND_OCULUS_RECEIVER_PORT = 8110         # Raw data from left hand sensor
-OCULUS_RECEIVER_PORT = 8087                   # Alias for right hand
-LEFT_HAND_RECEIVER_PORT = 8110                # Alias for left hand
+RIGHT_HAND_OCULUS_RECEIVER_PORT = 8087  # Raw data from Oculus
+LEFT_HAND_OCULUS_RECEIVER_PORT = 8110  # Raw data from left hand sensor
+OCULUS_RECEIVER_PORT = 8087  # Alias for right hand
+LEFT_HAND_RECEIVER_PORT = 8110  # Alias for left hand
 
 # Button and control ports
-RESOLUTION_BUTTON_PORT = 8095      # Button input (subscribe)
+RESOLUTION_BUTTON_PORT = 8095  # Button input (subscribe)
 RESOLUTION_BUTTON_PUBLISH_PORT = 8094  # ✅ FIX: Moved to avoid conflict with left keypoint transform
 TELEOP_RESET_PORT = 8100
 TELEOP_RESET_PUBLISH_PORT = 8102

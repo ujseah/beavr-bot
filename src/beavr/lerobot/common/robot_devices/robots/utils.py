@@ -41,12 +41,23 @@ class Robot(Protocol):
     robot_type: str
     features: dict
 
-    def connect(self): ...
-    def run_calibration(self): ...
-    def teleop_step(self, record_data=False): ...
-    def capture_observation(self): ...
-    def send_action(self, action): ...
-    def disconnect(self): ...
+    def connect(self):
+        ...
+
+    def run_calibration(self):
+        ...
+
+    def teleop_step(self, record_data=False):
+        ...
+
+    def capture_observation(self):
+        ...
+
+    def send_action(self, action):
+        ...
+
+    def disconnect(self):
+        ...
 
 
 def make_robot_config(robot_type: str, **kwargs) -> RobotConfig:
@@ -74,10 +85,16 @@ def make_robot_config(robot_type: str, **kwargs) -> RobotConfig:
 
 def make_robot_from_config(config: RobotConfig):
     if isinstance(config, ManipulatorRobotConfig):
-        from beavr.lerobot.common.robot_devices.robots.manipulator import ManipulatorRobot
+        from beavr.lerobot.common.robot_devices.robots.manipulator import (
+            ManipulatorRobot,
+        )
+
         return ManipulatorRobot(config)
     elif isinstance(config, LeKiwiRobotConfig):
-        from beavr.lerobot.common.robot_devices.robots.mobile_manipulator import MobileManipulator
+        from beavr.lerobot.common.robot_devices.robots.mobile_manipulator import (
+            MobileManipulator,
+        )
+
         return MobileManipulator(config)
     elif isinstance(config, BeavrBotConfig):
         from beavr.lerobot.common.robot_devices.robots.beavrbot import BeavrBot
@@ -89,6 +106,7 @@ def make_robot_from_config(config: RobotConfig):
         )
     else:
         from beavr.lerobot.common.robot_devices.robots.stretch import StretchRobot
+
         return StretchRobot(config)
 
 

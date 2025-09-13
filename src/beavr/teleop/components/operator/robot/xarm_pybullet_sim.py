@@ -4,20 +4,19 @@ from copy import deepcopy as copy
 
 import numpy as np
 import zmq
-from scipy.spatial.transform import Rotation, Slerp
-
-from beavr.teleop.constants import (
+from beavr.teleop.common.logging.logger import PoseLogger
+from beavr.teleop.common.messaging.publisher import ZMQPublisherManager
+from beavr.teleop.common.messaging.vr.subscribers import ZMQSubscriber
+from beavr.teleop.common.time.timer import FrequencyTimer
+from beavr.teleop.components.operator.operator_base import Operator
+from beavr.teleop.configs.constants.robots import (
     ARM_HIGH_RESOLUTION,
     ARM_LOW_RESOLUTION,
     ARM_TELEOP_CONT,
     ARM_TELEOP_STOP,
     VR_FREQ,
 )
-from beavr.teleop.utils.logger import PoseLogger
-from beavr.teleop.utils.network import ZMQKeypointPublisher, ZMQKeypointSubscriber
-from beavr.teleop.utils.timer import FrequencyTimer
-
-from .operator import Operator
+from scipy.spatial.transform import Rotation, Slerp
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +34,7 @@ class CompStateFilter:
         self.ori_state = ori_interp([1 - self.comp_ratio])[0].as_quat()
         return np.concatenate([self.pos_state, self.ori_state])
 
+
 class XArmPyBulletOperator(Operator):
     def __init__(
         self,
@@ -49,15 +49,15 @@ class XArmPyBulletOperator(Operator):
         endeffpossubscribeport,
         moving_average_limit,
         allow_rotation=False,
-        arm_type='main_arm',
+        arm_type="main_arm",
         use_filter=False,
-        arm_resolution_port = None,
-        teleoperation_reset_port = None,
+        arm_resolution_port=None,
+        teleoperation_reset_port=None,
         logging_config=None,
         # human_teleop = False
     ):
         # Basic initialization
-        self.notify_component_start('xarm7 operator')
+        self.notify_component_start("xarm7 operator")
         self._host, self._port = host, transformed_keypoints_port
 
         # Add calibration variables first
@@ -67,59 +67,47 @@ class XArmPyBulletOperator(Operator):
         self.thumb_bounds = None
 
         # Add finger coordinate subscriber (like Allegro)
-        self._hand_transformed_keypoint_subscriber = ZMQKeypointSubscriber(
-            host = self._host,
-            port = self._port,
-            topic = 'transformed_hand_coords'
+        self._hand_transformed_keypoint_subscriber = ZMQSubscriber(
+            host=self._host, port=self._port, topic="transformed_hand_coords"
         )
-        
-        self._arm_transformed_keypoint_subscriber = ZMQKeypointSubscriber(
-            host=host,
-            port=transformed_keypoints_port,
-            topic='transformed_hand_frame'
+
+        self._arm_transformed_keypoint_subscriber = ZMQSubscriber(
+            host=host, port=transformed_keypoints_port, topic="transformed_hand_frame"
         )
 
         # Optional subscribers (same as Allegro)
-        self._arm_resolution_subscriber = ZMQKeypointSubscriber(
-            host = host,
-            port = arm_resolution_port,
-            topic = 'button'
+        self._arm_resolution_subscriber = ZMQSubscriber(host=host, port=arm_resolution_port, topic="button")
+
+        self._arm_teleop_state_subscriber = ZMQSubscriber(
+            host=host, port=teleoperation_reset_port, topic="pause"
         )
 
-        self._arm_teleop_state_subscriber = ZMQKeypointSubscriber(
-            host = host, 
-            port = teleoperation_reset_port,
-            topic = 'pause'
+        self.end_eff_position_subscriber = ZMQSubscriber(
+            host=host, port=endeffpossubscribeport, topic="endeff_coords"
         )
 
-        self.end_eff_position_subscriber = ZMQKeypointSubscriber(
-            host = host,
-            port =  endeffpossubscribeport,
-            topic = 'endeff_coords'
-
+        self.end_eff_position_publisher = ZMQPublisherManager(
+            host=host,
+            port=endeff_publish_port,
+            context=self._context,
         )
 
-        self.end_eff_position_publisher = ZMQKeypointPublisher(
-            host = host,
-            port = endeff_publish_port
-        )
-
-        self._stream_oculus=stream_oculus
-        self.stream_configs=stream_configs
+        self._stream_oculus = stream_oculus
+        self.stream_configs = stream_configs
 
         # State initialization
         self.arm_teleop_state = ARM_TELEOP_STOP
         self.resolution_scale = 1.0
         self.is_first_frame = True
         self._timer = FrequencyTimer(VR_FREQ)
-        self._robot = 'xArm7_Sim'
+        self._robot = "xArm7_Sim"
         self.real = False
 
         # Transformation matrices
-        self.robot_init_H = None
-        self.robot_moving_H = None
-        self.hand_init_H = None
-        self.hand_moving_H = None
+        self.robot_init_h = None
+        self.robot_moving_h = None
+        self.hand_init_h = None
+        self.hand_moving_h = None
         self.hand_init_t = None
 
         # Filter setup
@@ -139,7 +127,7 @@ class XArmPyBulletOperator(Operator):
         # Initialize pose logger based on config
         self.logging_config = logging_config or {"enabled": False}
         self.logging_enabled = self.logging_config.get("enabled", False)
-        
+
         if self.logging_enabled:
             logger.info("Initializing pose logger with config:", self.logging_config)
             self.pose_logger = PoseLogger()
@@ -147,13 +135,8 @@ class XArmPyBulletOperator(Operator):
             self.pose_logger = None
 
         # Precalculate constant matrices
-        self.H_R_V_inv = np.linalg.pinv(np.array([[-1, 0, 0, 0],
-                                                 [0, -1, 0, 0],
-                                                 [0, 0, -1, 0],
-                                                 [0, 0, 0, 1]]))
-        self.H_T_V = np.array([[0, 0, 1],
-                              [-1, 0, 0],
-                              [0, -1, 0]])
+        self.H_R_V_inv = np.linalg.pinv(np.array([[-1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]]))
+        self.H_T_V = np.array([[0, 0, 1], [-1, 0, 0], [0, -1, 0]])
 
     @property
     def timer(self):
@@ -190,10 +173,10 @@ class XArmPyBulletOperator(Operator):
     def _turn_frame_to_homo_mat(self, frame):
         """Convert 4x3 frame to a 4x4 homogeneous transform."""
         t = frame[0]
-        R = frame[1:]
+        r = frame[1:]
 
         homo_mat = np.eye(4)
-        homo_mat[:3, :3] = R.T
+        homo_mat[:3, :3] = r.T
         homo_mat[:3, 3] = t
         homo_mat[3, 3] = 1
 
@@ -202,12 +185,9 @@ class XArmPyBulletOperator(Operator):
     def _homo2cart(self, homo_mat):
         # Here we will use the resolution scale to set the translation resolution
         t = homo_mat[:3, 3]
-        R = Rotation.from_matrix(
-            homo_mat[:3, :3]).as_quat()
+        r = Rotation.from_matrix(homo_mat[:3, :3]).as_quat()
 
-        cart = np.concatenate(
-            [t, R], axis=0
-        )
+        cart = np.concatenate([t, r], axis=0)
 
         return cart
 
@@ -215,21 +195,21 @@ class XArmPyBulletOperator(Operator):
         """Inverse of _homo2cart."""
         homo = np.eye(4)
         t = cart[:3]
-        R = Rotation.from_quat(cart[3:]).as_matrix()
+        r = Rotation.from_quat(cart[3:]).as_matrix()
         homo[:3, 3] = t
-        homo[:3, :3] = R
+        homo[:3, :3] = r
         return homo
 
-    def project_to_rotation_matrix(self, R):
+    def project_to_rotation_matrix(self, r):
         """Adjust a near-rotation matrix to be a valid rotation matrix using SVD."""
-        U, _, Vt = np.linalg.svd(R)  # Perform SVD
-        R_fixed = U @ Vt  # Reconstruct the rotation matrix
+        u, _, vt = np.linalg.svd(r)  # Perform SVD
+        r_fixed = u @ vt  # Reconstruct the rotation matrix
 
         # Ensure determinant is +1 (no reflection)
-        if np.linalg.det(R_fixed) < 0:
-            U[:, -1] *= -1  # Flip last column of U
-            R_fixed = U @ Vt  # Recalculate R
-        return R_fixed
+        if np.linalg.det(r_fixed) < 0:
+            u[:, -1] *= -1  # Flip last column of U
+            r_fixed = u @ vt  # Recalculate r
+        return r_fixed
 
     def _get_resolution_scale_mode(self):
         if not self._arm_resolution_subscriber:
@@ -253,16 +233,16 @@ class XArmPyBulletOperator(Operator):
     # Teleop reset logic
     # ------------------------------
     def _reset_teleop(self):
-        logger.info('****** RESETTING TELEOP ******')
+        logger.info("****** RESETTING TELEOP ******")
         # Get robot frame (like Allegro)
         self.robot_frame = self.end_eff_position_subscriber.recv_keypoints()
         if self.robot_frame is None:
             logger.error("ERROR: No robot frame received.")
             return None
-        self.robot_init_H = self.cart2homo(self.robot_frame)
-        self.robot_moving_H = copy(self.robot_init_H)
+        self.robot_init_h = self.cart2homo(self.robot_frame)
+        self.robot_moving_h = copy(self.robot_init_h)
 
-        logger.info("Robot init H:", self.robot_init_H)
+        logger.info("Robot init H:", self.robot_init_h)
 
         # Get initial hand frame
         first_hand_frame = None
@@ -271,10 +251,10 @@ class XArmPyBulletOperator(Operator):
             time.sleep(0.01)
         logger.info(f"First hand frame: {first_hand_frame}")
 
-        self.hand_init_H = self._turn_frame_to_homo_mat(first_hand_frame)
-        self.hand_init_t = copy(self.hand_init_H[:3, 3])
+        self.hand_init_h = self._turn_frame_to_homo_mat(first_hand_frame)
+        self.hand_init_t = copy(self.hand_init_h[:3, 3])
 
-        logger.info("Hand init H:", self.hand_init_H)
+        logger.info("Hand init H:", self.hand_init_h)
 
         self.is_first_frame = False
         return first_hand_frame
@@ -286,7 +266,7 @@ class XArmPyBulletOperator(Operator):
         """Calibrate thumb bounds from finger coordinates."""
         logger.info("Calibrating thumb bounds...")
         thumb_positions = []
-        
+
         while self.calibration_count < self.calibration_limit:
             finger_coords = self._arm_transformed_keypoint_subscriber.recv_keypoints()
             if finger_coords is not None:
@@ -294,13 +274,16 @@ class XArmPyBulletOperator(Operator):
                 thumb_pos = finger_coords[0]  # Assuming thumb is first
                 thumb_positions.append(thumb_pos)
                 self.calibration_count += 1
-                logger.info(f"\rCalibrating: {self.calibration_count}/{self.calibration_limit}", end="")
-        
+                logger.info(
+                    f"\rCalibrating: {self.calibration_count}/{self.calibration_limit}",
+                    end="",
+                )
+
         if thumb_positions:
             thumb_positions = np.array(thumb_positions)
             self.thumb_bounds = {
-                'min': np.min(thumb_positions, axis=0),
-                'max': np.max(thumb_positions, axis=0)
+                "min": np.min(thumb_positions, axis=0),
+                "max": np.max(thumb_positions, axis=0),
             }
             self.calibrated = True
             logger.info("\nCalibration complete!")
@@ -318,23 +301,25 @@ class XArmPyBulletOperator(Operator):
         """Apply retargeted angles from hand motion to robot."""
         # Get arm teleop state first
         new_arm_teleop_state = self._get_arm_teleop_state()
-        
+
         # Get resolution scale (like Allegro)
         arm_teleoperation_scale_mode = self._get_resolution_scale_mode()
         if arm_teleoperation_scale_mode == ARM_HIGH_RESOLUTION:
             self.resolution_scale = 1
         elif arm_teleoperation_scale_mode == ARM_LOW_RESOLUTION:
             self.resolution_scale = 0.6
-                    
+
         # Check for reset or get hand frame
-        is_reset = self.is_first_frame or (self.arm_teleop_state == ARM_TELEOP_STOP and new_arm_teleop_state == ARM_TELEOP_CONT)
-        
+        is_reset = self.is_first_frame or (
+            self.arm_teleop_state == ARM_TELEOP_STOP and new_arm_teleop_state == ARM_TELEOP_CONT
+        )
+
         if is_reset:
             # Ask about calibration
             if not self.calibrated:
                 try:
                     response = input("Use existing calibration? [y/n]: ")
-                    if response.lower() == 'n':
+                    if response.lower() == "n":
                         logger.info("Performing new calibration...")
                         self.calibration_count = 0
                         self.calibrated = False
@@ -345,7 +330,7 @@ class XArmPyBulletOperator(Operator):
                     # If we can't get input, default to using existing calibration
                     logger.info("\nUsing existing calibration (default)")
                     self.calibrated = True
-            
+
             # Only reset teleop after calibration is complete
             if self.calibrated:
                 moving_hand_frame = self._reset_teleop()
@@ -358,74 +343,63 @@ class XArmPyBulletOperator(Operator):
                     self.calibrated = True
         else:
             moving_hand_frame = self._get_hand_frame()
-        
+
         # Update state before None check
         self.arm_teleop_state = new_arm_teleop_state
 
-        if moving_hand_frame is None: 
+        if moving_hand_frame is None:
             return
 
         # Convert frame to homogeneous matrix
-        self.hand_moving_H = self._turn_frame_to_homo_mat(moving_hand_frame)
-        
+        self.hand_moving_h = self._turn_frame_to_homo_mat(moving_hand_frame)
+
         # Transformation code (same order as Allegro)
-        H_HI_HH = copy(self.hand_init_H)
-        H_HT_HH = copy(self.hand_moving_H)
-        H_RI_RH = copy(self.robot_init_H)
+        h_hi_hh = copy(self.hand_init_h)
+        h_ht_hh = copy(self.hand_moving_h)
+        h_ri_rh = copy(self.robot_init_h)
 
         # H_R_V = np.array([[-1, 0, 0, 0],
         #                 [0 , -1, 0, 0],
         #                 [0, 0, -1, 0],
         #                 [0, 0 ,0 , 1]])
 
-        H_R_V = np.array([[ 0, -1,  0,  0],
-                          [ 0,  0, -1,  0],
-                          [ 1,  0,  0,  0],
-                          [ 0,  0,  0,  1]])
+        h_r_v = np.array([[0, -1, 0, 0], [0, 0, -1, 0], [1, 0, 0, 0], [0, 0, 0, 1]])
 
         # H_T_V = np.array([[-1, 0, 0, 0],
         #                 [0 , -1, 0, 0],
         #                 [0, 0, -1, 0],
         #                 [0, 0, 0, 1]])
 
-        H_T_V = np.array([[ 0, -1,  0,  0],
-                          [ 0,  0, -1,  0],
-                          [ 1,  0,  0,  0],
-                          [ 0,  0,  0,  1]])
-        
+        h_t_v = np.array([[0, -1, 0, 0], [0, 0, -1, 0], [1, 0, 0, 0], [0, 0, 0, 1]])
+
         # Calculate transformations (same order as Allegro)
-        H_HT_HI = np.linalg.solve(H_HI_HH, H_HT_HH)  # More efficient than pinv for square matrices
-        H_HT_HI_r = np.linalg.solve(H_R_V, H_HT_HI @ H_R_V)[:3,:3]
-        H_HT_HI_t = np.linalg.solve(H_T_V, H_HT_HI @ H_T_V)[:3,3]
-        relative_affine = np.block([[H_HT_HI_r, H_HT_HI_t.reshape(3,1)], [0, 0, 0, 1]])
-        
+        h_ht_hi = np.linalg.solve(h_hi_hh, h_ht_hh)  # More efficient than pinv for square matrices
+        h_ht_hi_r = np.linalg.solve(h_r_v, h_ht_hi @ h_r_v)[:3, :3]
+        h_ht_hi_t = np.linalg.solve(h_t_v, h_ht_hi @ h_t_v)[:3, 3]
+        relative_affine = np.block([[h_ht_hi_r, h_ht_hi_t.reshape(3, 1)], [0, 0, 0, 1]])
+
         # Update robot state (like Allegro)
-        H_RT_RH = H_RI_RH @ relative_affine
+        h_rt_rh = h_ri_rh @ relative_affine
         # H_RT_RH = self.project_to_rotation_matrix(H_RT_RH)
-        self.robot_moving_H = copy(H_RT_RH)
+        self.robot_moving_h = copy(h_rt_rh)
 
         # Get cart pose and publish (like Allegro)
-        cart = self._homo2cart(H_RT_RH)
+        cart = self._homo2cart(h_rt_rh)
         self.end_eff_position_publisher.pub_keypoints(cart, "endeff_coords")
 
         if self.logging_enabled and self.pose_logger:
             try:
-                self.pose_logger.log_frame(
-                    self.hand_init_H, 
-                    self.robot_init_H, 
-                    self.hand_moving_H, 
-                    H_RT_RH
-                )
+                self.pose_logger.log_frame(self.hand_init_h, self.robot_init_h, self.hand_moving_h, h_rt_rh)
             except Exception as e:
                 logger.error(f"Error logging frame: {e}")
-    
+
     def moving_average(self, action, queue, limit):
         """Apply moving average filter to action."""
         queue.append(action)
         if len(queue) > limit:
             queue.pop(0)
         return np.mean(queue, axis=0)
-    
+
     def __del__(self):
         self._cleanup()
 

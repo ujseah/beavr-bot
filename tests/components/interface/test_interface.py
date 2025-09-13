@@ -1,10 +1,10 @@
 import numpy as np
-
 from beavr.teleop.components.interface.interface_types import CartesianState
 
 
 class MockController:
     """Simple mock controller for testing interface state management."""
+
     def __init__(self, ip: str):
         self._cartesian_pos = np.array([0.0, 0.0, 0.0], dtype=np.float32)
         self._joint_pos = np.array([0.0] * 7, dtype=np.float32)
@@ -33,8 +33,8 @@ def test_cartesian_state_handling():
 
     # Create and verify cartesian state
     state = CartesianState(
-        timestamp_s=0.0,  # Use fixed time for testing
-        position_m=tuple(target_pos)
+        timestamp_s=0.0,
+        position_m=tuple(target_pos),  # Use fixed time for testing
     )
     assert isinstance(state, CartesianState)
     assert len(state.position_m) == 3

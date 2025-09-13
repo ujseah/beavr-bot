@@ -29,13 +29,12 @@ import numpy as np
 import torch
 import torch.nn.functional as F  # noqa: N812
 import torchvision
-from torch import Tensor, nn
-from torchvision.models._utils import IntermediateLayerGetter
-from torchvision.ops.misc import FrozenBatchNorm2d
-
 from beavr.lerobot.common.policies.act.configuration_act import ACTConfig
 from beavr.lerobot.common.policies.normalize import Normalize, Unnormalize
 from beavr.lerobot.common.policies.pretrained import PreTrainedPolicy
+from torch import Tensor, nn
+from torchvision.models._utils import IntermediateLayerGetter
+from torchvision.ops.misc import FrozenBatchNorm2d
 
 
 class ACTPolicy(PreTrainedPolicy):
@@ -241,7 +240,9 @@ class ACTTemporalEnsembler:
             # Note: The last dimension is unsqueeze to make sure we can broadcast properly for tensor
             # operations later.
             self.ensembled_actions_count = torch.ones(
-                (self.chunk_size, 1), dtype=torch.long, device=self.ensembled_actions.device
+                (self.chunk_size, 1),
+                dtype=torch.long,
+                device=self.ensembled_actions.device,
             )
         else:
             # self.ensembled_actions will have shape (batch_size, chunk_size - 1, action_dim). Compute
@@ -253,7 +254,10 @@ class ACTTemporalEnsembler:
             # The last action, which has no prior online average, needs to get concatenated onto the end.
             self.ensembled_actions = torch.cat([self.ensembled_actions, actions[:, -1:]], dim=1)
             self.ensembled_actions_count = torch.cat(
-                [self.ensembled_actions_count, torch.ones_like(self.ensembled_actions_count[-1:])]
+                [
+                    self.ensembled_actions_count,
+                    torch.ones_like(self.ensembled_actions_count[-1:]),
+                ]
             )
         # "Consume" the first action.
         action, self.ensembled_actions, self.ensembled_actions_count = (
@@ -333,7 +337,11 @@ class ACT(nn.Module):
         # Backbone for image feature extraction.
         if self.config.image_features:
             backbone_model = getattr(torchvision.models, config.vision_backbone)(
-                replace_stride_with_dilation=[False, False, config.replace_final_stride_with_dilation],
+                replace_stride_with_dilation=[
+                    False,
+                    False,
+                    config.replace_final_stride_with_dilation,
+                ],
                 weights=config.pretrained_backbone_weights,
                 norm_layer=FrozenBatchNorm2d,
             )
@@ -406,9 +414,9 @@ class ACT(nn.Module):
             latent dimension.
         """
         if self.config.use_vae and self.training:
-            assert "action" in batch, (
-                "actions must be provided when using the variational objective in training mode."
-            )
+            assert (
+                "action" in batch
+            ), "actions must be provided when using the variational objective in training mode."
 
         if "observation.images" in batch:
             batch_size = batch["observation.images"][0].shape[0]
@@ -427,7 +435,11 @@ class ACT(nn.Module):
             action_embed = self.vae_encoder_action_input_proj(batch["action"])  # (B, S, D)
 
             if self.config.robot_state_feature:
-                vae_encoder_input = [cls_embed, robot_state_embed, action_embed]  # (B, S+2, D)
+                vae_encoder_input = [
+                    cls_embed,
+                    robot_state_embed,
+                    action_embed,
+                ]  # (B, S+2, D)
             else:
                 vae_encoder_input = [cls_embed, action_embed]
             vae_encoder_input = torch.cat(vae_encoder_input, axis=1)
@@ -540,7 +552,10 @@ class ACTEncoder(nn.Module):
         self.norm = nn.LayerNorm(config.dim_model) if config.pre_norm else nn.Identity()
 
     def forward(
-        self, x: Tensor, pos_embed: Tensor | None = None, key_padding_mask: Tensor | None = None
+        self,
+        x: Tensor,
+        pos_embed: Tensor | None = None,
+        key_padding_mask: Tensor | None = None,
     ) -> Tensor:
         for layer in self.layers:
             x = layer(x, pos_embed=pos_embed, key_padding_mask=key_padding_mask)
@@ -603,7 +618,10 @@ class ACTDecoder(nn.Module):
     ) -> Tensor:
         for layer in self.layers:
             x = layer(
-                x, encoder_out, decoder_pos_embed=decoder_pos_embed, encoder_pos_embed=encoder_pos_embed
+                x,
+                encoder_out,
+                decoder_pos_embed=decoder_pos_embed,
+                encoder_pos_embed=encoder_pos_embed,
             )
         if self.norm is not None:
             x = self.norm(x)

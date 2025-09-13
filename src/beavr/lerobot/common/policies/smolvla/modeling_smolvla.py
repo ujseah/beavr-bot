@@ -57,9 +57,6 @@ from collections import deque
 
 import torch
 import torch.nn.functional as F  # noqa: N812
-from torch import Tensor, nn
-from transformers import AutoProcessor
-
 from beavr.lerobot.common.constants import ACTION, OBS_ROBOT
 from beavr.lerobot.common.policies.normalize import (
     Normalize,
@@ -67,15 +64,23 @@ from beavr.lerobot.common.policies.normalize import (
 )
 from beavr.lerobot.common.policies.pretrained import PreTrainedPolicy
 from beavr.lerobot.common.policies.smolvla.configuration_smolvla import SmolVLAConfig
-from beavr.lerobot.common.policies.smolvla.smolvlm_with_expert import SmolVLMWithExpertModel
+from beavr.lerobot.common.policies.smolvla.smolvlm_with_expert import (
+    SmolVLMWithExpertModel,
+)
 from beavr.lerobot.common.policies.utils import (
     populate_queues,
 )
 from beavr.lerobot.common.utils.utils import get_safe_dtype
+from torch import Tensor, nn
+from transformers import AutoProcessor
 
 
 def create_sinusoidal_pos_embedding(
-    time: torch.tensor, dimension: int, min_period: float, max_period: float, device="cpu"
+    time: torch.tensor,
+    dimension: int,
+    min_period: float,
+    max_period: float,
+    device="cpu",
 ) -> Tensor:
     """Computes sine-cosine positional embedding vectors for scalar positions."""
     if dimension % 2 != 0:
@@ -458,7 +463,10 @@ def pad_tensor(tensor, max_len, pad_value=0):
 
     # Create a padded tensor of max_len and copy the existing values
     padded_tensor = torch.full(
-        (b, max_len, *tensor.shape[2:]), pad_value, dtype=tensor.dtype, device=tensor.device
+        (b, max_len, *tensor.shape[2:]),
+        pad_value,
+        dtype=tensor.dtype,
+        device=tensor.device,
     )
     padded_tensor[:, :d] = tensor  # Efficient in-place copy
 
@@ -507,16 +515,19 @@ class VLAFlowMatching(nn.Module):
             expert_width_multiplier=self.config.expert_width_multiplier,
         )
         self.state_proj = nn.Linear(
-            self.config.max_state_dim, self.vlm_with_expert.config.text_config.hidden_size
+            self.config.max_state_dim,
+            self.vlm_with_expert.config.text_config.hidden_size,
         )
         self.action_in_proj = nn.Linear(self.config.max_action_dim, self.vlm_with_expert.expert_hidden_size)
         self.action_out_proj = nn.Linear(self.vlm_with_expert.expert_hidden_size, self.config.max_action_dim)
 
         self.action_time_mlp_in = nn.Linear(
-            self.vlm_with_expert.expert_hidden_size * 2, self.vlm_with_expert.expert_hidden_size
+            self.vlm_with_expert.expert_hidden_size * 2,
+            self.vlm_with_expert.expert_hidden_size,
         )
         self.action_time_mlp_out = nn.Linear(
-            self.vlm_with_expert.expert_hidden_size, self.vlm_with_expert.expert_hidden_size
+            self.vlm_with_expert.expert_hidden_size,
+            self.vlm_with_expert.expert_hidden_size,
         )
 
         self.set_requires_grad()
@@ -571,7 +582,9 @@ class VLAFlowMatching(nn.Module):
                     .expand(img.shape[0], -1, -1)
                 )
                 image_start_mask = torch.ones_like(
-                    image_start_token[:, :, 0], dtype=torch.bool, device=image_start_token.device
+                    image_start_token[:, :, 0],
+                    dtype=torch.bool,
+                    device=image_start_token.device,
                 )
                 att_masks += [0] * (image_start_mask.shape[-1])
                 embs.append(image_start_token)
@@ -600,7 +613,9 @@ class VLAFlowMatching(nn.Module):
                     .expand(img.shape[0], -1, -1)
                 )
                 image_end_mask = torch.ones_like(
-                    image_end_token[:, :, 0], dtype=torch.bool, device=image_end_token.device
+                    image_end_token[:, :, 0],
+                    dtype=torch.bool,
+                    device=image_end_token.device,
                 )
                 embs.append(image_end_token)
                 pad_masks.append(image_end_mask)
@@ -687,7 +702,15 @@ class VLAFlowMatching(nn.Module):
         return embs, pad_masks, att_masks
 
     def forward(
-        self, images, img_masks, lang_tokens, lang_masks, state, actions, noise=None, time=None
+        self,
+        images,
+        img_masks,
+        lang_tokens,
+        lang_masks,
+        state,
+        actions,
+        noise=None,
+        time=None,
     ) -> Tensor:
         """Do a full training forward pass and compute the loss (batch_size x num_steps x num_motors)"""
         if noise is None:

@@ -14,12 +14,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import numpy as np
-
 from beavr.lerobot.common.datasets.utils import load_image_as_numpy
 
 
 def estimate_num_samples(
-    dataset_len: int, min_num_samples: int = 100, max_num_samples: int = 10_000, power: float = 0.75
+    dataset_len: int,
+    min_num_samples: int = 100,
+    max_num_samples: int = 10_000,
+    power: float = 0.75,
 ) -> int:
     """Heuristic to estimate the number of samples based on dataset size.
     The power controls the sample growth relative to dataset size.

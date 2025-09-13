@@ -12,14 +12,14 @@ logger = logging.getLogger(__name__)
 
 
 class RobotImageVisualizer(Component):
-    def __init__(self, host, cam_port_offset, cam_id):        
+    def __init__(self, host, cam_port_offset, cam_id):
         self.camera_number = cam_id
 
-        self.notify_component_start('camera {} rgb visualizer'.format(cam_id))
-        self.subscriber = ZMQCameraSubscriber(host = host, port = cam_port_offset + cam_id - 1, topic_type = 'RGB')
-        
+        self.notify_component_start("camera {} rgb visualizer".format(cam_id))
+        self.subscriber = ZMQCameraSubscriber(host=host, port=cam_port_offset + cam_id - 1, topic_type="RGB")
+
         # Setting frequency
-        self.timer = FrequencyTimer(CAM_FPS) 
+        self.timer = FrequencyTimer(CAM_FPS)
 
     def stream(self):
         while True:
@@ -28,11 +28,14 @@ class RobotImageVisualizer(Component):
 
                 image, _ = self.subscriber.recv_rgb_image()
                 rescaled_image = rescale_image(image, VISUAL_RESCALE_FACTOR)
-                cv2.imshow('Robot camera {} - RGB stream'.format(self.camera_number), rescaled_image)
+                cv2.imshow(
+                    "Robot camera {} - RGB stream".format(self.camera_number),
+                    rescaled_image,
+                )
                 cv2.waitKey(1)
 
                 self.timer.end_loop()
             except KeyboardInterrupt:
                 break
-                
-        logger.info('Exiting visualizer.')
+
+        logger.info("Exiting visualizer.")

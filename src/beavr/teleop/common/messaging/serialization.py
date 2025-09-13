@@ -50,5 +50,3 @@ class RawBytesSerializer(Serializer[bytes]):
 
     def decode(self, buffer: bytes) -> bytes:
         return buffer
-
-

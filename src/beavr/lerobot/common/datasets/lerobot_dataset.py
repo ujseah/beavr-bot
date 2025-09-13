@@ -25,13 +25,11 @@ import packaging.version
 import PIL.Image
 import torch
 import torch.utils
-from datasets import concatenate_datasets, load_dataset
-from huggingface_hub import HfApi, snapshot_download
-from huggingface_hub.constants import REPOCARD_NAME
-from huggingface_hub.errors import RevisionNotFoundError
-
 from beavr.lerobot.common.constants import HF_LEROBOT_HOME
-from beavr.lerobot.common.datasets.compute_stats import aggregate_stats, compute_episode_stats
+from beavr.lerobot.common.datasets.compute_stats import (
+    aggregate_stats,
+    compute_episode_stats,
+)
 from beavr.lerobot.common.datasets.image_writer import AsyncImageWriter, write_image
 from beavr.lerobot.common.datasets.utils import (
     DEFAULT_FEATURES,
@@ -73,6 +71,10 @@ from beavr.lerobot.common.datasets.video_utils import (
     get_video_info,
 )
 from beavr.lerobot.common.robot_devices.robots.utils import Robot
+from datasets import concatenate_datasets, load_dataset
+from huggingface_hub import HfApi, snapshot_download
+from huggingface_hub.constants import REPOCARD_NAME
+from huggingface_hub.errors import RevisionNotFoundError
 
 CODEBASE_VERSION = "v2.1"
 
@@ -821,7 +823,9 @@ class LeRobotDataset(torch.utils.data.Dataset):
 
             if self.features[key]["dtype"] in ["image", "video"]:
                 img_path = self._get_image_file_path(
-                    episode_index=self.episode_buffer["episode_index"], image_key=key, frame_index=frame_index
+                    episode_index=self.episode_buffer["episode_index"],
+                    image_key=key,
+                    frame_index=frame_index,
                 )
                 if frame_index == 0:
                     img_path.parent.mkdir(parents=True, exist_ok=True)
@@ -867,7 +871,10 @@ class LeRobotDataset(torch.utils.data.Dataset):
         for key, ft in self.features.items():
             # index, episode_index, task_index are already processed above, and image and video
             # are processed separately by storing image path and frame info as meta data
-            if key in ["index", "episode_index", "task_index"] or ft["dtype"] in ["image", "video"]:
+            if key in ["index", "episode_index", "task_index"] or ft["dtype"] in [
+                "image",
+                "video",
+            ]:
                 continue
             episode_buffer[key] = np.stack(episode_buffer[key])
 

@@ -5,13 +5,21 @@ from scipy.spatial.transform import Rotation, Slerp
 
 logger = logging.getLogger(__name__)
 
+
 class CompStateFilter:
     """
     A complementary filter for smoothing pose data (position and orientation).
     It uses linear interpolation for position and SLERP for orientation,
     with adaptive filtering based on velocity.
     """
-    def __init__(self, init_state: np.ndarray, pos_ratio: float = 0.6, ori_ratio: float = 0.8, adaptive: bool = True):
+
+    def __init__(
+        self,
+        init_state: np.ndarray,
+        pos_ratio: float = 0.6,
+        ori_ratio: float = 0.8,
+        adaptive: bool = True,
+    ):
         """
         Initializes the filter.
 
@@ -68,7 +76,7 @@ class CompStateFilter:
         # Ensure quaternions are normalized and handle potential flips for stable SLERP
         current_quat = next_state[3:7]
         if np.dot(self.ori_state, current_quat) < 0:
-             current_quat = -current_quat # Flip if necessary
+            current_quat = -current_quat  # Flip if necessary
 
         # Normalize quaternions before SLERP
         self.ori_state /= np.linalg.norm(self.ori_state)
@@ -77,13 +85,13 @@ class CompStateFilter:
         try:
             ori_interp = Slerp([0, 1], Rotation.from_quat([self.ori_state, current_quat]))
             self.ori_state = ori_interp([1 - actual_ori_ratio])[0].as_quat()
-            self.ori_state /= np.linalg.norm(self.ori_state) # Re-normalize after SLERP
+            self.ori_state /= np.linalg.norm(self.ori_state)  # Re-normalize after SLERP
         except ValueError as e:
             # Handle potential Slerp errors (e.g., identical quaternions after normalization/flip)
             logger.warning(f"SLERP Warning: {e}. Using previous orientation state.")
             # Keep self.ori_state as is
 
         self.prev_pos = current_pos
-        self.prev_quat = current_quat # Store the (potentially flipped) current quat for next iteration's dot product check
+        self.prev_quat = current_quat  # Store the (potentially flipped) current quat for next iteration's dot product check
 
         return np.concatenate([self.pos_state, self.ori_state])

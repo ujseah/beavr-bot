@@ -29,15 +29,16 @@ from pathlib import Path
 from threading import Thread
 
 import numpy as np
-from PIL import Image
-
-from beavr.lerobot.common.robot_devices.cameras.configs import IntelRealSenseCameraConfig
+from beavr.lerobot.common.robot_devices.cameras.configs import (
+    IntelRealSenseCameraConfig,
+)
 from beavr.lerobot.common.robot_devices.utils import (
     RobotDeviceAlreadyConnectedError,
     RobotDeviceNotConnectedError,
     busy_wait,
 )
 from beavr.lerobot.common.utils.utils import capture_timestamp_utc
+from PIL import Image
 
 SERIAL_NUMBER_INDEX = 1
 
@@ -297,7 +298,11 @@ class IntelRealSenseCamera:
         if self.fps and self.capture_width and self.capture_height:
             # TODO(rcadene): can we set rgb8 directly?
             config.enable_stream(
-                rs.stream.color, self.capture_width, self.capture_height, rs.format.rgb8, self.fps
+                rs.stream.color,
+                self.capture_width,
+                self.capture_height,
+                rs.format.rgb8,
+                self.fps,
             )
         else:
             config.enable_stream(rs.stream.color)
@@ -305,7 +310,11 @@ class IntelRealSenseCamera:
         if self.use_depth:
             if self.fps and self.capture_width and self.capture_height:
                 config.enable_stream(
-                    rs.stream.depth, self.capture_width, self.capture_height, rs.format.z16, self.fps
+                    rs.stream.depth,
+                    self.capture_width,
+                    self.capture_height,
+                    rs.format.z16,
+                    self.fps,
                 )
             else:
                 config.enable_stream(rs.stream.depth)

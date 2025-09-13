@@ -54,7 +54,13 @@ class InputFrame:
     hand_side: HandSide
     keypoints: Sequence[Tuple[float, float, float]]
     is_relative: bool
-    frame_vectors: Optional[Tuple[Tuple[float, float, float], Tuple[float, float, float], Tuple[float, float, float]]] = None
+    frame_vectors: Optional[
+        Tuple[
+            Tuple[float, float, float],
+            Tuple[float, float, float],
+            Tuple[float, float, float],
+        ]
+    ] = None
 
 
 __all__ = [

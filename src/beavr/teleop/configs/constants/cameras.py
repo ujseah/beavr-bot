@@ -32,23 +32,23 @@ DEPTH_PORT_OFFSET = 20000
 # -----------------------------------------------------------------------------
 # Robot camera serial numbers
 # -----------------------------------------------------------------------------
-ROBOT_CAM_SERIAL_NUMBERS = ['211122063527']  # D415
+ROBOT_CAM_SERIAL_NUMBERS = ["211122063527"]  # D415
 
 # -----------------------------------------------------------------------------
 # Data recording parameters - Images are recorded at CAM_FPS rate
 # -----------------------------------------------------------------------------
-IMAGE_RECORD_RESOLUTION = (1280, 720) 
+IMAGE_RECORD_RESOLUTION = (1280, 720)
 IMAGE_RECORD_RESOLUTION_SIM = (480, 480)
 DEPTH_RECORD_FPS = 30
 
 # -----------------------------------------------------------------------------
 # Calibration file paths
 # -----------------------------------------------------------------------------
-CALIBRATION_FILES_PATH = 'calibration_files'
-VR_THUMB_BOUNDS_PATH = path.join(CALIBRATION_FILES_PATH, 'vr_thumb_bounds.npy')
-VR_DISPLAY_THUMB_BOUNDS_PATH = path.join(CALIBRATION_FILES_PATH, 'vr_thumb_plot_bounds.npy')
-VR_2D_PLOT_SAVE_PATH = path.join(CALIBRATION_FILES_PATH, 'oculus_hand_2d_plot.jpg')
-XELA_PLOT_SAVE_PATH = path.join(CALIBRATION_FILES_PATH, 'xela_plot.png')
+CALIBRATION_FILES_PATH = "calibration_files"
+VR_THUMB_BOUNDS_PATH = path.join(CALIBRATION_FILES_PATH, "vr_thumb_bounds.npy")
+VR_DISPLAY_THUMB_BOUNDS_PATH = path.join(CALIBRATION_FILES_PATH, "vr_thumb_plot_bounds.npy")
+VR_2D_PLOT_SAVE_PATH = path.join(CALIBRATION_FILES_PATH, "oculus_hand_2d_plot.jpg")
+XELA_PLOT_SAVE_PATH = path.join(CALIBRATION_FILES_PATH, "xela_plot.png")
 
 # -----------------------------------------------------------------------------
 # Camera port configuration

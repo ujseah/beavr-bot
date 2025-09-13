@@ -15,29 +15,29 @@ logger = logging.getLogger(__name__)
 
 
 class RX1RosLink(DexArmControl):
-    def __init__(self, record_type=None, robot_type='right'):
+    def __init__(self, record_type=None, robot_type="right"):
         """Initialize RX1 ROS Link"""
         if not rospy.get_node_uri():
-            rospy.init_node('rx1_right_controller', anonymous=True)
+            rospy.init_node("rx1_right_controller", anonymous=True)
         super().__init__(record_type, robot_type)
-        
+
         # Define joint names (matching the controller's claimed resources)
         self.right_arm_joints = [
-            'right_shoul_base2shoul_joint',
-            'right_shoul2shoul_rot_joint',
-            'right_arm2armrot_joint',
-            'right_armrot2elbow_joint',
-            'right_forearm2forearmrot_joint',
-            'right_forearmrot2forearm_pitch_joint',
-            'right_forearm_pitch2forearm_roll_joint'
+            "right_shoul_base2shoul_joint",
+            "right_shoul2shoul_rot_joint",
+            "right_arm2armrot_joint",
+            "right_armrot2elbow_joint",
+            "right_forearm2forearmrot_joint",
+            "right_forearmrot2forearm_pitch_joint",
+            "right_forearm_pitch2forearm_roll_joint",
         ]
 
         # Initialize action client for trajectory execution
         self.trajectory_client = actionlib.SimpleActionClient(
-            '/right_arm_position_controller/follow_joint_trajectory',
-            FollowJointTrajectoryAction
+            "/right_arm_position_controller/follow_joint_trajectory",
+            FollowJointTrajectoryAction,
         )
-        
+
         rospy.loginfo("Waiting for trajectory action server...")
         if not self.trajectory_client.wait_for_server(timeout=rospy.Duration(5.0)):
             rospy.logerr("Trajectory action server not available!")
@@ -46,8 +46,8 @@ class RX1RosLink(DexArmControl):
 
         # Subscribe to joint states
         self.joint_states = None
-        rospy.Subscriber('/joint_states', JointState, self._joint_state_callback)
-        
+        rospy.Subscriber("/joint_states", JointState, self._joint_state_callback)
+
         # Wait for first joint state message
         rospy.loginfo("Waiting for joint states...")
         while self.joint_states is None and not rospy.is_shutdown():
@@ -62,7 +62,7 @@ class RX1RosLink(DexArmControl):
         """Get current joint positions"""
         if self.joint_states is None:
             return None
-            
+
         positions = []
         for joint_name in self.right_arm_joints:
             idx = self.joint_states.name.index(joint_name)
@@ -98,21 +98,21 @@ class RX1RosLink(DexArmControl):
         # Create a trajectory goal
         goal = FollowJointTrajectoryGoal()
         goal.trajectory.joint_names = self.right_arm_joints
-        
+
         # Create trajectory point
         point = JointTrajectoryPoint()
         point.positions = joint_angles
         point.velocities = [0.0] * len(joint_angles)
         point.accelerations = [0.0] * len(joint_angles)
         point.time_from_start = rospy.Duration(2.0)  # 2 second movement
-        
+
         goal.trajectory.points.append(point)
-        
+
         # Send goal and wait for result
         rospy.loginfo(f"Sending trajectory goal: {joint_angles}")
         self.trajectory_client.send_goal(goal)
         self.trajectory_client.wait_for_result(rospy.Duration(5.0))
-        
+
         if self.trajectory_client.get_state() == actionlib.GoalStatus.SUCCEEDED:
             rospy.loginfo("Trajectory execution succeeded")
             return True
@@ -135,9 +135,9 @@ class RX1RosLink(DexArmControl):
             pose: [x, y, z, qx, qy, qz, qw]
         """
         # Print detailed information about incoming pose
-        rospy.loginfo("="*50)
+        rospy.loginfo("=" * 50)
         rospy.loginfo("Received Hand Keypoint Data:")
-        rospy.loginfo("-"*50)
+        rospy.loginfo("-" * 50)
         rospy.loginfo("Position:")
         rospy.loginfo(f"  x: {pose[0]:.6f}")
         rospy.loginfo(f"  y: {pose[1]:.6f}")
@@ -147,8 +147,8 @@ class RX1RosLink(DexArmControl):
         rospy.loginfo(f"  qy: {pose[4]:.6f}")
         rospy.loginfo(f"  qz: {pose[5]:.6f}")
         rospy.loginfo(f"  qw: {pose[6]:.6f}")
-        rospy.loginfo("-"*50)
-        
+        rospy.loginfo("-" * 50)
+
         # Create and fill pose message
         pose_msg = Pose()
         pose_msg.position.x = pose[0]
@@ -158,12 +158,12 @@ class RX1RosLink(DexArmControl):
         pose_msg.orientation.y = pose[4]
         pose_msg.orientation.z = pose[5]
         pose_msg.orientation.w = pose[6]
-        
+
         # Log current robot state for comparison
         current_pos = self.get_robot_position()
         if current_pos:
             rospy.loginfo("Current Robot Joint States:")
             for joint, pos in zip(self.right_arm_joints, current_pos, strict=False):
                 rospy.loginfo(f"  {joint}: {pos:.6f} rad")
-        
-        rospy.loginfo("="*50)
+
+        rospy.loginfo("=" * 50)

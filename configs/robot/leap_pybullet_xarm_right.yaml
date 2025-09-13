@@ -11,7 +11,7 @@ detector:
 
 # Transformation classes used to transform the keypoints
 transforms:
-  - 
+  -
     _target_: beavr.components.detector.keypoint_transform.TransformHandPositionCoords
     host: ${host_address}
     keypoint_port: ${unified_data_port}
@@ -30,7 +30,7 @@ visualizers:
 # Then define the robots
 robots:
   # XArm robot using standardized port variables
-  - 
+  -
     _target_: beavr.interfaces.xarm7_robot.XArm7Robot
     host: ${host_address}
     endeff_publish_port: 10010
@@ -38,7 +38,7 @@ robots:
     joint_subscribe_port: 10029
     reset_subscribe_port: 10009
     robot_ip: ${right_xarm_ip}
-    
+
   # LEAP hand robot with standard network.yaml ports
   -
     _target_: beavr.interfaces.leap_robot.LeapHandRobot
@@ -51,7 +51,7 @@ robots:
 # Then the operators
 operators:
   # XArm operator with standardized ports
-  - 
+  -
     _target_: beavr.components.operators.xarm7_right.XArm7RightOperator
     host: ${host_address}
     transformed_keypoints_port: ${keypoint_transform_port}
@@ -85,7 +85,7 @@ operators:
       freeze_ring: false
       freeze_thumb: false
       no_index: false
-      no_middle: false 
+      no_middle: false
       no_ring: false
       no_thumb: false
       three_dim: true
@@ -96,6 +96,6 @@ operators:
       log_prefix: "leap"
 
 recorded_data:
-  - 
+  -
     - joint_states
     - cartesian_states

@@ -43,8 +43,8 @@ v
    <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1"/>
 -->
 <mujoco>
-  <compiler 
-  balanceinertia="true" 
+  <compiler
+  balanceinertia="true"
   discardvisual="false" />
 </mujoco>
  <link name="kinova_link_base">
@@ -89,7 +89,7 @@ v
       <geometry>
         <mesh filename="package://kinova_description/meshes/shoulder.STL"/>
       </geometry>
-    </collision>                       
+    </collision>
     <inertial>
       <mass value="0.7477"/>
       <origin xyz="0 -0.002 -0.0605"/>
@@ -125,7 +125,7 @@ v
       <geometry>
         <mesh filename="package://kinova_description/meshes/arm.STL"/>
       </geometry>
-    </collision>                        
+    </collision>
     <inertial>
       <mass value="0.99"/>
       <origin xyz="0 -0.2065 -0.01"/>
@@ -161,7 +161,7 @@ v
       <geometry>
         <mesh filename="package://kinova_description/meshes/forearm.STL"/>
       </geometry>
-    </collision>     
+    </collision>
     <inertial>
       <mass value="0.6763"/>
       <origin xyz="0 0.081 -0.0086"/>
@@ -197,7 +197,7 @@ v
       <geometry>
         <mesh filename="package://kinova_description/meshes/wrist_spherical_1.STL"/>
       </geometry>
-    </collision>          
+    </collision>
     <inertial>
       <mass value="0.463"/>
       <origin xyz="0 0.0028848942 -0.0541932613"/>
@@ -233,7 +233,7 @@ v
       <geometry>
         <mesh filename="package://kinova_description/meshes/wrist_spherical_2.STL"/>
       </geometry>
-    </collision>           
+    </collision>
     <inertial>
       <mass value="0.463"/>
       <origin xyz="0 0.0497208855 -0.0028562765"/>
@@ -248,8 +248,8 @@ v
     <origin rpy="1.57079632679 0 3.14159265359" xyz="0 0 -0.10375"/>
     <dynamics damping="0.0" friction="0.01"/>
   </joint>
-  
-  
+
+
   <link name="kinova_end_effector">
       <!-- Inertial properties and a fixed revolute joint have been added to this link to make it possible to use the gazebo_link_attacher plugin -->
       <!-- Minor collision properties are added to avoid bug/crash when running model in Gazebo -->
@@ -277,13 +277,13 @@ v
       <limit effort="2000" lower="0" upper="0" velocity="1"/>
       <origin rpy="3.14159265359 0 0" xyz="0 0 -0.1"/>
   </joint>
- 
+
   <!-- BASE -->
   <link name="allegro_mount">
     <inertial>
       <mass value="0.05"/>
       <origin rpy="0 0 0" xyz="0 0 0"/>
-      <inertia ixx="1e-4" ixy="0" ixz="0" iyy="1e-4" iyz="0" izz="1e-4"/> 
+      <inertia ixx="1e-4" ixy="0" ixz="0" iyy="1e-4" iyz="0" izz="1e-4"/>
     </inertial>
     <visual>
       <!-- <origin xyz="-0.0425 -0.0425 0" rpy="0 0 0" /> -->
@@ -302,7 +302,7 @@ v
     </collision>
   </link>
   <!-- <joint name="allegro_mount_joint1" type="fixed">
-    
+
     <origin rpy="0 0 0" xyz="-0.00 -0.0 0.0"/>
     <parent link="iiwa7_link_ee"/>
     <child link="allegro_mount"/>
@@ -906,7 +906,7 @@ v
   <joint name="kinova_allegro_hand" type="fixed">
     <parent link="kinova_end_effector"/>
     <child link="allegro_mount"/>
-    <origin rpy="-0.35 -1.57 0" xyz="-0.13 0.05 -0.140"/> 
+    <origin rpy="-0.35 -1.57 0" xyz="-0.13 0.05 -0.140"/>
     <!-- origin rpy="3.14159265359 0 0" xyz="0 0 -0.1"/> -->
   </joint>
 </robot>

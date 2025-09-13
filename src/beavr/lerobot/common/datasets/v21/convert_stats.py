@@ -15,11 +15,14 @@
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import numpy as np
-from tqdm import tqdm
-
-from beavr.lerobot.common.datasets.compute_stats import aggregate_stats, get_feature_stats, sample_indices
+from beavr.lerobot.common.datasets.compute_stats import (
+    aggregate_stats,
+    get_feature_stats,
+    sample_indices,
+)
 from beavr.lerobot.common.datasets.lerobot_dataset import LeRobotDataset
 from beavr.lerobot.common.datasets.utils import write_episode_stats
+from tqdm import tqdm
 
 
 def sample_episode_video_frames(dataset: LeRobotDataset, episode_index: int, ft_key: str) -> np.ndarray:
@@ -95,5 +98,9 @@ def check_aggregate_stats(
             if key in reference_stats and stat in reference_stats[key]:
                 err_msg = f"feature='{key}' stats='{stat}'"
                 np.testing.assert_allclose(
-                    val, reference_stats[key][stat], rtol=rtol, atol=atol, err_msg=err_msg
+                    val,
+                    reference_stats[key][stat],
+                    rtol=rtol,
+                    atol=atol,
+                    err_msg=err_msg,
                 )

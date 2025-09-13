@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 def _setup_root_logger(level: int = logging.DEBUG):
     """Configure the *root* logger only once (no-op if already configured).
-    
+
     NOTE: This function is maintained here for backward compatibility.
     New code should use the version in main.py directly.
     """
@@ -50,14 +50,12 @@ LegacyTeleopConfig = TeleopConfig  # Alias for gradual migration
 __all__ = [
     # New structured configuration (preferred)
     "TeleopConfig",
-    "NetworkConfig", 
+    "NetworkConfig",
     "PortsConfig",
     "RobotConfig",
     "CameraConfig",
-    
     # Utility functions
     "_setup_root_logger",
-    
     # Backward compatibility (deprecated)
     "LegacyTeleopConfig",
 ]

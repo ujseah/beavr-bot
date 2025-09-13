@@ -17,7 +17,6 @@ from dataclasses import dataclass, field
 from typing import Sequence
 
 import draccus
-
 from beavr.lerobot.common.robot_devices.cameras.configs import (
     CameraConfig,
     IntelRealSenseCameraConfig,
@@ -676,15 +675,16 @@ class LeKiwiRobotConfig(RobotConfig):
 
     mock: bool = False
 
+
 @RobotConfig.register_subclass("multi_robot_adapter")
 @dataclass
 class BeavrBotConfig(RobotConfig):
     """General robot adapter configuration that can handle any combination of robots.
     Just add robot configs - no need to create new adapter classes!"""
-    
+
     # List of robot configurations
     robot_configs: list[dict] = field(default_factory=list)
-    
+
     # Camera configuration
     cameras: dict[str, CameraConfig] = field(
         default_factory=lambda: {
@@ -702,12 +702,12 @@ class BeavrBotConfig(RobotConfig):
             ),
         }
     )
-    
-    # Overall robot type identifier  
+
+    # Overall robot type identifier
     robot_type: str = "multi_robot"
-    
+
     mock: bool = False
-    
+
     def __post_init__(self):
         """Set up default robot configurations if none provided."""
         if not self.robot_configs:
@@ -720,10 +720,13 @@ class BeavrBotConfig(RobotConfig):
                     "state_topic": f"{robots.ROBOT_NAME_XARM7}_right",
                     "robot_type": "arm",
                     "observation_key": "arm_state",
-                    "action_key": "arm_action", 
+                    "action_key": "arm_action",
                     "joint_count": 7,
                     "joint_state_path": ["joint_states", "joint_position"],
-                    "command_state_path": ["commanded_cartesian_state", "commanded_cartesian_position"],
+                    "command_state_path": [
+                        "commanded_cartesian_state",
+                        "commanded_cartesian_position",
+                    ],
                     # Port and topic information for action publishing (use 10009, see comment above)
                     "endeff_publish_port": ports.XARM_ENDEFF_SUBSCRIBE_PORT,
                     "command_topic": "endeff_coords",
@@ -732,7 +735,7 @@ class BeavrBotConfig(RobotConfig):
                 },
                 {
                     "name": robots.ROBOT_NAME_LEAP,
-                    "host": network.HOST_ADDRESS, 
+                    "host": network.HOST_ADDRESS,
                     "state_port": ports.LEAP_STATE_PUBLISH_PORT_RIGHT,
                     "state_topic": f"{robots.ROBOT_NAME_LEAP}_right",
                     "robot_type": "hand",
@@ -745,17 +748,17 @@ class BeavrBotConfig(RobotConfig):
                     "joint_angle_publish_port": ports.LEAP_JOINT_ANGLE_SUBSCRIBE_PORT,
                     "command_topic": "joint_angles",
                     "home_subscribe_port": ports.LEAP_HOME_SUBSCRIBE_PORT,
-                }
+                },
             ]
 
 
 @RobotConfig.register_subclass("xarm7_only_adapter")
-@dataclass  
+@dataclass
 class XArm7OnlyAdapterConfig(BeavrBotConfig):
     """XArm7 arm only configuration - demonstrates single robot setup."""
-    
+
     robot_type: str = "xarm7_only"
-    
+
     def __post_init__(self):
         """Configure for XArm7 only."""
         self.robot_configs = [
@@ -763,13 +766,16 @@ class XArm7OnlyAdapterConfig(BeavrBotConfig):
                 "name": f"{robots.ROBOT_NAME_XARM7}_right",
                 "host": network.HOST_ADDRESS,
                 "state_port": ports.XARM_STATE_PUBLISH_PORT,
-                "state_topic": f"{robots.ROBOT_NAME_XARM7}_right", 
+                "state_topic": f"{robots.ROBOT_NAME_XARM7}_right",
                 "robot_type": "arm",
                 "observation_key": "arm_state",
                 "action_key": "arm_action",
                 "joint_count": 7,
                 "joint_state_path": ["joint_states", "joint_position"],
-                "command_state_path": ["commanded_cartesian_state", "commanded_cartesian_position"],
+                "command_state_path": [
+                    "commanded_cartesian_state",
+                    "commanded_cartesian_position",
+                ],
                 # Port and topic information for action publishing (use 10009, see comment above)
                 "endeff_publish_port": ports.XARM_ENDEFF_SUBSCRIBE_PORT,
                 "command_topic": "endeff_coords",
@@ -783,9 +789,9 @@ class XArm7OnlyAdapterConfig(BeavrBotConfig):
 @dataclass
 class LeapOnlyAdapterConfig(BeavrBotConfig):
     """Leap hand only configuration - demonstrates single robot setup."""
-    
+
     robot_type: str = "leap_only"
-    
+
     def __post_init__(self):
         """Configure for Leap hand only."""
         self.robot_configs = [

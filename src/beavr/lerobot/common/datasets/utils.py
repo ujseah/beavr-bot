@@ -29,12 +29,6 @@ import jsonlines
 import numpy as np
 import packaging.version
 import torch
-from datasets.table import embed_table_storage
-from huggingface_hub import DatasetCard, DatasetCardData, HfApi
-from huggingface_hub.errors import RevisionNotFoundError
-from PIL import Image as PILImage
-from torchvision import transforms
-
 from beavr.lerobot.common.datasets.backward_compatibility import (
     V21_MESSAGE,
     BackwardCompatibilityError,
@@ -43,6 +37,11 @@ from beavr.lerobot.common.datasets.backward_compatibility import (
 from beavr.lerobot.common.robot_devices.robots.utils import Robot
 from beavr.lerobot.common.utils.utils import is_valid_numpy_dtype_string
 from beavr.lerobot.configs.types import DictLike, FeatureType, PolicyFeature
+from datasets.table import embed_table_storage
+from huggingface_hub import DatasetCard, DatasetCardData, HfApi
+from huggingface_hub.errors import RevisionNotFoundError
+from PIL import Image as PILImage
+from torchvision import transforms
 
 DEFAULT_CHUNK_SIZE = 1000  # Max number of episodes per chunk
 
@@ -74,16 +73,18 @@ DEFAULT_FEATURES = {
     "task_index": {"dtype": "int64", "shape": (1,), "names": None},
 }
 
+
 class Frame(dict):
     """A simple dictionary-like container for robot state data.
-    
+
     This class is used to store and pass robot state information between components.
     It inherits from dict to provide all standard dictionary functionality while
     allowing for potential future extensions specific to robot state handling.
     """
+
     def __init__(self, data: Dict[str, Any] = None):
         """Initialize a Frame with optional data.
-        
+
         Args:
             data: Optional dictionary containing initial data.
         """
@@ -242,7 +243,10 @@ def load_episodes(local_dir: Path) -> dict:
 def write_episode_stats(episode_index: int, episode_stats: dict, local_dir: Path):
     # We wrap episode_stats in a dictionary since `episode_stats["episode_index"]`
     # is a dictionary of stats and not an integer.
-    episode_stats = {"episode_index": episode_index, "stats": serialize_dict(episode_stats)}
+    episode_stats = {
+        "episode_index": episode_index,
+        "stats": serialize_dict(episode_stats),
+    }
     append_jsonlines(episode_stats, local_dir / EPISODES_STATS_PATH)
 
 
@@ -565,7 +569,10 @@ def check_timestamps_sync(
 
 
 def check_delta_timestamps(
-    delta_timestamps: dict[str, list[float]], fps: int, tolerance_s: float, raise_value_error: bool = True
+    delta_timestamps: dict[str, list[float]],
+    fps: int,
+    tolerance_s: float,
+    raise_value_error: bool = True,
 ) -> bool:
     """This will check if all the values in delta_timestamps are multiples of 1/fps +/- tolerance.
     This is to ensure that these delta_timestamps added to any timestamp from a dataset will themselves be
@@ -659,7 +666,9 @@ def create_lerobot_dataset_card(
         ],
     )
 
-    card_template = (importlib.resources.files("beavr.lerobot.common.datasets") / "card_template.md").read_text()
+    card_template = (
+        importlib.resources.files("beavr.lerobot.common.datasets") / "card_template.md"
+    ).read_text()
 
     return DatasetCard.from_template(
         card_data=card_data,

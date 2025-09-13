@@ -16,6 +16,7 @@ from typing import List, Optional, Union
 
 import torch
 import torch.version
+from beavr.lerobot.common.policies.pi0.flex_attention import flex_attention_forward
 from pytest import Cache
 from torch import nn
 from transformers import (
@@ -26,8 +27,6 @@ from transformers import (
     PreTrainedModel,
 )
 from transformers.models.auto import CONFIG_MAPPING
-
-from beavr.lerobot.common.policies.pi0.flex_attention import flex_attention_forward
 
 
 def apply_rope(x, positions, max_wavelength=10_000):
@@ -293,12 +292,18 @@ class PaliGemmaWithExpertModel(PreTrainedModel):
                     # in `transformers`. (molbap)
                     key_states = torch.cat([past_key_values[layer_idx]["key_states"], key_states], dim=1)
                     value_states = torch.cat(
-                        [past_key_values[layer_idx]["value_states"], value_states], dim=1
+                        [past_key_values[layer_idx]["value_states"], value_states],
+                        dim=1,
                     )
 
             attention_interface = self.get_attention_interface()
             att_output = attention_interface(
-                attention_mask, batch_size, head_dim, query_states, key_states, value_states
+                attention_mask,
+                batch_size,
+                head_dim,
+                query_states,
+                key_states,
+                value_states,
             )
             att_output = att_output.to(dtype=torch.bfloat16)
 
@@ -358,12 +363,24 @@ class PaliGemmaWithExpertModel(PreTrainedModel):
         return attention_interface
 
     def flash_attention_forward(
-        self, attention_mask, batch_size, head_dim, query_states, key_states, value_states
+        self,
+        attention_mask,
+        batch_size,
+        head_dim,
+        query_states,
+        key_states,
+        value_states,
     ):
         raise NotImplementedError("FA2 is not implemented (yet)")
 
     def eager_attention_forward(
-        self, attention_mask, batch_size, head_dim, query_states, key_states, value_states
+        self,
+        attention_mask,
+        batch_size,
+        head_dim,
+        query_states,
+        key_states,
+        value_states,
     ):
         num_att_heads = self.config.paligemma_config.text_config.num_attention_heads
         num_key_value_heads = self.config.paligemma_config.text_config.num_key_value_heads
@@ -375,17 +392,31 @@ class PaliGemmaWithExpertModel(PreTrainedModel):
         sequence_length = key_states.shape[1]
 
         key_states = key_states[:, :, :, None, :].expand(
-            batch_size, sequence_length, num_key_value_heads, num_key_value_groups, head_dim
+            batch_size,
+            sequence_length,
+            num_key_value_heads,
+            num_key_value_groups,
+            head_dim,
         )
         key_states = key_states.reshape(
-            batch_size, sequence_length, num_key_value_heads * num_key_value_groups, head_dim
+            batch_size,
+            sequence_length,
+            num_key_value_heads * num_key_value_groups,
+            head_dim,
         )
 
         value_states = value_states[:, :, :, None, :].expand(
-            batch_size, sequence_length, num_key_value_heads, num_key_value_groups, head_dim
+            batch_size,
+            sequence_length,
+            num_key_value_heads,
+            num_key_value_groups,
+            head_dim,
         )
         value_states = value_states.reshape(
-            batch_size, sequence_length, num_key_value_heads * num_key_value_groups, head_dim
+            batch_size,
+            sequence_length,
+            num_key_value_heads * num_key_value_groups,
+            head_dim,
         )
 
         # Attention here is upcasted to float32 to match the original eager implementation.

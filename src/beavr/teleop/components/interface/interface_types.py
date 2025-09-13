@@ -45,10 +45,10 @@ class CartesianState:
     timestamp_s: Optional[float] = None
     h_matrix: Optional[
         Tuple[
-            Tuple[float, float, float, float], 
-            Tuple[float, float, float, float], 
-            Tuple[float, float, float, float], 
-            Tuple[float, float, float, float], 
+            Tuple[float, float, float, float],
+            Tuple[float, float, float, float],
+            Tuple[float, float, float, float],
+            Tuple[float, float, float, float],
         ]
     ] = None
 
@@ -77,8 +77,9 @@ class CommandedCartesianState:
             "commanded_cartesian_position": list(self.commanded_cartesian_position),
             "timestamp": self.timestamp_s,
         }
- 
-__all_= [
+
+
+__all_ = [
     "RobotState",
     "ErrorEvent",
     "CartesianState",

@@ -22,6 +22,7 @@ _EPS: Final = 1e-8
 # Quaternion helpers
 # ---------------------------------------------------------------------------
 
+
 def quat_normalise(q: np.ndarray) -> np.ndarray:
     """Return *unit* quaternion with the same sign as the input.
 
@@ -43,9 +44,11 @@ def quat_positive(q: np.ndarray) -> np.ndarray:
         q = -q
     return q
 
+
 # ---------------------------------------------------------------------------
 # Quaternion ↔ axis–angle
 # ---------------------------------------------------------------------------
+
 
 def axis_angle_to_quat(v: np.ndarray) -> np.ndarray:
     """Convert axis–angle *vector* to quaternion.
@@ -76,9 +79,11 @@ def quat_to_axis_angle(q: np.ndarray) -> np.ndarray:
     axis = xyz / sin_h
     return axis * theta
 
+
 # ---------------------------------------------------------------------------
 # Quaternion → Euler (roll, pitch, yaw)
 # ---------------------------------------------------------------------------
+
 
 def quat_to_euler(q: np.ndarray) -> np.ndarray:
     """Convert *unit* quaternion to Euler angles (roll, pitch, yaw).
@@ -115,9 +120,11 @@ def quat_to_euler(q: np.ndarray) -> np.ndarray:
 
     return np.array([roll, pitch, yaw], dtype=np.float32)
 
+
 # ---------------------------------------------------------------------------
 # Canonicalisation helper (kept for legacy callers)
 # ---------------------------------------------------------------------------
+
 
 def canonical_axis_angle(v: np.ndarray) -> np.ndarray:
     """Return a *canonical* axis–angle vector with θ ∈ [0, π]."""

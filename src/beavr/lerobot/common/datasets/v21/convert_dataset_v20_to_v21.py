@@ -34,11 +34,21 @@ python lerobot/common/datasets/v21/convert_dataset_v20_to_v21.py \
 import argparse
 import logging
 
+from beavr.lerobot.common.datasets.lerobot_dataset import (
+    CODEBASE_VERSION,
+    LeRobotDataset,
+)
+from beavr.lerobot.common.datasets.utils import (
+    EPISODES_STATS_PATH,
+    STATS_PATH,
+    load_stats,
+    write_info,
+)
+from beavr.lerobot.common.datasets.v21.convert_stats import (
+    check_aggregate_stats,
+    convert_stats,
+)
 from huggingface_hub import HfApi
-
-from beavr.lerobot.common.datasets.lerobot_dataset import CODEBASE_VERSION, LeRobotDataset
-from beavr.lerobot.common.datasets.utils import EPISODES_STATS_PATH, STATS_PATH, load_stats, write_info
-from beavr.lerobot.common.datasets.v21.convert_stats import check_aggregate_stats, convert_stats
 
 V20 = "v2.0"
 V21 = "v2.1"
@@ -79,10 +89,16 @@ def convert_dataset(
 
     hub_api = HfApi()
     if hub_api.file_exists(
-        repo_id=dataset.repo_id, filename=STATS_PATH, revision=branch, repo_type="dataset"
+        repo_id=dataset.repo_id,
+        filename=STATS_PATH,
+        revision=branch,
+        repo_type="dataset",
     ):
         hub_api.delete_file(
-            path_in_repo=STATS_PATH, repo_id=dataset.repo_id, revision=branch, repo_type="dataset"
+            path_in_repo=STATS_PATH,
+            repo_id=dataset.repo_id,
+            revision=branch,
+            repo_type="dataset",
         )
 
     hub_api.create_tag(repo_id, tag=CODEBASE_VERSION, revision=branch, repo_type="dataset")

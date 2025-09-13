@@ -21,7 +21,9 @@ from torch import nn
 
 
 def populate_queues(
-    queues: dict[str, deque], batch: dict[str, torch.Tensor], exclude_keys: list[str] | None = None
+    queues: dict[str, deque],
+    batch: dict[str, torch.Tensor],
+    exclude_keys: list[str] | None = None,
 ):
     if exclude_keys is None:
         exclude_keys = []

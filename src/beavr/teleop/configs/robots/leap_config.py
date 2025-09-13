@@ -55,7 +55,7 @@ class LeapHandOperatorCfg:
             self.transformed_keypoints_port,
             self.joint_angle_subscribe_port,
             self.joint_angle_publish_port,
-            self.reset_publish_port
+            self.reset_publish_port,
         ]
         for port in all_ports:
             if not (1 <= port <= 65535):
@@ -73,6 +73,7 @@ class LeapHandOperatorCfg:
             hand_side=self.hand_side,  # ✅ FIX: Pass hand_side to determine correct topic
         )
 
+
 @dataclass
 class LeapHandRobotCfg:
     host: str = network.HOST_ADDRESS
@@ -88,7 +89,7 @@ class LeapHandRobotCfg:
             "recorded_data": [
                 robots.RECORDED_DATA_JOINT_STATES,
                 robots.RECORDED_DATA_COMMANDED_JOINT_STATES,
-            ]
+            ],
         }
     )
 
@@ -99,7 +100,7 @@ class LeapHandRobotCfg:
             self.joint_angle_subscribe_port,
             self.joint_angle_publish_port,
             self.reset_subscribe_port,
-            self.state_publish_port
+            self.state_publish_port,
         ]
         for port in all_ports:
             if not (1 <= port <= 65535):
@@ -113,15 +114,18 @@ class LeapHandRobotCfg:
             reset_subscribe_port=self.reset_subscribe_port,
             state_publish_port=self.state_publish_port,
             simulation_mode=self.simulation_mode,
-            is_right_arm=(self.hand_side == robots.RIGHT),  # ✅ FIX: Convert hand_side to is_right_arm boolean
+            is_right_arm=(
+                self.hand_side == robots.RIGHT
+            ),  # ✅ FIX: Convert hand_side to is_right_arm boolean
         )
+
 
 @dataclass
 @TeleopRobotConfig.register_subclass(robots.ROBOT_NAME_LEAP)
 class LeapHandConfig:
     robot_name: str = robots.ROBOT_NAME_LEAP
     laterality: Laterality = Laterality.RIGHT
-    
+
     # Configuration components - will be populated based on laterality
     detector: list = field(default_factory=list)
     transforms: list = field(default_factory=list)
@@ -142,10 +146,10 @@ class LeapHandConfig:
         # Configuration is done here after laterality is properly set
         log_laterality_configuration(self.laterality, robots.ROBOT_NAME_LEAP)
         self._configure_for_laterality()
-    
+
     def _configure_for_laterality(self):
         """Configure all components based on the laterality setting - explicit and simple."""
-        
+
         # Create detector configurations
         self.detector = []
         if self.laterality == Laterality.BIMANUAL:
@@ -169,145 +173,161 @@ class LeapHandConfig:
                         hand_side=robots.LEFT,
                     )
                 )
-        
+
         # Create transform configurations
         self.transforms = []
         if self.laterality in [Laterality.RIGHT, Laterality.BIMANUAL]:
-            self.transforms.append(SharedComponentRegistry.get_transform_config(
-                hand_side=robots.RIGHT,
-                host=network.HOST_ADDRESS,
-                keypoint_sub_port=ports.KEYPOINT_STREAM_PORT,
-                moving_average_limit=1,
-            ))
-        
+            self.transforms.append(
+                SharedComponentRegistry.get_transform_config(
+                    hand_side=robots.RIGHT,
+                    host=network.HOST_ADDRESS,
+                    keypoint_sub_port=ports.KEYPOINT_STREAM_PORT,
+                    moving_average_limit=1,
+                )
+            )
+
         if self.laterality in [Laterality.LEFT, Laterality.BIMANUAL]:
-            self.transforms.append(SharedComponentRegistry.get_transform_config(
-                hand_side=robots.LEFT,
-                host=network.HOST_ADDRESS,
-                keypoint_sub_port=ports.KEYPOINT_STREAM_PORT,
-                moving_average_limit=1,
-            ))
-        
+            self.transforms.append(
+                SharedComponentRegistry.get_transform_config(
+                    hand_side=robots.LEFT,
+                    host=network.HOST_ADDRESS,
+                    keypoint_sub_port=ports.KEYPOINT_STREAM_PORT,
+                    moving_average_limit=1,
+                )
+            )
+
         # Create visualizer configurations
         self.visualizers = []
         if self.laterality in [Laterality.RIGHT, Laterality.BIMANUAL]:
-            self.visualizers.append(SharedComponentRegistry.get_visualizer_config(
-                hand_side=robots.RIGHT,
-                host=network.HOST_ADDRESS,
-                oculus_feedback_port=ports.OCULUS_GRAPH_PORT,
-                display_plot=False,
-            ))
-        
+            self.visualizers.append(
+                SharedComponentRegistry.get_visualizer_config(
+                    hand_side=robots.RIGHT,
+                    host=network.HOST_ADDRESS,
+                    oculus_feedback_port=ports.OCULUS_GRAPH_PORT,
+                    display_plot=False,
+                )
+            )
+
         if self.laterality in [Laterality.LEFT, Laterality.BIMANUAL]:
-            self.visualizers.append(SharedComponentRegistry.get_visualizer_config(
-                hand_side=robots.LEFT,
-                host=network.HOST_ADDRESS,
-                oculus_feedback_port=ports.OCULUS_GRAPH_PORT,
-                display_plot=False,
-            ))
-        
+            self.visualizers.append(
+                SharedComponentRegistry.get_visualizer_config(
+                    hand_side=robots.LEFT,
+                    host=network.HOST_ADDRESS,
+                    oculus_feedback_port=ports.OCULUS_GRAPH_PORT,
+                    display_plot=False,
+                )
+            )
+
         # Create robot configurations
         self.robots = []
         if self.laterality in [Laterality.RIGHT, Laterality.BIMANUAL]:
-            self.robots.append(LeapHandRobotCfg(
-                host=network.HOST_ADDRESS,
-                joint_angle_subscribe_port=ports.CARTESIAN_COMMAND_PUBLISHER_PORT,
-                joint_angle_publish_port=ports.JOINT_PUBLISHER_PORT,
-                reset_subscribe_port=ports.TELEOP_RESET_PUBLISH_PORT,
-                state_publish_port=ports.LEAP_STATE_PUBLISH_PORT_RIGHT,
-                simulation_mode=False,
-                hand_side=robots.RIGHT,
-                recorder_config={
-                    "robot_identifier": getattr(robots, 'ROBOT_IDENTIFIER_RIGHT_LEAP_HAND', 'right_leap'),
-                    "recorded_data": [
-                        robots.RECORDED_DATA_JOINT_STATES,
-                        robots.RECORDED_DATA_COMMANDED_JOINT_STATES,
-                    ]
-                }
-            ))
-        
+            self.robots.append(
+                LeapHandRobotCfg(
+                    host=network.HOST_ADDRESS,
+                    joint_angle_subscribe_port=ports.CARTESIAN_COMMAND_PUBLISHER_PORT,
+                    joint_angle_publish_port=ports.JOINT_PUBLISHER_PORT,
+                    reset_subscribe_port=ports.TELEOP_RESET_PUBLISH_PORT,
+                    state_publish_port=ports.LEAP_STATE_PUBLISH_PORT_RIGHT,
+                    simulation_mode=False,
+                    hand_side=robots.RIGHT,
+                    recorder_config={
+                        "robot_identifier": getattr(robots, "ROBOT_IDENTIFIER_RIGHT_LEAP_HAND", "right_leap"),
+                        "recorded_data": [
+                            robots.RECORDED_DATA_JOINT_STATES,
+                            robots.RECORDED_DATA_COMMANDED_JOINT_STATES,
+                        ],
+                    },
+                )
+            )
+
         if self.laterality in [Laterality.LEFT, Laterality.BIMANUAL]:
-            self.robots.append(LeapHandRobotCfg(
-                host=network.HOST_ADDRESS,
-                joint_angle_subscribe_port=ports.CARTESIAN_COMMAND_PUBLISHER_PORT_LEFT,
-                joint_angle_publish_port=ports.JOINT_PUBLISHER_PORT_LEFT,
-                reset_subscribe_port=ports.TELEOP_RESET_PUBLISH_PORT,
-                state_publish_port=ports.LEAP_STATE_PUBLISH_PORT_LEFT,  # ✅ FIX: Use separate port for left hand
-                simulation_mode=False,
-                hand_side=robots.LEFT,
-                recorder_config={
-                    "robot_identifier": getattr(robots, 'ROBOT_IDENTIFIER_LEFT_LEAP_HAND', 'left_leap'),
-                    "recorded_data": [
-                        robots.RECORDED_DATA_JOINT_STATES,
-                        robots.RECORDED_DATA_COMMANDED_JOINT_STATES,
-                    ]
-                }
-            ))
-        
+            self.robots.append(
+                LeapHandRobotCfg(
+                    host=network.HOST_ADDRESS,
+                    joint_angle_subscribe_port=ports.CARTESIAN_COMMAND_PUBLISHER_PORT_LEFT,
+                    joint_angle_publish_port=ports.JOINT_PUBLISHER_PORT_LEFT,
+                    reset_subscribe_port=ports.TELEOP_RESET_PUBLISH_PORT,
+                    state_publish_port=ports.LEAP_STATE_PUBLISH_PORT_LEFT,  # ✅ FIX: Use separate port for left hand
+                    simulation_mode=False,
+                    hand_side=robots.LEFT,
+                    recorder_config={
+                        "robot_identifier": getattr(robots, "ROBOT_IDENTIFIER_LEFT_LEAP_HAND", "left_leap"),
+                        "recorded_data": [
+                            robots.RECORDED_DATA_JOINT_STATES,
+                            robots.RECORDED_DATA_COMMANDED_JOINT_STATES,
+                        ],
+                    },
+                )
+            )
+
         # Create operator configurations
         self.operators = []
         if self.laterality in [Laterality.RIGHT, Laterality.BIMANUAL]:
-            self.operators.append(LeapHandOperatorCfg(
-                host=network.HOST_ADDRESS,
-                transformed_keypoints_port=ports.KEYPOINT_TRANSFORM_PORT,
-                joint_angle_subscribe_port=ports.JOINT_PUBLISHER_PORT,
-                joint_angle_publish_port=ports.CARTESIAN_COMMAND_PUBLISHER_PORT,
-                reset_publish_port=ports.TELEOP_RESET_PUBLISH_PORT,
-                hand_side=robots.RIGHT,
-                finger_configs={
-                    "freeze_index": False,
-                    "freeze_middle": False,
-                    "freeze_ring": False,
-                    "freeze_thumb": False,
-                    "no_index": False,
-                    "no_middle": False,
-                    "no_ring": False,
-                    "no_thumb": False,
-                    "three_dim": True,
-                },
-                logging_config={
-                    "enabled": False,
-                    "log_dir": "logs",
-                    "log_poses": True,
-                    "log_prefix": "leap",
-                }
-            ))
-        
+            self.operators.append(
+                LeapHandOperatorCfg(
+                    host=network.HOST_ADDRESS,
+                    transformed_keypoints_port=ports.KEYPOINT_TRANSFORM_PORT,
+                    joint_angle_subscribe_port=ports.JOINT_PUBLISHER_PORT,
+                    joint_angle_publish_port=ports.CARTESIAN_COMMAND_PUBLISHER_PORT,
+                    reset_publish_port=ports.TELEOP_RESET_PUBLISH_PORT,
+                    hand_side=robots.RIGHT,
+                    finger_configs={
+                        "freeze_index": False,
+                        "freeze_middle": False,
+                        "freeze_ring": False,
+                        "freeze_thumb": False,
+                        "no_index": False,
+                        "no_middle": False,
+                        "no_ring": False,
+                        "no_thumb": False,
+                        "three_dim": True,
+                    },
+                    logging_config={
+                        "enabled": False,
+                        "log_dir": "logs",
+                        "log_poses": True,
+                        "log_prefix": "leap",
+                    },
+                )
+            )
+
         if self.laterality in [Laterality.LEFT, Laterality.BIMANUAL]:
-            self.operators.append(LeapHandOperatorCfg(
-                host=network.HOST_ADDRESS,
-                transformed_keypoints_port=ports.LEFT_KEYPOINT_TRANSFORM_PORT,
-                joint_angle_subscribe_port=ports.JOINT_PUBLISHER_PORT_LEFT,
-                joint_angle_publish_port=ports.CARTESIAN_COMMAND_PUBLISHER_PORT_LEFT,
-                reset_publish_port=ports.TELEOP_RESET_PUBLISH_PORT,
-                hand_side=robots.LEFT,
-                finger_configs={
-                    "freeze_index": False,
-                    "freeze_middle": False,
-                    "freeze_ring": False,
-                    "freeze_thumb": False,
-                    "no_index": False,
-                    "no_middle": False,
-                    "no_ring": False,
-                    "no_thumb": False,
-                    "three_dim": True,
-                },
-                logging_config={
-                    "enabled": False,
-                    "log_dir": "logs",
-                    "log_poses": True,
-                    "log_prefix": "leap",
-                }
-            ))
+            self.operators.append(
+                LeapHandOperatorCfg(
+                    host=network.HOST_ADDRESS,
+                    transformed_keypoints_port=ports.LEFT_KEYPOINT_TRANSFORM_PORT,
+                    joint_angle_subscribe_port=ports.JOINT_PUBLISHER_PORT_LEFT,
+                    joint_angle_publish_port=ports.CARTESIAN_COMMAND_PUBLISHER_PORT_LEFT,
+                    reset_publish_port=ports.TELEOP_RESET_PUBLISH_PORT,
+                    hand_side=robots.LEFT,
+                    finger_configs={
+                        "freeze_index": False,
+                        "freeze_middle": False,
+                        "freeze_ring": False,
+                        "freeze_thumb": False,
+                        "no_index": False,
+                        "no_middle": False,
+                        "no_ring": False,
+                        "no_thumb": False,
+                        "three_dim": True,
+                    },
+                    logging_config={
+                        "enabled": False,
+                        "log_dir": "logs",
+                        "log_poses": True,
+                        "log_prefix": "leap",
+                    },
+                )
+            )
 
     def build(self):
         """Build the robot configuration components."""
         return {
-            'robot_name': self.robot_name,
-            'detector': [detector.build() for detector in self.detector],
-            'transforms': [item.build() for item in self.transforms],
-            'visualizers': [item.build() for item in self.visualizers],
-            'operators': [item.build() for item in self.operators],
-            'robots': [item.build() for item in self.robots],
-            'recorded_data': self.recorded_data,
+            "robot_name": self.robot_name,
+            "detector": [detector.build() for detector in self.detector],
+            "transforms": [item.build() for item in self.transforms],
+            "visualizers": [item.build() for item in self.visualizers],
+            "operators": [item.build() for item in self.operators],
+            "robots": [item.build() for item in self.robots],
+            "recorded_data": self.recorded_data,
         }

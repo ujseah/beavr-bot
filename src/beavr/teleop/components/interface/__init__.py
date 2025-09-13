@@ -7,5 +7,3 @@ __all__ = [
     "RobotState",
     "ErrorEvent",
 ]
-
-

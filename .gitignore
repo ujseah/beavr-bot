@@ -36,7 +36,7 @@ logs/*.txt
 
 xarm_ros/*
 
-# Docker 
+# Docker
 docker/docker_build_private.sh
 
 # VR

@@ -26,9 +26,11 @@ from pathlib import Path
 
 import numpy as np
 import torch
-
 from beavr.lerobot.common.robot_devices.cameras.utils import make_cameras_from_configs
-from beavr.lerobot.common.robot_devices.motors.utils import MotorsBus, make_motors_buses_from_configs
+from beavr.lerobot.common.robot_devices.motors.utils import (
+    MotorsBus,
+    make_motors_buses_from_configs,
+)
 from beavr.lerobot.common.robot_devices.robots.configs import ManipulatorRobotConfig
 from beavr.lerobot.common.robot_devices.robots.utils import get_arm_id
 from beavr.lerobot.common.robot_devices.utils import (
@@ -38,7 +40,9 @@ from beavr.lerobot.common.robot_devices.utils import (
 
 
 def ensure_safe_goal_position(
-    goal_pos: torch.Tensor, present_pos: torch.Tensor, max_relative_target: float | list[float]
+    goal_pos: torch.Tensor,
+    present_pos: torch.Tensor,
+    max_relative_target: float | list[float],
 ):
     # Cap relative action target magnitude for safety.
     diff = goal_pos - present_pos

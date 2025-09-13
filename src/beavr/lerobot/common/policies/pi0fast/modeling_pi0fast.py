@@ -49,17 +49,16 @@ from functools import partial
 import numpy as np
 import torch
 import torch.nn.functional as F  # noqa: N812
+from beavr.lerobot.common.constants import ACTION, OBS_STATE
+from beavr.lerobot.common.policies.normalize import Normalize, Unnormalize
+from beavr.lerobot.common.policies.pi0fast.configuration_pi0fast import PI0FASTConfig
+from beavr.lerobot.common.policies.pretrained import PreTrainedPolicy
 from PIL import Image
 from scipy.fft import idct
 from torch import Tensor, nn
 from transformers import AutoProcessor, AutoTokenizer, PaliGemmaForConditionalGeneration
 from transformers.cache_utils import HybridCache, StaticCache
 from transformers.models.auto import CONFIG_MAPPING
-
-from beavr.lerobot.common.constants import ACTION, OBS_STATE
-from beavr.lerobot.common.policies.normalize import Normalize, Unnormalize
-from beavr.lerobot.common.policies.pi0fast.configuration_pi0fast import PI0FASTConfig
-from beavr.lerobot.common.policies.pretrained import PreTrainedPolicy
 
 PRECISION = {
     "float16": torch.float16,
@@ -283,7 +282,10 @@ def block_causal_update_causal_mask(
 
     # Causal mask initialization
     causal_mask = torch.full(
-        (sequence_length, target_length), fill_value=min_dtype, dtype=dtype, device=cache_position.device
+        (sequence_length, target_length),
+        fill_value=min_dtype,
+        dtype=dtype,
+        device=cache_position.device,
     )
 
     # Standard causal masking (triu ensures tokens can only attend to past)
@@ -392,7 +394,12 @@ def prepare_inputs_for_generation(
     if cache_position[0] == 0 and isinstance(past_key_values, HybridCache):
         input_tensor = inputs_embeds if inputs_embeds is not None else input_ids
         causal_mask = self._update_causal_mask(
-            attention_mask, token_type_ids, past_key_values, cache_position, input_tensor, is_training
+            attention_mask,
+            token_type_ids,
+            past_key_values,
+            cache_position,
+            input_tensor,
+            is_training,
         )
         model_inputs["attention_mask"] = causal_mask
 
@@ -584,7 +591,11 @@ class PI0FAST(nn.Module):
             state_text.append(f"State: {state_str};\n")
 
         prefix_out = self.paligemma_tokenizer(
-            prefix_texts, add_special_tokens=True, return_tensors="pt", padding="longest", truncation=False
+            prefix_texts,
+            add_special_tokens=True,
+            return_tensors="pt",
+            padding="longest",
+            truncation=False,
         )
         prefix_ids = prefix_out["input_ids"].to(device)
         prefix_mask = prefix_out["attention_mask"].to(device)
@@ -593,7 +604,9 @@ class PI0FAST(nn.Module):
         if actions is not None:
             actions_norm = self.normalize_actions(actions)
             actions_pad = F.pad(
-                actions_norm, (0, max(0, self.config.max_action_dim - actions_norm.shape[2])), value=0
+                actions_norm,
+                (0, max(0, self.config.max_action_dim - actions_norm.shape[2])),
+                value=0,
             )[:, :, : self.config.max_action_dim]
             fast_out = self.fast_tokenizer_wrapper(
                 actions_pad.cpu(),
@@ -625,7 +638,10 @@ class PI0FAST(nn.Module):
         final_ids = torch.cat([prefix_ids, act_ids], dim=1)
 
         final_mask = torch.cat([prefix_mask, act_mask], dim=1)
-        batch_inputs = {"input_ids": final_ids.tolist(), "attention_mask": final_mask.tolist()}
+        batch_inputs = {
+            "input_ids": final_ids.tolist(),
+            "attention_mask": final_mask.tolist(),
+        }
 
         # Use tokenizer pad function
         padded_output = self.paligemma_tokenizer.pad(
@@ -679,7 +695,14 @@ class PI0FAST(nn.Module):
             new_targets[i] = targets[i].index_select(0, new_indices)
             new_token_type_ids[i] = token_type_ids[i].index_select(0, new_indices)
 
-        return new_tokens, new_ar_masks, new_padding_mask, new_loss_mask, new_targets, new_token_type_ids
+        return (
+            new_tokens,
+            new_ar_masks,
+            new_padding_mask,
+            new_loss_mask,
+            new_targets,
+            new_token_type_ids,
+        )
 
     def forward(self, batch: dict[str, Tensor]):
         device = batch[OBS_STATE].device
@@ -770,9 +793,9 @@ class PI0FAST(nn.Module):
         self.called_time_horizon = self.time_horizon
         self.called_action_dim = self.action_dim
 
-        assert self.time_horizon is not None and self.action_dim is not None, (
-            "Tokenizer not initialized, call encode() once or pass in time_horizon and action_dim."
-        )
+        assert (
+            self.time_horizon is not None and self.action_dim is not None
+        ), "Tokenizer not initialized, call encode() once or pass in time_horizon and action_dim."
 
         decoded_actions = []
         for token in tokens:
@@ -789,16 +812,20 @@ class PI0FAST(nn.Module):
                     # Apply padding if too short
                     elif diff > 0:
                         decoded_dct_coeff = np.pad(
-                            decoded_dct_coeff, (0, diff), mode="constant", constant_values=0
+                            decoded_dct_coeff,
+                            (0, diff),
+                            mode="constant",
+                            constant_values=0,
                         )
 
                 decoded_dct_coeff = decoded_dct_coeff.reshape(-1, self.action_dim)
-                assert decoded_dct_coeff.shape == (
-                    self.time_horizon,
-                    self.action_dim,
-                ), (
-                    f"Decoded DCT coefficients have shape {decoded_dct_coeff.shape}, expected ({self.time_horizon}, {self.action_dim})"
-                )
+                assert (
+                    decoded_dct_coeff.shape
+                    == (
+                        self.time_horizon,
+                        self.action_dim,
+                    )
+                ), f"Decoded DCT coefficients have shape {decoded_dct_coeff.shape}, expected ({self.time_horizon}, {self.action_dim})"
             except Exception as e:
                 print(f"Error decoding tokens: {e}")
                 print(f"Tokens: {token}")
@@ -855,7 +882,14 @@ class PI0FAST(nn.Module):
         images, img_masks = self.prepare_images(batch)
 
         padded_outs = self.create_input_tokens(state=batch[OBS_STATE], lang_text=batch["task"], actions=None)
-        embs, pad_masks, att_masks2, targets, loss_mask, token_type_ids = self.embed_inputs(
+        (
+            embs,
+            pad_masks,
+            att_masks2,
+            targets,
+            loss_mask,
+            token_type_ids,
+        ) = self.embed_inputs(
             images,
             img_masks,
             padded_outs["input_ids"],
@@ -936,8 +970,21 @@ class PI0FAST(nn.Module):
         token_type_ids = torch.cat([img_att_masks, token_type_ids.to(device)], dim=1)
 
         # Shift pad tokens to the left (.generate()) or right (.train())
-        embs, att_masks, pad_masks, loss_masks, targets, token_type_ids = self.shift_padding_side(
-            embs, att_masks, pad_masks, loss_masks, targets, token_type_ids, padding_side=padding_side
+        (
+            embs,
+            att_masks,
+            pad_masks,
+            loss_masks,
+            targets,
+            token_type_ids,
+        ) = self.shift_padding_side(
+            embs,
+            att_masks,
+            pad_masks,
+            loss_masks,
+            targets,
+            token_type_ids,
+            padding_side=padding_side,
         )
 
         targets = torch.where(targets == self.pad_token_id, self.ignore_index, targets)
@@ -971,7 +1018,10 @@ def resize_with_pad(img, width, height, pad_value=0, interpolate_like_pi=True):
         resized_img = img.to(device=original_device, dtype=torch.float32) / 255.0
     else:
         resized_img = F.interpolate(
-            img, size=(resized_height, resized_width), mode="bilinear", align_corners=False
+            img,
+            size=(resized_height, resized_width),
+            mode="bilinear",
+            align_corners=False,
         )
 
     pad_height = max(0, int(height - resized_height))

@@ -4,12 +4,17 @@ from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 import torch
-
 from beavr.lerobot.common.datasets.utils import Frame
-from beavr.lerobot.common.robot_devices.cameras.configs import CameraConfig, OpenCVCameraConfig
+from beavr.lerobot.common.robot_devices.cameras.configs import (
+    CameraConfig,
+    OpenCVCameraConfig,
+)
 from beavr.lerobot.common.robot_devices.cameras.opencv import OpenCVCamera
 from beavr.lerobot.common.robot_devices.robots.utils import Robot
-from beavr.teleop.common.messaging.handshake import HandshakeCoordinator, publish_with_guaranteed_delivery
+from beavr.teleop.common.messaging.handshake import (
+    HandshakeCoordinator,
+    publish_with_guaranteed_delivery,
+)
 from beavr.teleop.common.messaging.publisher import ZMQPublisherManager
 from beavr.teleop.common.messaging.vr import ZMQKeypointSubscriber
 from beavr.teleop.configs.constants import robots
@@ -20,7 +25,7 @@ class BeavrBot(Robot):
     BeavrBot is a robot adapter that can handle any combination of robots (arms, hands, etc.)
     based purely on configuration. No need to create new classes for each combo.
     """
-    
+
     def __init__(
         self,
         robot_configs: list[dict],
@@ -31,7 +36,7 @@ class BeavrBot(Robot):
         handshake_host: str = "127.0.0.1",
     ):
         """Initialize the multi-robot adapter.
-        
+
         Args:
             robot_configs: List of robot configuration dictionaries, each containing:
                 - name: Robot identifier (e.g., "right_xarm7", "leap")
@@ -48,18 +53,18 @@ class BeavrBot(Robot):
         """
         self.robot_type = robot_type
         self.robot_configs = robot_configs
-        
+
         # Create ZMQ subscribers for each robot
         self.robot_subscribers = {}
         self.robot_state_caches = {}
         self.robot_command_caches = {}
-        
+
         for config in robot_configs:
             name = config["name"]
             subscriber = ZMQKeypointSubscriber(
                 host=config["host"],
                 port=config["state_port"],
-                topic=config["state_topic"]
+                topic=config["state_topic"],
             )
             self.robot_subscribers[name] = subscriber
             self.robot_state_caches[name] = None
@@ -75,7 +80,7 @@ class BeavrBot(Robot):
 
         # Build features dynamically based on robot configs
         self.features = self._build_features()
-        
+
         self._is_connected = False
         self._leader_arms = {}
         self._follower_arms = {}
@@ -98,7 +103,6 @@ class BeavrBot(Robot):
                 )
                 continue
 
-
             self.home_publishers[r_name] = {
                 "host": cfg["host"],
                 "port": home_port,
@@ -108,7 +112,6 @@ class BeavrBot(Robot):
         # Pre-create PUB sockets so that subscribers can connect early
         for pub_info in self.home_publishers.values():
             self.pub_manager.get_publisher_thread(pub_info["host"], pub_info["port"])
-
 
         self.command_publishers: dict[str, dict] = {}
         for cfg in robot_configs:
@@ -131,7 +134,6 @@ class BeavrBot(Robot):
                 )
                 continue
 
-
             self.command_publishers[r_name] = {
                 "host": cfg["host"],
                 "port": pub_port,
@@ -147,7 +149,9 @@ class BeavrBot(Robot):
         }
 
         # Pre-bind teleop socket
-        self.pub_manager.get_publisher_thread(self.op_state_publish_info["host"], self.op_state_publish_info["port"])
+        self.pub_manager.get_publisher_thread(
+            self.op_state_publish_info["host"], self.op_state_publish_info["port"]
+        )
 
         # Thread pool for asynchronous publishing
         # We keep a small pool (<= #robots) so that PUB sends never block the
@@ -156,18 +160,17 @@ class BeavrBot(Robot):
 
         self._last_quaternions: dict[str, np.ndarray] = {}
         self.handshake_host = handshake_host
-        
+
         # Initialize handshake coordinator
         self.handshake_coordinator = HandshakeCoordinator.get_instance()
-        
+
         # Register subscribers for handshake coordination
         # These should be registered by the actual robot/operator instances
         # but we can provide a method to register them dynamically
 
-
     def _build_features(self) -> dict:
         """Build the features dictionary dynamically based on robot configurations.
-        
+
         The features are organized such that:
         - All arm joint states come first in the observation array
         - All hand joint states follow the arm states in the observation array
@@ -175,54 +178,56 @@ class BeavrBot(Robot):
         - All hand actions follow the arm actions in the action array
         """
         features = {}
-        
+
         # Sort configs to ensure arms come before hands
         arm_configs = [c for c in self.robot_configs if c["robot_type"] == "arm"]
         hand_configs = [c for c in self.robot_configs if c["robot_type"] == "hand"]
         sorted_configs = arm_configs + hand_configs
-        
+
         # Calculate total dimensions
         total_obs_dim = sum(c["joint_count"] for c in sorted_configs)
         total_action_dim = sum(7 if c["robot_type"] == "arm" else c["joint_count"] for c in sorted_configs)
-        
+
         # Build combined observation feature
         obs_names = []
         for config in sorted_configs:
             obs_names.extend([f"{config['name']}_joint_{i}" for i in range(config["joint_count"])])
-        
+
         features["observation.state"] = {
             "shape": (total_obs_dim,),
             "dtype": "float32",
             "names": obs_names,
         }
-        
+
         # Build combined action feature
         action_names = []
         for config in sorted_configs:
             if config["robot_type"] == "arm":
-                action_names.extend([f"{config['name']}_{dim}" for dim in ["x", "y", "z", "qx", "qy", "qz", "qw"]])
+                action_names.extend(
+                    [f"{config['name']}_{dim}" for dim in ["x", "y", "z", "qx", "qy", "qz", "qw"]]
+                )
             else:
                 action_names.extend([f"{config['name']}_cmd_{i}" for i in range(config["joint_count"])])
-        
+
         features["action"] = {
             "shape": (total_action_dim,),
             "dtype": "float32",
             "names": action_names,
         }
-        
+
         # Add camera features
         for name, camera in self.cameras.items():
-            if hasattr(camera, 'config'):
+            if hasattr(camera, "config"):
                 config = camera.config
                 features[f"observation.images.{name}"] = {
                     "shape": (config.height, config.width, config.channels),
                     "names": ["height", "width", "channels"],
-                    "info": None
+                    "info": None,
                 }
-        
+
         # Store the configs order for consistent array building
         self._sorted_configs = sorted_configs
-        
+
         return features
 
     @property
@@ -295,11 +300,11 @@ class BeavrBot(Robot):
     def _fetch_robot_states(self) -> dict:
         """Fetch latest state from all configured robots."""
         states = {}
-        
+
         for config in self.robot_configs:
             name = config["name"]
             subscriber = self.robot_subscribers[name]
-            
+
             try:
                 # Get the most recent data sample (subscriber stores the
                 # latest message internally and returns it on demand).
@@ -307,18 +312,18 @@ class BeavrBot(Robot):
 
                 if latest_data is not None:
                     self.robot_state_caches[name] = latest_data
-                    
+
                     # Cache command data if available
                     command_data = self._get_nested_value(latest_data, config["command_state_path"])
                     if command_data is not None:
                         self.robot_command_caches[name] = np.array(command_data, dtype=np.float32)
 
                 states[name] = self.robot_state_caches[name]
-                
+
             except Exception as e:
                 logging.error(f"Error fetching state for robot {name}: {e}")
                 states[name] = self.robot_state_caches[name]
-        
+
         return states
 
     def _fetch_image(self, camera_name: str) -> tuple[np.ndarray | None, float]:
@@ -333,7 +338,7 @@ class BeavrBot(Robot):
 
     def capture_observation(self) -> Frame:
         """Capture current state from all robots and cameras.
-        
+
         Returns a Frame with:
         - A single combined observation array containing all robot states
         - Camera images if available
@@ -347,12 +352,12 @@ class BeavrBot(Robot):
         # Build combined state array
         combined_state = []
         missing_robots: list[str] = []
-        
+
         # Process each robot's state in the sorted order (arms first, then hands)
         for config in self._sorted_configs:
             name = config["name"]
             robot_data = robot_states.get(name)
-            
+
             if robot_data is not None:
                 joint_data = self._get_nested_value(robot_data, config["joint_state_path"])
                 if joint_data is not None:
@@ -378,9 +383,7 @@ class BeavrBot(Robot):
 
         # Convert to torch tensor and store
         if combined_state:
-            observation["observation.state"] = torch.from_numpy(
-                np.array(combined_state, dtype=np.float32)
-            )
+            observation["observation.state"] = torch.from_numpy(np.array(combined_state, dtype=np.float32))
 
         # Add camera images
         for name in self.cameras:
@@ -392,7 +395,7 @@ class BeavrBot(Robot):
 
     def teleop_step(self, record_data=False) -> tuple[Frame | None, dict | None]:
         """Acquire one frame of teleoperation data from all robots.
-        
+
         Returns:
         - Frame with combined observation array
         - Dictionary with combined action array
@@ -405,12 +408,12 @@ class BeavrBot(Robot):
 
         # Build combined action array (raw, in native units)
         combined_action = []
-        
+
         # Process each robot's action in the sorted order (arms first, then hands)
         for config in self._sorted_configs:
             name = config["name"]
             command_cache = self.robot_command_caches.get(name)
-            
+
             if command_cache is not None:
                 combined_action.extend(command_cache)
             else:
@@ -432,13 +435,11 @@ class BeavrBot(Robot):
 
         return None, None
 
-
     def teleop_stop(self):
-        """Send a stop signal to all operators to pause teleoperation.
-        """
+        """Send a stop signal to all operators to pause teleoperation."""
         # Use guaranteed delivery for critical teleop stop
         registered_subscribers = self.handshake_coordinator.get_registered_subscribers()
-        
+
         success = publish_with_guaranteed_delivery(
             host=self.op_state_publish_info["host"],
             port=self.op_state_publish_info["port"],
@@ -446,9 +447,9 @@ class BeavrBot(Robot):
             data=robots.ARM_TELEOP_STOP,
             subscriber_ids=registered_subscribers,
             handshake_timeout=3.0,
-            require_all_acks=False  # Allow partial success for robustness
+            require_all_acks=False,  # Allow partial success for robustness
         )
-        
+
         if success:
             logging.info("Teleop stop acknowledged by subscribers")
         else:
@@ -463,13 +464,11 @@ class BeavrBot(Robot):
                 robots.ARM_TELEOP_STOP,
             )
 
-
     def teleop_resume(self):
-        """Send a resume signal to all operators to resume teleoperation.
-        """
+        """Send a resume signal to all operators to resume teleoperation."""
         # Use guaranteed delivery for critical teleop resume
         registered_subscribers = self.handshake_coordinator.get_registered_subscribers()
-        
+
         success = publish_with_guaranteed_delivery(
             host=self.op_state_publish_info["host"],
             port=self.op_state_publish_info["port"],
@@ -477,9 +476,9 @@ class BeavrBot(Robot):
             data=robots.ARM_TELEOP_CONT,
             subscriber_ids=registered_subscribers,
             handshake_timeout=3.0,
-            require_all_acks=False  # Allow partial success for robustness
+            require_all_acks=False,  # Allow partial success for robustness
         )
-        
+
         if success:
             logging.info("Teleop resume acknowledged by subscribers")
         else:
@@ -496,18 +495,18 @@ class BeavrBot(Robot):
 
     def register_handshake_subscriber(self, subscriber_id: str, host: str, port: int) -> None:
         """Register a subscriber for handshake coordination.
-        
+
         Args:
             subscriber_id: Unique identifier for the subscriber
-            host: Host address of the subscriber  
+            host: Host address of the subscriber
             port: Port number for handshake communication
         """
         self.handshake_coordinator.register_subscriber(subscriber_id, host, port)
         logging.info(f"Registered handshake subscriber '{subscriber_id}' at {host}:{port}")
-    
+
     def unregister_handshake_subscriber(self, subscriber_id: str) -> None:
         """Unregister a subscriber from handshake coordination.
-        
+
         Args:
             subscriber_id: Unique identifier of the subscriber to remove
         """
@@ -549,9 +548,7 @@ class BeavrBot(Robot):
 
         expected_dim = self.features["action"]["shape"][0]
         if action_np.size != expected_dim:
-            raise ValueError(
-                f"Action dim mismatch. Expected {expected_dim} values but got {action_np.size}."
-            )
+            raise ValueError(f"Action dim mismatch. Expected {expected_dim} values but got {action_np.size}.")
 
         # Slice and publish ---------------------------------------------------
         sent_segments = []
@@ -619,7 +616,12 @@ class BeavrBot(Robot):
                 pub_info["topic"],
                 payload,
             )
-            logging.debug("PUBLISH  → %s:%s %s", pub_info["host"], pub_info["port"], pub_info["topic"])
+            logging.debug(
+                "PUBLISH  → %s:%s %s",
+                pub_info["host"],
+                pub_info["port"],
+                pub_info["topic"],
+            )
         except Exception as e:
             logging.error(
                 "Async publish error to tcp://%s:%s topic '%s': %s",

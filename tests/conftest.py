@@ -79,17 +79,17 @@ class FakeHandshakeCoordinator:
             del self._servers[subscriber_id]
 
     @classmethod
-    def get_instance(cls, context: Any = None) -> 'FakeHandshakeCoordinator':
+    def get_instance(cls, context: Any = None) -> "FakeHandshakeCoordinator":
         """Mock singleton getter."""
-        if not hasattr(cls, '_instance'):
+        if not hasattr(cls, "_instance"):
             cls._instance = cls()
         return cls._instance
 
     @classmethod
     def cleanup_all(cls) -> None:
         """Mock cleanup."""
-        if hasattr(cls, '_instance'):
-            delattr(cls, '_instance')
+        if hasattr(cls, "_instance"):
+            delattr(cls, "_instance")
 
 
 class FakeZMQSubscriber:
@@ -143,11 +143,19 @@ def _patch_messaging_layer(monkeypatch):
     def _fake_get_instance(context: Any = None):
         return fake_manager
 
-    monkeypatch.setattr(pub_mod.ZMQPublisherManager, "get_instance", classmethod(lambda cls, context=None: fake_manager))
+    monkeypatch.setattr(
+        pub_mod.ZMQPublisherManager,
+        "get_instance",
+        classmethod(lambda cls, context=None: fake_manager),
+    )
 
     # Patch HandshakeCoordinator
     fake_handshake = FakeHandshakeCoordinator()
-    monkeypatch.setattr(handshake_mod.HandshakeCoordinator, "get_instance", classmethod(lambda cls, context=None: fake_handshake))
+    monkeypatch.setattr(
+        handshake_mod.HandshakeCoordinator,
+        "get_instance",
+        classmethod(lambda cls, context=None: fake_handshake),
+    )
 
     # Patch ZMQSubscriber symbol in modules that import it directly
     monkeypatch.setattr(
@@ -172,5 +180,3 @@ def _patch_messaging_layer(monkeypatch):
 @pytest.fixture
 def bus() -> InMemoryBus:
     return _TEST_BUS
-
-

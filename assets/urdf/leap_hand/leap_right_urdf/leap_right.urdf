@@ -146,7 +146,7 @@
 <parent link="pip" />
 <child link="dip" />
 <axis xyz="0 0 -1"/>
-<limit effort="0.95" velocity="8.48" lower = "-0.506" upper = "1.885"/>  
+<limit effort="0.95" velocity="8.48" lower = "-0.506" upper = "1.885"/>
 <joint_properties friction="0.0"/>
 </joint>
 
@@ -155,7 +155,7 @@
 <parent link="dip" />
 <child link="fingertip" />
 <axis xyz="0 0 -1"/>
-<limit effort="0.95" velocity="8.48" lower = "-0.366" upper = "2.042"/>   
+<limit effort="0.95" velocity="8.48" lower = "-0.366" upper = "2.042"/>
 <joint_properties friction="0.0"/>
 </joint>
 
@@ -274,7 +274,7 @@
 <parent link="pip_2" />
 <child link="dip_2" />
 <axis xyz="0 0 -1"/>
-<limit effort="0.95" velocity="8.48" lower = "-0.506" upper = "1.885"/>  
+<limit effort="0.95" velocity="8.48" lower = "-0.506" upper = "1.885"/>
 <joint_properties friction="0.0"/>
 </joint>
 
@@ -283,7 +283,7 @@
 <parent link="dip_2" />
 <child link="fingertip_2" />
 <axis xyz="0 0 -1"/>
-<limit effort="0.95" velocity="8.48" lower = "-0.366" upper = "2.042"/>   
+<limit effort="0.95" velocity="8.48" lower = "-0.366" upper = "2.042"/>
 <joint_properties friction="0.0"/>
 </joint>
 
@@ -402,7 +402,7 @@
 <parent link="pip_3" />
 <child link="dip_3" />
 <axis xyz="0 0 -1"/>
-<limit effort="0.95" velocity="8.48" lower = "-0.506" upper = "1.885"/>  
+<limit effort="0.95" velocity="8.48" lower = "-0.506" upper = "1.885"/>
 <joint_properties friction="0.0"/>
 </joint>
 
@@ -411,7 +411,7 @@
 <parent link="dip_3" />
 <child link="fingertip_3" />
 <axis xyz="0 0 -1"/>
-<limit effort="0.95" velocity="8.48" lower = "-0.366" upper = "2.042"/>   
+<limit effort="0.95" velocity="8.48" lower = "-0.366" upper = "2.042"/>
 <joint_properties friction="0.0"/>
 </joint>
 
@@ -512,7 +512,7 @@
 <parent link="palm_lower" />
 <child link="pip_4" />
 <axis xyz="0 0 -1"/>
-<limit effort="0.95" velocity="8.48" lower = "-0.349" upper = "2.094"/> 
+<limit effort="0.95" velocity="8.48" lower = "-0.349" upper = "2.094"/>
 <joint_properties friction="0.0"/>
 </joint>
 
@@ -521,7 +521,7 @@
 <parent link="pip_4" />
 <child link="thumb_pip" />
 <axis xyz="0 0 -1"/>
-<limit effort="0.95" velocity="8.48" lower = "-0.47" upper = "2.443"/> 
+<limit effort="0.95" velocity="8.48" lower = "-0.47" upper = "2.443"/>
 <joint_properties friction="0.0"/>
 </joint>
 
@@ -530,7 +530,7 @@
 <parent link="thumb_pip" />
 <child link="thumb_dip" />
 <axis xyz="0 0 -1"/>
-<limit effort="0.95" velocity="8.48" lower = "-1.20" upper = "1.90"/> 
+<limit effort="0.95" velocity="8.48" lower = "-1.20" upper = "1.90"/>
 <joint_properties friction="0.0"/>
 </joint>
 
@@ -539,7 +539,7 @@
 <parent link="thumb_dip"/>
 <child link="thumb_fingertip" />
 <axis xyz="0 0 -1"/>
-<limit effort="0.95" velocity="8.48" lower = "-1.34" upper = "1.88"/> 
+<limit effort="0.95" velocity="8.48" lower = "-1.34" upper = "1.88"/>
 <joint_properties friction="0.0"/>
 </joint>
 

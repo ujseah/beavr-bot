@@ -52,16 +52,19 @@ import jax
 import numpy as np
 import orbax.checkpoint as ocp
 import torch
-from jax.sharding import SingleDeviceSharding
-
 from beavr.lerobot.common.policies.pi0.configuration_pi0 import PI0Config
 from beavr.lerobot.common.policies.pi0.conversion_scripts.conversion_utils import (
     get_gemma_config,
     get_paligemma_config,
 )
 from beavr.lerobot.common.policies.pi0.modeling_pi0 import PI0Policy
+from jax.sharding import SingleDeviceSharding
 
-PRECISIONS = {"bfloat16": torch.bfloat16, "float32": torch.float32, "float16": torch.float16}
+PRECISIONS = {
+    "bfloat16": torch.bfloat16,
+    "float32": torch.float32,
+    "float16": torch.float16,
+}
 
 
 def slice_paligemma_state_dict(state_dict, config):

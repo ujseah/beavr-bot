@@ -152,7 +152,10 @@ from beavr.lerobot.common.robot_devices.control_utils import (
     stop_recording,
     warmup_record,
 )
-from beavr.lerobot.common.robot_devices.robots.utils import Robot, make_robot_from_config
+from beavr.lerobot.common.robot_devices.robots.utils import (
+    Robot,
+    make_robot_from_config,
+)
 from beavr.lerobot.common.robot_devices.utils import busy_wait, safe_disconnect
 from beavr.lerobot.common.utils.utils import init_logging, log_say
 from beavr.lerobot.configs import parser
@@ -162,6 +165,7 @@ from beavr.lerobot.configs import parser
 ########################################################################################
 
 _teleop_processes: list[multiprocessing.Process] | None = None  # Populated at runtime
+
 
 def start_teleop_process(
     *,
@@ -260,6 +264,7 @@ def start_teleop_process(
         finally:
             stop_teleop_process()
 
+
 def stop_teleop_process():
     """Terminate the TeleOperator's child processes if they are active."""
     global _teleop_processes
@@ -270,6 +275,7 @@ def stop_teleop_process():
                 p.terminate()
                 p.join(timeout=2)
         _teleop_processes = None
+
 
 @safe_disconnect
 def teleoperate():
@@ -321,7 +327,14 @@ def record(
         # 3. place the cameras windows on screen
         enable_teleoperation = policy is None
         log_say("Warmup record", cfg.play_sounds)
-        warmup_record(robot, events, enable_teleoperation, cfg.warmup_time_s, cfg.display_data, cfg.fps)
+        warmup_record(
+            robot,
+            events,
+            enable_teleoperation,
+            cfg.warmup_time_s,
+            cfg.display_data,
+            cfg.fps,
+        )
 
         recorded_episodes = 0
         while True:
@@ -416,9 +429,7 @@ def control_robot(cfg: ControlPipelineConfig):
             robot_name=getattr(cfg.teleop, "robot_name", None),
             operate=getattr(cfg.teleop, "operate", None),
         )
-        logging.info(
-            "Waiting 5s for teleoperation system to initialize before robot connection..."
-        )
+        logging.info("Waiting 5s for teleoperation system to initialize before robot connection...")
         # TODO: Improve this logic shouldn't need sleep
         time.sleep(5)
 

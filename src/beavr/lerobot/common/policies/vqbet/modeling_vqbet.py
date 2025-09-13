@@ -25,13 +25,16 @@ import numpy as np
 import torch
 import torch.nn.functional as F  # noqa: N812
 import torchvision
-from torch import Tensor, nn
-
 from beavr.lerobot.common.policies.normalize import Normalize, Unnormalize
 from beavr.lerobot.common.policies.pretrained import PreTrainedPolicy
-from beavr.lerobot.common.policies.utils import get_device_from_parameters, get_output_shape, populate_queues
+from beavr.lerobot.common.policies.utils import (
+    get_device_from_parameters,
+    get_output_shape,
+    populate_queues,
+)
 from beavr.lerobot.common.policies.vqbet.configuration_vqbet import VQBeTConfig
 from beavr.lerobot.common.policies.vqbet.vqbet_utils import GPT, ResidualVQ
+from torch import Tensor, nn
 
 # ruff: noqa: N806
 
@@ -167,9 +170,12 @@ class VQBeTPolicy(PreTrainedPolicy):
             # loss: total loss of training RVQ
             # n_different_codes: how many of the total possible VQ codes are being used in single batch (how many of them have at least one encoder embedding as a nearest neighbor). This can be at most `vqvae_n_embed * number of layers of RVQ (=2)`.
             # n_different_combinations: how many different code combinations are being used out of all possible combinations in single batch. This can be at most `vqvae_n_embed ^ number of layers of RVQ (=2)` (hint consider the RVQ as a decision tree).
-            loss, n_different_codes, n_different_combinations, recon_l1_error = (
-                self.vqbet.action_head.discretize(self.config.n_vqvae_training_steps, batch["action"])
-            )
+            (
+                loss,
+                n_different_codes,
+                n_different_combinations,
+                recon_l1_error,
+            ) = self.vqbet.action_head.discretize(self.config.n_vqvae_training_steps, batch["action"])
             return loss, {
                 "n_different_codes": n_different_codes,
                 "n_different_combinations": n_different_combinations,
@@ -324,7 +330,8 @@ class VQBeTModel(nn.Module):
 
         # To input state and observation features into GPT layers, we first project the features to fit the shape of input size of GPT.
         self.state_projector = MLP(
-            config.robot_state_feature.shape[0], hidden_channels=[self.config.gpt_input_dim]
+            config.robot_state_feature.shape[0],
+            hidden_channels=[self.config.gpt_input_dim],
         )
         self.rgb_feature_projector = MLP(
             self.rgb_encoder.feature_dim, hidden_channels=[self.config.gpt_input_dim]
@@ -354,7 +361,11 @@ class VQBeTModel(nn.Module):
         )
         # Separate batch and sequence dims.
         img_features = einops.rearrange(
-            img_features, "(b s n) ... -> b s n ...", b=batch_size, s=n_obs_steps, n=self.num_images
+            img_features,
+            "(b s n) ... -> b s n ...",
+            b=batch_size,
+            s=n_obs_steps,
+            n=self.num_images,
         )
 
         # Arrange prior and current observation step tokens as shown in the class docstring.
@@ -391,7 +402,11 @@ class VQBeTModel(nn.Module):
         # Thus, it predicts a historical action sequence, in addition to current and future actions (predicting future actions : optional).
         if len_additional_action_token > 0:
             features = torch.cat(
-                [features[:, historical_act_pred_index], features[:, -len_additional_action_token:]], dim=1
+                [
+                    features[:, historical_act_pred_index],
+                    features[:, -len_additional_action_token:],
+                ],
+                dim=1,
             )
         else:
             features = features[:, historical_act_pred_index]
@@ -514,7 +529,13 @@ class VQBeTHead(nn.Module):
 
             cbet_secondary_logits = self.map_to_cbet_preds_secondary_bin(
                 torch.cat(
-                    (x, F.one_hot(sampled_primary_centers, num_classes=self.config.vqvae_n_embed)),
+                    (
+                        x,
+                        F.one_hot(
+                            sampled_primary_centers,
+                            num_classes=self.config.vqvae_n_embed,
+                        ),
+                    ),
                     axis=1,
                 )
             )
@@ -532,7 +553,9 @@ class VQBeTHead(nn.Module):
         else:
             cbet_logits = self.map_to_cbet_preds_bin(x)
             cbet_logits = einops.rearrange(
-                cbet_logits, "(NT) (G C) -> (NT) G C", G=self.vqvae_model.vqvae_num_layers
+                cbet_logits,
+                "(NT) (G C) -> (NT) G C",
+                G=self.vqvae_model.vqvae_num_layers,
             )
             cbet_probs = torch.softmax(cbet_logits / self.config.bet_softmax_temperature, dim=-1)
             NT, G, choices = cbet_probs.shape
@@ -730,7 +753,9 @@ class VQBeTRgbEncoder(nn.Module):
 
 
 def _replace_submodules(
-    root_module: nn.Module, predicate: Callable[[nn.Module], bool], func: Callable[[nn.Module], nn.Module]
+    root_module: nn.Module,
+    predicate: Callable[[nn.Module], bool],
+    func: Callable[[nn.Module], nn.Module],
 ) -> nn.Module:
     """
     Args:

@@ -20,7 +20,6 @@ from pathlib import Path
 
 import cv2
 import zmq
-
 from beavr.lerobot.common.robot_devices.robots.mobile_manipulator import LeKiwi
 
 
@@ -61,7 +60,9 @@ def calibrate_follower_arm(motors_bus, calib_dir_str):
     calib_dir.mkdir(parents=True, exist_ok=True)
     calib_file = calib_dir / "main_follower.json"
     try:
-        from beavr.lerobot.common.robot_devices.robots.feetech_calibration import run_arm_manual_calibration
+        from beavr.lerobot.common.robot_devices.robots.feetech_calibration import (
+            run_arm_manual_calibration,
+        )
     except ImportError:
         print("[WARNING] Calibration function not available. Skipping calibration.")
         return
@@ -93,8 +94,13 @@ def run_lekiwi(robot_config):
       - Processes incoming commands (arm and wheel commands) and sends back sensor and camera data.
     """
     # Import helper functions and classes
-    from beavr.lerobot.common.robot_devices.cameras.utils import make_cameras_from_configs
-    from beavr.lerobot.common.robot_devices.motors.feetech import FeetechMotorsBus, TorqueMode
+    from beavr.lerobot.common.robot_devices.cameras.utils import (
+        make_cameras_from_configs,
+    )
+    from beavr.lerobot.common.robot_devices.motors.feetech import (
+        FeetechMotorsBus,
+        TorqueMode,
+    )
 
     # Initialize cameras from the robot configuration.
     cameras = make_cameras_from_configs(robot_config.cameras)
@@ -116,7 +122,14 @@ def run_lekiwi(robot_config):
     robot = LeKiwi(motors_bus)
 
     # Define the expected arm motor IDs.
-    arm_motor_ids = ["shoulder_pan", "shoulder_lift", "elbow_flex", "wrist_flex", "wrist_roll", "gripper"]
+    arm_motor_ids = [
+        "shoulder_pan",
+        "shoulder_lift",
+        "elbow_flex",
+        "wrist_flex",
+        "wrist_roll",
+        "gripper",
+    ]
 
     # Disable torque for each arm motor.
     for motor in arm_motor_ids:
@@ -130,7 +143,9 @@ def run_lekiwi(robot_config):
     images_lock = threading.Lock()
     stop_event = threading.Event()
     cam_thread = threading.Thread(
-        target=run_camera_capture, args=(cameras, images_lock, latest_images_dict, stop_event), daemon=True
+        target=run_camera_capture,
+        args=(cameras, images_lock, latest_images_dict, stop_event),
+        daemon=True,
     )
     cam_thread.start()
 

@@ -80,4 +80,4 @@ def instantiate_from_target(cfg: Any):
     # Recursively instantiate nested structures
     params = {k: instantiate_from_target(v) for k, v in cfg_dict.items()}
 
-    return cls(**params) 
+    return cls(**params)

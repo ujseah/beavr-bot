@@ -4,8 +4,6 @@ from copy import deepcopy as copy
 from typing import Any, Dict, Optional
 
 import numpy as np
-from scipy.spatial.transform import Rotation
-
 from beavr.teleop.common.logging.logger import PoseLogger
 from beavr.teleop.common.messaging.handshake import HandshakeCoordinator
 from beavr.teleop.common.messaging.publisher import ZMQPublisherManager
@@ -16,12 +14,17 @@ from beavr.teleop.common.messaging.utils import (
 )
 from beavr.teleop.common.messaging.vr.subscribers import ZMQSubscriber
 from beavr.teleop.common.time.timer import FrequencyTimer
-from beavr.teleop.components.detector.detector_types import ButtonEvent, InputFrame, SessionCommand
+from beavr.teleop.components.detector.detector_types import (
+    ButtonEvent,
+    InputFrame,
+    SessionCommand,
+)
 from beavr.teleop.components.interface.interface_types import CartesianState
 from beavr.teleop.components.operator import CartesianTarget
 from beavr.teleop.components.operator.operator_base import Operator
 from beavr.teleop.components.operator.solvers.filters import CompStateFilter
 from beavr.teleop.configs.constants import robots
+from scipy.spatial.transform import Rotation
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +36,7 @@ class XArmOperator(Operator):
     Specific arm configurations (e.g., left/right) should inherit from this class
     and provide the appropriate transformation matrices.
     """
+
     def __init__(
         self,
         operator_name: str,
@@ -43,8 +47,8 @@ class XArmOperator(Operator):
         endeff_publish_port: int,
         endeff_subscribe_port: int,
         moving_average_limit: int,
-        h_r_v: np.ndarray, # Transformation matrix Robot base to VR base
-        h_t_v: np.ndarray, # Transformation matrix Hand Tracking base to VR base
+        h_r_v: np.ndarray,  # Transformation matrix Robot base to VR base
+        h_t_v: np.ndarray,  # Transformation matrix Hand Tracking base to VR base
         use_filter: bool = True,
         arm_resolution_port: Optional[int] = None,
         teleoperation_state_port: Optional[int] = None,
@@ -83,13 +87,13 @@ class XArmOperator(Operator):
 
         # Initialize ZMQ context and subscribers
         self._context = get_global_context()
-        
+
         # Determine the correct topic based on hand side
         if hand_side == robots.RIGHT:
             frame_topic = f"{robots.RIGHT}_{robots.TRANSFORMED_HAND_FRAME}"
         else:  # LEFT
             frame_topic = f"{robots.LEFT}_{robots.TRANSFORMED_HAND_FRAME}"
-        
+
         # Receives InputFrame objects containing frame vectors
         self._arm_transformed_keypoint_subscriber = ZMQSubscriber(
             host=host,
@@ -105,7 +109,7 @@ class XArmOperator(Operator):
             self._arm_resolution_subscriber = ZMQSubscriber(
                 host=host,
                 port=arm_resolution_port,
-                topic='button',
+                topic="button",
                 context=self._context,
                 message_type=ButtonEvent,
             )
@@ -115,7 +119,7 @@ class XArmOperator(Operator):
             self._arm_teleop_state_subscriber = ZMQSubscriber(
                 host=host,
                 port=teleoperation_state_port,
-                topic='pause',
+                topic="pause",
                 context=self._context,
                 message_type=SessionCommand,
             )
@@ -124,15 +128,15 @@ class XArmOperator(Operator):
         self.endeff_homo_subscriber = ZMQSubscriber(
             host=host,
             port=endeff_subscribe_port,
-            topic='endeff_homo',
+            topic="endeff_homo",
             context=self._context,
             message_type=CartesianState,
         )
 
         self._subscribers = {
-            'endeff_homo': self.endeff_homo_subscriber,
-            'teleop_state': self._arm_teleop_state_subscriber,
-            'resolution_scale': self._arm_resolution_subscriber
+            "endeff_homo": self.endeff_homo_subscriber,
+            "teleop_state": self._arm_teleop_state_subscriber,
+            "resolution_scale": self._arm_resolution_subscriber,
         }
 
         # Using the centralized publisher manager
@@ -148,8 +152,8 @@ class XArmOperator(Operator):
         self.resolution_scale = 1.0
         self.is_first_frame = True
         self._timer = FrequencyTimer(robots.VR_FREQ)
-        self._robot = None # Placeholder for potential robot interface object
-        self.real = False # Placeholder, potentially indicating simulation vs real robot
+        self._robot = None  # Placeholder for potential robot interface object
+        self.real = False  # Placeholder, potentially indicating simulation vs real robot
 
         # Transformation matrices state
         self.robot_init_h: Optional[np.ndarray] = None
@@ -157,7 +161,7 @@ class XArmOperator(Operator):
         self.hand_init_h: Optional[np.ndarray] = None
         self.hand_moving_h: Optional[np.ndarray] = None
         self.hand_init_t: Optional[np.ndarray] = None
-        self.last_valid_hand_frame: Optional[np.ndarray] = None # Cache for last received hand frame
+        self.last_valid_hand_frame: Optional[np.ndarray] = None  # Cache for last received hand frame
 
         # Filter setup
         self.use_filter = use_filter
@@ -166,7 +170,7 @@ class XArmOperator(Operator):
         # Moving average setup (Currently unused in _apply_retargeted_angles)
         self.moving_average_queue = []
         self.moving_average_limit = moving_average_limit
-        self.hand_frames = [] # Potentially redundant with moving_average_queue
+        self.hand_frames = []  # Potentially redundant with moving_average_queue
 
         # Separate moving average limits for position and orientation (Currently unused)
         self.orientation_average_limit = min(10, moving_average_limit * 2)
@@ -184,26 +188,27 @@ class XArmOperator(Operator):
 
         if self.logging_enabled:
             log_filename = self.logging_config.get("filename", f"{self.operator_name}_poses.csv")
-            logger.info(f"Initializing pose logger for {self.operator_name} with config: {self.logging_config}")
-            self.pose_logger = PoseLogger(filename=log_filename) # Pass filename if specified
+            logger.info(
+                f"Initializing pose logger for {self.operator_name} with config: {self.logging_config}"
+            )
+            self.pose_logger = PoseLogger(filename=log_filename)  # Pass filename if specified
         else:
             self.pose_logger = None
 
-        
         # Initialize handshake coordination for this operator
         self._handshake_coordinator = HandshakeCoordinator.get_instance()
         self._handshake_server_id = f"{operator_name}_handshake"
-        
+
         # Start handshake server for this operator with unique port
         # Use operator name hash to avoid port conflicts
         operator_port_offset = hash(operator_name) % 100
         handshake_port = robots.TELEOP_HANDSHAKE_PORT + operator_port_offset
-        
+
         try:
             self._handshake_coordinator.start_server(
                 subscriber_id=self._handshake_server_id,
                 bind_host="*",
-                port=handshake_port
+                port=handshake_port,
             )
             logger.info(f"Handshake server started for {operator_name} on port {handshake_port}")
         except Exception as e:
@@ -261,7 +266,7 @@ class XArmOperator(Operator):
             except Exception as e:
                 logger.error(f"Error processing InputFrame data: {e}")
                 # Fall through to return cached frame if processing fails
-        
+
         # If no new data or processing failed, return the cached frame if it exists
         if self.last_valid_hand_frame is not None:
             logger.info(f"No new data, returning cached frame: {self.last_valid_hand_frame}")
@@ -281,9 +286,9 @@ class XArmOperator(Operator):
             A 4x4 homogeneous transformation matrix.
         """
         if frame is None or frame.shape != (4, 3):
-             raise ValueError("Input frame must be a 4x3 numpy array.")
+            raise ValueError("Input frame must be a 4x3 numpy array.")
         t = frame[0]
-        r_cols = frame[1:] # Shape (3, 3), columns of rotation matrix
+        r_cols = frame[1:]  # Shape (3, 3), columns of rotation matrix
 
         homo_mat = np.eye(4)
         # The frame stores columns of R, so transpose r_cols to get R
@@ -306,7 +311,7 @@ class XArmOperator(Operator):
         t = homo_mat[:3, 3]
         # Ensure the rotation matrix is valid before converting to quaternion
         r_mat = self.project_to_rotation_matrix(homo_mat[:3, :3])
-        r_quat = Rotation.from_matrix(r_mat).as_quat() # [qx, qy, qz, qw]
+        r_quat = Rotation.from_matrix(r_mat).as_quat()  # [qx, qy, qz, qw]
 
         cart = np.concatenate([t, r_quat], axis=0)
         return cart
@@ -328,11 +333,11 @@ class XArmOperator(Operator):
         # Normalize quaternion before converting to matrix
         quat = cart[3:]
         norm = np.linalg.norm(quat)
-        if norm > 1e-6: # Avoid division by zero
-             quat /= norm
+        if norm > 1e-6:  # Avoid division by zero
+            quat /= norm
         else:
-             # Handle zero quaternion case (e.g., default to identity rotation)
-             quat = np.array([0.0, 0.0, 0.0, 1.0])
+            # Handle zero quaternion case (e.g., default to identity rotation)
+            quat = np.array([0.0, 0.0, 0.0, 1.0])
 
         r_mat = Rotation.from_quat(quat).as_matrix()
         homo[:3, 3] = t
@@ -356,13 +361,13 @@ class XArmOperator(Operator):
 
             # Ensure determinant is +1 (no reflection)
             if np.linalg.det(r_fixed) < 0:
-                vt[-1, :] *= -1 # Flip the sign of the last row of Vt
+                vt[-1, :] *= -1  # Flip the sign of the last row of Vt
                 # Note: Adjusting Vt is generally preferred over U for fixing determinant
-                r_fixed = u @ vt # Recalculate R
+                r_fixed = u @ vt  # Recalculate R
             return r_fixed
         except np.linalg.LinAlgError:
-             logger.warning("SVD did not converge. Returning identity matrix.")
-             return np.eye(3) # Fallback
+            logger.warning("SVD did not converge. Returning identity matrix.")
+            return np.eye(3)  # Fallback
 
     def _get_resolution_scale_mode(self) -> float:
         """Gets the resolution scale mode from the subscriber."""
@@ -383,10 +388,10 @@ class XArmOperator(Operator):
                 self.resolution_scale = 1.0
             elif scale_mode == robots.ARM_LOW_RESOLUTION:
                 self.resolution_scale = 0.6
-            return self.resolution_scale # Return the updated scale
+            return self.resolution_scale  # Return the updated scale
         except Exception as e:
             logger.error(f"Error processing resolution scale data: {e}")
-            return self.resolution_scale # Return current scale on error
+            return self.resolution_scale  # Return current scale on error
 
     def _get_arm_teleop_state(self) -> int:
         """Gets the arm teleoperation state (STOP/CONT) from the subscriber."""
@@ -397,7 +402,7 @@ class XArmOperator(Operator):
         # Use NOBLOCK to avoid waiting
         data = self._arm_teleop_state_subscriber.recv_keypoints()
         if data is None:
-            return self.arm_teleop_state # Return current state if no new message
+            return self.arm_teleop_state  # Return current state if no new message
         try:
             # Expect SessionCommand
             if data.command == robots.PAUSE:
@@ -408,7 +413,7 @@ class XArmOperator(Operator):
                 return self.arm_teleop_state
 
         except Exception:
-            return self.arm_teleop_state # Return current state on error
+            return self.arm_teleop_state  # Return current state on error
 
     # ------------------------------
     # Teleop reset logic
@@ -422,40 +427,42 @@ class XArmOperator(Operator):
             The initial moving hand frame (4x3) captured after reset, or None on failure.
         """
 
-        logger.info(f'****** {self.operator_name}: RESETTING TELEOP ******')
+        logger.info(f"****** {self.operator_name}: RESETTING TELEOP ******")
         # Request robot's current pose using a typed contract
         self._publisher_manager.publish(
             host=self._publisher_host,
             port=self._publisher_port,
-            topic='reset',
+            topic="reset",
             data=SessionCommand(timestamp_s=time.time(), command="reset"),
         )
         robot_frame_homo = self.endeff_homo_subscriber.recv_keypoints()
-        
+
         # Keep trying until we get a response
         while robot_frame_homo is None:
             self._publisher_manager.publish(
                 host=self._publisher_host,
                 port=self._publisher_port,
-                topic='reset',
+                topic="reset",
                 data=SessionCommand(timestamp_s=time.time(), command="reset"),
             )
             robot_frame_homo = self.endeff_homo_subscriber.recv_keypoints()
             time.sleep(0.01)
-        
+
         try:
             h = np.array(robot_frame_homo.h_matrix, dtype=np.float64).reshape(4, 4)
             self.robot_init_h = h
             # Validate if it's close to a homogeneous matrix
             if not np.allclose(self.robot_init_h[3, :], [0, 0, 0, 1]):
-                 logger.warning(f"Warning ({self.operator_name}): Received robot frame is not a valid homogeneous matrix. Resetting bottom row.")
-                 self.robot_init_h[3, :] = [0, 0, 0, 1]
+                logger.warning(
+                    f"Warning ({self.operator_name}): Received robot frame is not a valid homogeneous matrix. Resetting bottom row."
+                )
+                self.robot_init_h[3, :] = [0, 0, 0, 1]
             # Ensure rotation part is valid SO(3)
             self.robot_init_h[:3, :3] = self.project_to_rotation_matrix(self.robot_init_h[:3, :3])
 
         except Exception as e:
             logger.error(f"ERROR ({self.operator_name}): Failed to process received robot frame: {e}")
-            self.is_first_frame = True # Stay in reset state
+            self.is_first_frame = True  # Stay in reset state
             return None
 
         self.robot_moving_h = copy(self.robot_init_h)
@@ -468,18 +475,18 @@ class XArmOperator(Operator):
 
         try:
             self.hand_init_h = self._turn_frame_to_homo_mat(first_hand_frame)
-            self.hand_init_t = copy(self.hand_init_h[:3, 3]) # Store initial hand translation
+            self.hand_init_t = copy(self.hand_init_h[:3, 3])  # Store initial hand translation
             logger.info(f"{self.operator_name} Hand init H:\n{self.hand_init_h}")
         except ValueError as e:
-             logger.error(f"ERROR ({self.operator_name}): Failed to convert initial hand frame to matrix: {e}")
-             self.is_first_frame = True # Stay in reset state
-             return None
+            logger.error(f"ERROR ({self.operator_name}): Failed to convert initial hand frame to matrix: {e}")
+            self.is_first_frame = True  # Stay in reset state
+            return None
 
-        self.is_first_frame = False # Reset successful
-        self.comp_filter = None # Reset filter, will be initialized on first _apply call
+        self.is_first_frame = False  # Reset successful
+        self.comp_filter = None  # Reset filter, will be initialized on first _apply call
         logger.info(f"{self.operator_name}: TELEOP RESET COMPLETE")
         logger.info(f"[{self.operator_name}] hand_init_h\n{self.hand_init_h}")
-        return first_hand_frame # Return the frame used for initialization
+        return first_hand_frame  # Return the frame used for initialization
 
     # ------------------------------
     # Main teleop: transforms
@@ -518,24 +525,25 @@ class XArmOperator(Operator):
 
         # 1. Check for state changes (Pause/Resume, Resolution)
         new_arm_teleop_state = self._get_arm_teleop_state()
-        self.resolution_scale = self._get_resolution_scale_mode() # Update resolution scale
+        self.resolution_scale = self._get_resolution_scale_mode()  # Update resolution scale
 
         # Determine if a reset is needed
-        needs_reset = self.is_first_frame or \
-                      (self.arm_teleop_state == robots.ARM_TELEOP_STOP and new_arm_teleop_state == robots.ARM_TELEOP_CONT)
+        needs_reset = self.is_first_frame or (
+            self.arm_teleop_state == robots.ARM_TELEOP_STOP and new_arm_teleop_state == robots.ARM_TELEOP_CONT
+        )
 
         # Update state *after* checking for transition
         self.arm_teleop_state = new_arm_teleop_state
 
         # Decide whether we should publish commands this cycle
-        publish_commands = (self.arm_teleop_state == robots.ARM_TELEOP_CONT)
+        publish_commands = self.arm_teleop_state == robots.ARM_TELEOP_CONT
 
         # 2. Handle Reset Condition
         if needs_reset:
             moving_hand_frame = self._reset_teleop()
             if moving_hand_frame is None:
                 logger.error(f"ERROR ({self.operator_name}): Reset failed, cannot proceed.")
-                return # Exit if reset failed
+                return  # Exit if reset failed
             # Reset is done, is_first_frame is now False
         else:
             # 3. Get Current Hand Frame (if not resetting)
@@ -548,23 +556,25 @@ class XArmOperator(Operator):
 
         # Ensure initial robot/hand poses are set (should be handled by reset)
         if self.robot_init_h is None or self.hand_init_h is None:
-             logger.error(f"ERROR ({self.operator_name}): Initial robot or hand poses not set. Triggering reset.")
-             self.is_first_frame = True # Force reset on next cycle
-             return
+            logger.error(
+                f"ERROR ({self.operator_name}): Initial robot or hand poses not set. Triggering reset."
+            )
+            self.is_first_frame = True  # Force reset on next cycle
+            return
 
         # 4. Convert current hand frame to Homogeneous Matrix
         try:
             self.hand_moving_h = self._turn_frame_to_homo_mat(moving_hand_frame)
         except ValueError as e:
             logger.error(f"Error ({self.operator_name}): Could not convert moving hand frame: {e}")
-            return # Skip cycle if conversion fails
+            return  # Skip cycle if conversion fails
 
         # 5. Calculate Relative Transformation
         # H_HT_HI = H_HI_HH^-1 * H_HT_HH
         # Use solve for potentially better numerical stability than inv
         try:
-            h_hi_hh_inv = np.linalg.inv(self.hand_init_h) # Inverse of initial hand pose
-            h_ht_hi = h_hi_hh_inv @ self.hand_moving_h # Relative motion of hand w.r.t its start pose
+            h_hi_hh_inv = np.linalg.inv(self.hand_init_h)  # Inverse of initial hand pose
+            h_ht_hi = h_hi_hh_inv @ self.hand_moving_h  # Relative motion of hand w.r.t its start pose
             # Alternative using solve: H_HT_HI = np.linalg.solve(self.hand_init_H, self.hand_moving_H)
         except np.linalg.LinAlgError:
             logger.error(f"Error ({self.operator_name}): Could not invert initial hand matrix. Resetting.")
@@ -586,10 +596,10 @@ class XArmOperator(Operator):
             h_t_v_inv = np.linalg.inv(self.h_t_v)
 
             # Transform rotation part: Apply rotation from H_R_V inverse, then relative hand rotation, then H_R_V
-            h_ht_hi_r = h_r_v_inv[:3,:3] @ h_ht_hi[:3,:3] @ self.h_r_v[:3,:3]
+            h_ht_hi_r = h_r_v_inv[:3, :3] @ h_ht_hi[:3, :3] @ self.h_r_v[:3, :3]
             # Transform translation part: Apply H_T_V inverse to relative hand translation
             # Scale translation by resolution_scale
-            h_ht_hi_t = h_t_v_inv[:3,:3] @ h_ht_hi[:3, 3] * self.resolution_scale
+            h_ht_hi_t = h_t_v_inv[:3, :3] @ h_ht_hi[:3, 3] * self.resolution_scale
 
         except np.linalg.LinAlgError:
             logger.error(f"Error ({self.operator_name}): Could not invert H_R_V or H_T_V matrix.")
@@ -610,7 +620,7 @@ class XArmOperator(Operator):
 
         # Ensure the final target pose has a valid rotation matrix
         h_rt_rh[:3, :3] = self.project_to_rotation_matrix(h_rt_rh[:3, :3])
-        self.robot_moving_h = copy(h_rt_rh) # Store the calculated target pose
+        self.robot_moving_h = copy(h_rt_rh)  # Store the calculated target pose
 
         # 8. Convert Target Pose to Cartesian [pos, quat]
         cart_target_raw = self._homo2cart(self.robot_moving_h)
@@ -619,18 +629,18 @@ class XArmOperator(Operator):
         if self.use_filter:
             # Initialize filter on the first valid frame after reset/start
             if self.comp_filter is None:
-                 # Use the *raw* target pose from the first frame as the initial filter state
-                 self.comp_filter = CompStateFilter(
-                     init_state=cart_target_raw,
-                     pos_ratio=0.7,  # Default values, consider making configurable
-                     ori_ratio=0.85,
-                     adaptive=True
-                 )
-                 cart_target_filtered = cart_target_raw # Use raw value for the very first frame
+                # Use the *raw* target pose from the first frame as the initial filter state
+                self.comp_filter = CompStateFilter(
+                    init_state=cart_target_raw,
+                    pos_ratio=0.7,  # Default values, consider making configurable
+                    ori_ratio=0.85,
+                    adaptive=True,
+                )
+                cart_target_filtered = cart_target_raw  # Use raw value for the very first frame
             else:
-                 cart_target_filtered = self.comp_filter(cart_target_raw)
+                cart_target_filtered = self.comp_filter(cart_target_raw)
         else:
-            cart_target_filtered = cart_target_raw # No filtering
+            cart_target_filtered = cart_target_raw  # No filtering
 
         # 10. Prepare filtered pose for publishing (quaternion orientation, positive hemisphere)
         position = cart_target_filtered[0:3]
@@ -658,7 +668,7 @@ class XArmOperator(Operator):
                 float(orientation_quat[3]),
             ),
         )
-        
+
         # Publish only if tele-operation is in CONT mode
         if publish_commands:
             try:
@@ -678,19 +688,20 @@ class XArmOperator(Operator):
         if self.logging_enabled and self.pose_logger:
             try:
                 # Ensure all matrices are valid before logging
-                if self.hand_init_h is not None and \
-                   self.robot_init_h is not None and \
-                   self.hand_moving_h is not None and \
-                   self.robot_moving_h is not None:
+                if (
+                    self.hand_init_h is not None
+                    and self.robot_init_h is not None
+                    and self.hand_moving_h is not None
+                    and self.robot_moving_h is not None
+                ):
                     self.pose_logger.log_frame(
                         self.hand_init_h,
                         self.robot_init_h,
                         self.hand_moving_h,
-                        self.robot_moving_h # Log the target pose *before* filtering
+                        self.robot_moving_h,  # Log the target pose *before* filtering
                     )
             except Exception as e:
                 logger.error(f"Error logging frame ({self.operator_name}): {e}")
-
 
     def moving_average(self, action: np.ndarray, queue: list, limit: int) -> np.ndarray:
         """
@@ -710,16 +721,14 @@ class XArmOperator(Operator):
             queue.pop(0)
         # Ensure queue is not empty before calculating mean
         if not queue:
-             return action # Or return np.zeros_like(action) or raise error
+            return action  # Or return np.zeros_like(action) or raise error
         return np.mean(queue, axis=0)
-
-    
 
     def run(self):
         """The main execution loop for the operator."""
         try:
             while True:
-                with self.timer: # Ensures loop runs at desired frequency (e.g., VR_FREQ)
+                with self.timer:  # Ensures loop runs at desired frequency (e.g., VR_FREQ)
                     self._apply_retargeted_angles()
         except KeyboardInterrupt:
             logger.info(f"{self.operator_name} received KeyboardInterrupt. Cleaning up...")
@@ -729,19 +738,21 @@ class XArmOperator(Operator):
     def __del__(self):
         """Destructor ensures cleanup is called."""
         # Safely clean up subscribers if they were initialized
-        if hasattr(self, '_subscribers') and self._subscribers:
+        if hasattr(self, "_subscribers") and self._subscribers:
             for subscriber in self._subscribers.values():
                 if subscriber:  # Check if subscriber is not None
                     try:
                         subscriber.stop()
                     except Exception as e:
-                        logger.warning(f"Error stopping subscriber in {getattr(self, 'operator_name', 'unknown')}: {e}")
-        
+                        logger.warning(
+                            f"Error stopping subscriber in {getattr(self, 'operator_name', 'unknown')}: {e}"
+                        )
+
         # Stop handshake server if it exists
-        if hasattr(self, '_handshake_coordinator') and hasattr(self, '_handshake_server_id'):
+        if hasattr(self, "_handshake_coordinator") and hasattr(self, "_handshake_server_id"):
             try:
                 self._handshake_coordinator.stop_server(self._handshake_server_id)
             except Exception as e:
                 logger.warning(f"Error stopping handshake server: {e}")
-        
+
         cleanup_zmq_resources()

@@ -42,7 +42,7 @@
    finger_distal      58
    <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1"/>
 -->
- 
+
 
   <!-- Allegro urdf parameters added-->
   <link name="palm_link">
@@ -632,5 +632,5 @@
     <child link="link_p_tip"/>
     <origin rpy="0 0 0" xyz="0 0 0.0423"/>
   </joint>
-  
+
 </robot>

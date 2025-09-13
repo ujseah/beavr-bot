@@ -278,7 +278,8 @@ def encode_video_frames(
     # Get input frames
     template = "frame_" + ("[0-9]" * 6) + ".png"
     input_list = sorted(
-        glob.glob(str(imgs_dir / template)), key=lambda x: int(x.split("_")[-1].split(".")[0])
+        glob.glob(str(imgs_dir / template)),
+        key=lambda x: int(x.split("_")[-1].split(".")[0]),
     )
 
     # Define video output frame size (assuming all input frames are the same size)

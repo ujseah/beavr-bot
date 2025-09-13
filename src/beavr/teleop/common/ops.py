@@ -29,7 +29,11 @@ class Ops(Generic[T]):
     - Ensures non-blocking access and robust fallbacks.
     """
 
-    def __init__(self, arm_teleop_state_subscriber: ZMQSubscriber[T], arm_teleop_state: TeleopState = TeleopState.CONT):
+    def __init__(
+        self,
+        arm_teleop_state_subscriber: ZMQSubscriber[T],
+        arm_teleop_state: TeleopState = TeleopState.CONT,
+    ):
         self._arm_teleop_state_subscriber = arm_teleop_state_subscriber
         self.arm_teleop_state: TeleopState = arm_teleop_state
 

@@ -70,8 +70,8 @@ pip install -e .
 
 Verify the installation:
 ```bash
-python -c "import sys; 
-try: import beavr; print('BeaVR successfully installed!') 
+python -c "import sys;
+try: import beavr; print('BeaVR successfully installed!')
 except ImportError: print('An error occurred'); sys.exit(1)"
 ```
 
@@ -94,10 +94,10 @@ If you use BeaVR in your research, please cite our work:
 
 ```bibtex
 @article{lorem-ipsum,
-    title   = {dolor}, 
+    title   = {dolor},
     author  = {sit},
     year    = {amet,},
-    url     = {consectetur}, 
+    url     = {consectetur},
 }
 ```
 
@@ -125,3 +125,19 @@ This work was sponsored by the Department of the Air Force Artificial Intelligen
 <sub><sup>© 2025 Massachusetts Institute of Technology</sup></sub>
 </p>
 
+## Development Setup
+
+1. Install with dev dependencies:
+   ```bash
+   poetry install --with dev
+   ```
+
+2. Set up pre-commit hooks:
+   ```bash
+   pre-commit install
+   ```
+
+3. Run tests:
+   ```bash
+   pytest
+   ```

@@ -21,7 +21,6 @@ from pathlib import Path
 from typing import Sequence
 
 import draccus
-
 from beavr.lerobot.common.utils.utils import has_method
 
 PATH_KEY = "path"
@@ -42,7 +41,10 @@ def get_cli_overrides(field_name: str, args: Sequence[str] | None = None) -> lis
         args = sys.argv[1:]
     attr_level_args = []
     detect_string = f"--{field_name}."
-    exclude_strings = (f"--{field_name}.{draccus.CHOICE_TYPE_KEY}=", f"--{field_name}.{PATH_KEY}=")
+    exclude_strings = (
+        f"--{field_name}.{draccus.CHOICE_TYPE_KEY}=",
+        f"--{field_name}.{PATH_KEY}=",
+    )
     for arg in args:
         if arg.startswith(detect_string) and not arg.startswith(exclude_strings):
             denested_arg = f"--{arg.removeprefix(detect_string)}"

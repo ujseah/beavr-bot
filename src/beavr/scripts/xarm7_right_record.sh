@@ -10,4 +10,3 @@ python src/beavr/scripts/control_robot.py \
     --control.repo_id=arclabmit/lx7r_flip_cube_dataset \
     --control.single_task="Flip cube" \
     --control.resume=false
-    

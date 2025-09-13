@@ -1,7 +1,6 @@
 import time
 
 import numpy as np
-
 from beavr.teleop.components.detector.detector_types import InputFrame
 from beavr.teleop.components.operator.operator_types import CartesianTarget
 from beavr.teleop.components.operator.robot.xarm7_operator import XArmOperator
@@ -85,13 +84,18 @@ def test_operator_publishes_cartesian_target(bus):
     op._apply_retargeted_angles()
 
     # Provide another frame identical to produce a target command
-    bus.publish(host, transformed_keypoints_port, right_frame_topic, InputFrame(
-        timestamp_s=time.time(),
-        hand_side=robots.RIGHT,
-        keypoints=keypoints,
-        is_relative=False,
-        frame_vectors=frame_vectors,
-    ))
+    bus.publish(
+        host,
+        transformed_keypoints_port,
+        right_frame_topic,
+        InputFrame(
+            timestamp_s=time.time(),
+            hand_side=robots.RIGHT,
+            keypoints=keypoints,
+            is_relative=False,
+            frame_vectors=frame_vectors,
+        ),
+    )
 
     # Second apply should compute and publish a CartesianTarget when in CONT state
     op._apply_retargeted_angles()
@@ -99,7 +103,8 @@ def test_operator_publishes_cartesian_target(bus):
     # Read what the operator published
     cmd = bus.recv_latest(endeff_publish_port, "endeff_coords")
     assert isinstance(cmd, CartesianTarget)
-    # With identity transforms and zero motion, target should match robot init pose => zero position and identity quat
+    # With identity transforms and zero motion,
+    # target should match robot init pose => zero position and identity quat
     pos = np.asarray(cmd.position_m, dtype=np.float64)
     quat = np.asarray(cmd.orientation_xyzw, dtype=np.float64)
     np.testing.assert_allclose(pos, np.zeros(3), atol=1e-6)

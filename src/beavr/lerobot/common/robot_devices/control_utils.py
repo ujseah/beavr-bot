@@ -31,9 +31,6 @@ from functools import cache
 import numpy as np
 import rerun as rr
 import torch
-from deepdiff import DeepDiff
-from termcolor import colored
-
 from beavr.lerobot.common.datasets.image_writer import safe_stop_image_writer
 from beavr.lerobot.common.datasets.lerobot_dataset import LeRobotDataset
 from beavr.lerobot.common.datasets.utils import get_features_from_robot
@@ -41,6 +38,8 @@ from beavr.lerobot.common.policies.pretrained import PreTrainedPolicy
 from beavr.lerobot.common.robot_devices.robots.utils import Robot
 from beavr.lerobot.common.robot_devices.utils import busy_wait
 from beavr.lerobot.common.utils.utils import get_safe_torch_device, has_method
+from deepdiff import DeepDiff
+from termcolor import colored
 
 
 def log_control_info(robot: Robot, dt_s, episode_index=None, frame_index=None, fps=None):
@@ -135,7 +134,7 @@ def predict_action(
 
         # Compute the next action with the policy
         # based on the current observation
-        
+
         # Determine batch size from one of the tensors
         for v in observation.values():
             if isinstance(v, torch.Tensor):
@@ -358,8 +357,16 @@ def control_loop(
     if policy is not None:
         infer_thread = threading.Thread(
             target=_policy_inference_worker,
-            args=(obs_queue, last_pred_action_holder, policy, get_safe_torch_device(policy.config.device), policy.config.use_amp, events, inference_ready),
-            daemon=False  # Give inference thread proper priority
+            args=(
+                obs_queue,
+                last_pred_action_holder,
+                policy,
+                get_safe_torch_device(policy.config.device),
+                policy.config.use_amp,
+                events,
+                inference_ready,
+            ),
+            daemon=False,  # Give inference thread proper priority
         )
         infer_thread.start()
 
@@ -380,7 +387,7 @@ def control_loop(
                 # Wait for inference thread to be ready for next observation
                 if inference_ready.wait(timeout=0.1):  # 100ms max wait
                     inference_ready.clear()  # Clear event before pushing
-                    
+
                     # Push latest observation, discarding older ones if queue is full
                     if obs_queue.full():
                         with suppress(queue.Empty):
@@ -418,7 +425,7 @@ def control_loop(
             busy_wait(1 / fps - dt_s)
 
         dt_s = time.perf_counter() - start_loop_t
-        log_control_info(robot, dt_s, fps=fps) 
+        log_control_info(robot, dt_s, fps=fps)
 
         timestamp = time.perf_counter() - start_episode_t
         if events["exit_early"]:

@@ -4,7 +4,7 @@
     <visual>
       <origin xyz="0 0 0"/>
       <geometry>
-        <mesh filename="../meshes/cube_multicolor/cube_multicolor.obj" scale=".05 .05 .05"/> 
+        <mesh filename="../meshes/cube_multicolor/cube_multicolor.obj" scale=".05 .05 .05"/>
 
       </geometry>
     </visual>
