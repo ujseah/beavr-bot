@@ -14,10 +14,10 @@
 
 <p align="center">
   <br>
-  <a href="our-arxiv-link">
+  <a href="https://arxiv.org/abs/2508.09606">
     <img src="https://yuxiaoba.github.io/assets/images/badges/Arxiv.png" alt="arXiv" width="14" style="vertical-align:middle;"/> Paper
   </a> |
-  <a href="our-github-page">
+  <a href="https://arclab-mit.github.io/beavr-landing/">
     <img src="https://images.icon-icons.com/3685/PNG/512/github_logo_icon_229278.png" alt="arXiv" width="14" style="vertical-align:middle;"/> Project Page
   </a> |
   <a href="https://github.com/ARCLab-MIT/BeaVR-app">
