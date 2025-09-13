@@ -15,11 +15,10 @@
 # limitations under the License.
 
 
-from torch.optim import Optimizer
-from torch.optim.lr_scheduler import LRScheduler
-
 from beavr.lerobot.common.policies.pretrained import PreTrainedPolicy
 from beavr.lerobot.configs.train import TrainPipelineConfig
+from torch.optim import Optimizer
+from torch.optim.lr_scheduler import LRScheduler
 
 
 def make_optimizer_and_scheduler(

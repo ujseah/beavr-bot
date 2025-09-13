@@ -5,15 +5,16 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any
 
+from beavr.teleop.common.config.loader import Laterality, log_laterality_configuration
+from beavr.teleop.components.interface.robot.leap_robot import LeapHandRobot
+
 # Constants (host address, port numbers, …)
-from beavr.teleop.components.operators.leap_pybullet import LeapHandOperator
+from beavr.teleop.components.operator.robot.leap_operator import LeapHandOperator
 from beavr.teleop.configs.constants import network, ports, robots
 from beavr.teleop.configs.robots import TeleopRobotConfig
 
 # Shared component configs driven by `configs.constants`
 from beavr.teleop.configs.robots.shared_components import SharedComponentRegistry
-from beavr.teleop.interfaces.leap_robot import LeapHandRobot
-from beavr.teleop.utils.configs import Laterality, log_laterality_configuration
 
 logger = logging.getLogger(__name__)
 

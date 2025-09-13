@@ -18,11 +18,10 @@ import time
 from dataclasses import replace
 
 import torch
+from beavr.lerobot.common.robot_devices.robots.configs import StretchRobotConfig
 from stretch_body.gamepad_teleop import GamePadTeleop
 from stretch_body.robot import Robot as StretchAPI
 from stretch_body.robot_params import RobotParams
-
-from beavr.lerobot.common.robot_devices.robots.configs import StretchRobotConfig
 
 
 class StretchRobot(StretchAPI):

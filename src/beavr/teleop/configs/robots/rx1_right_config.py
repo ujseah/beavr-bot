@@ -4,14 +4,14 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from beavr.teleop.components.detector.keypoint_transform import (
+from beavr.teleop.components.detector.vr.keypoint_transform import (
     TransformHandPositionCoords,
 )
-from beavr.teleop.components.detector.oculus import OculusVRHandDetector
-from beavr.teleop.components.operators.rx1_right_operator import RX1RightOperator
-from beavr.teleop.components.visualizers.visualizer_2d import Hand2DVisualizer
-from beavr.teleop.configs_teleop import TeleopRobotConfig
-from beavr.teleop.interfaces.rx1.rx1_right_robot import RX1Right
+from beavr.teleop.components.detector.vr.oculus import OculusVRHandDetector
+from beavr.teleop.components.interface.robot.rx1_right_robot import RX1Right
+from beavr.teleop.components.operator.robot.rx1_operator import RX1RightOperator
+from beavr.teleop.components.visualizer.visualizer_2d import Hand2DVisualizer
+from beavr.teleop.configs.robots import TeleopRobotConfig
 
 
 @dataclass

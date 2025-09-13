@@ -19,15 +19,14 @@ from typing import Type, TypeVar
 
 import packaging
 import safetensors
+from beavr.lerobot.common.utils.hub import HubMixin
+from beavr.lerobot.configs.policies import PreTrainedConfig
 from huggingface_hub import hf_hub_download
 from huggingface_hub.constants import SAFETENSORS_SINGLE_FILE
 from huggingface_hub.errors import HfHubHTTPError
 from safetensors.torch import load_model as load_model_as_safetensor
 from safetensors.torch import save_model as save_model_as_safetensor
 from torch import Tensor, nn
-
-from beavr.lerobot.common.utils.hub import HubMixin
-from beavr.lerobot.configs.policies import PreTrainedConfig
 
 T = TypeVar("T", bound="PreTrainedPolicy")
 
