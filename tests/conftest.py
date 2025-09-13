@@ -1,3 +1,14 @@
+# Test-only shim: if the xArm SDK isn't installed, provide a minimal stub so imports succeed
+try:
+    import xarm  # noqa: F401
+except Exception:
+    import sys
+    import types
+
+    _xarm_stub = types.ModuleType("xarm")
+    _xarm_stub.XArmAPI = object
+    sys.modules["xarm"] = _xarm_stub
+
 from dataclasses import dataclass
 from typing import Any, Dict, Optional, Tuple
 
