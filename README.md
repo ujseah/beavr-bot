@@ -93,11 +93,15 @@ This app should seamlessly integrate with BeaVR as an alternative VR endpoint. A
 If you use BeaVR in your research, please cite our work:
 
 ```bibtex
-@article{lorem-ipsum,
-    title   = {dolor},
-    author  = {sit},
-    year    = {amet,},
-    url     = {consectetur},
+@misc{posadasnava2025beavr,
+  title         = {BEAVR: Bimanual, multi-Embodiment, Accessible, Virtual Reality Teleoperation System for Robots},
+  author        = {Alejandro Posadas-Nava and Alejandro Carrasco and Richard Linares},
+  year          = {2025},
+  eprint        = {2508.09606},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.RO},
+  note          = {Accepted for presentation at ICCR 2025, Kyoto},
+  url           = {https://arxiv.org/abs/2508.09606}
 }
 ```
 
