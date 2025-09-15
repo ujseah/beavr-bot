@@ -29,7 +29,7 @@
 
 ## Overview
 
-BeaVR is an open-source, end-to-end teleoperation pipeline that leverages affordable hardware for robotics teleoperation. Building upon [Open Teach](https://open-teach.github.io/), we address its accessibility limitations and improve upon their bimanual teleoperation methodology to create a more robust and user-friendly system.
+BeaVR is an open-source, end-to-end teleoperation pipeline that leverages affordable hardware for robotic teleoperation.
 
 Key features:
 - **VR teleoperation out-of-the-box** – Stream low-latency control and visual feedback through Meta Quest 3 (and any OculusVR supported device) while recording synchronized proprioceptive, visual, and action data.
