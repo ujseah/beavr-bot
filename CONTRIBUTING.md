@@ -135,7 +135,7 @@ Pull Requests
 
 Before submittingL
 1. Ensure your branch is rebased on `upstream/main`.
-2. verify all tests pass
+2. Verify all tests pass
 3. Add or update documentation
 4. Add tests for new functionality
 
@@ -145,7 +145,7 @@ Submit via GitHub PR. It's normal for maintainers to request changes.
 
 ## Checklist Before PR
 
-- Clearn, descriptive PR title
+- Clean, descriptive PR title
 - Link to related issue(s)
 - Mark as draft if WIP
 - All tests pass locally
