@@ -1,7 +1,6 @@
 # Contributing to 🦫 BeaVR
 
-First off, thank you for considering contributing to **BeaVR**!  
-We value all contributions, code is not the only way to help. Answering questions, improving documentation, reporting bugs, or simply spreading the word are all immensely valuable to the community.
+First off, thank you for considering contributing to **BeaVR**! We value all contributions, code is not the only way to help. Answering questions, improving documentation, reporting bugs, or simply spreading the word are all immensely valuable to the community.
 
 If BeaVR helped you, consider ⭐️ starring the repo, referencing it in your projects/blogs, or sharing your experience.
 
