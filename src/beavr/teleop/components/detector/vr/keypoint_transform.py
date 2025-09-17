@@ -227,17 +227,26 @@ class TransformHandPositionCoords(Component):
             # Reconstruct orthogonal frame
             self.averaged_hand_frame = [origin, x_vec, y_vec, z_vec]
 
+            data = InputFrame(
+                timestamp_s=time.time(),
+                hand_side=self.hand_side,
+                keypoints=self.averaged_hand_coords,
+                is_relative=data_type == self.relative_mode,
+                frame_vectors=self.averaged_hand_frame,
+            )
+
+            # Publish both transformed coords and frame for consumers
+            self.publisher_manager.publish(
+                host=self.host,
+                port=self.keypoint_transform_pub_port,
+                topic=self.coords_topic,
+                data=data,
+            )
             self.publisher_manager.publish(
                 host=self.host,
                 port=self.keypoint_transform_pub_port,
                 topic=self.frame_topic,
-                data=InputFrame(
-                    timestamp_s=time.time(),
-                    hand_side=self.hand_side,
-                    keypoints=self.averaged_hand_coords,
-                    is_relative=data_type == self.relative_mode,
-                    frame_vectors=self.averaged_hand_frame,
-                ),
+                data=data,
             )
 
             self.timer.end_loop()

@@ -8,12 +8,10 @@ import numpy as np
 
 from beavr.teleop.common.logging.logger import HandLogger
 from beavr.teleop.common.messaging.publisher import ZMQPublisherManager
-from beavr.teleop.common.messaging.utils import (
-    cleanup_zmq_resources,
-    get_global_context,
-)
+from beavr.teleop.common.messaging.utils import cleanup_zmq_resources, get_global_context
 from beavr.teleop.common.messaging.vr.subscribers import ZMQSubscriber
 from beavr.teleop.common.time.timer import FrequencyTimer
+from beavr.teleop.components.detector.detector_types import InputFrame
 from beavr.teleop.components.operator.operator_base import Operator
 from beavr.teleop.components.operator.operator_types import JointTarget
 from beavr.teleop.components.operator.solvers.leap_solver import LeapHandIKSolver
@@ -43,8 +41,8 @@ class LeapHandOperator(Operator):
 
         # Determine correct topic based on hand side
         if hand_side == robots.RIGHT:
-            coords_topic = robots.TRANSFORMED_HAND_COORDS
-            frame_topic = robots.TRANSFORMED_HAND_FRAME
+            coords_topic = f"{robots.RIGHT}_{robots.TRANSFORMED_HAND_COORDS}"
+            frame_topic = f"{robots.RIGHT}_{robots.TRANSFORMED_HAND_FRAME}"
         else:  # LEFT
             coords_topic = f"{robots.LEFT}_{robots.TRANSFORMED_HAND_COORDS}"
             frame_topic = f"{robots.LEFT}_{robots.TRANSFORMED_HAND_FRAME}"
@@ -55,6 +53,7 @@ class LeapHandOperator(Operator):
             port=self._port,
             topic=coords_topic,
             context=self._context,
+            message_type=InputFrame,
         )
         # Subscriber for the transformed arm frame
         self._transformed_arm_keypoint_subscriber = ZMQSubscriber(
@@ -62,6 +61,7 @@ class LeapHandOperator(Operator):
             port=self._port,
             topic=frame_topic,
             context=self._context,
+            message_type=InputFrame,
         )
         # Centralized publisher manager (new pub/sub structure)
         self._publisher_manager = ZMQPublisherManager.get_instance()
@@ -140,12 +140,13 @@ class LeapHandOperator(Operator):
 
     # Get the transformed finger coordinates
     def _get_finger_coords(self):
-        raw_keypoints = self.transformed_hand_keypoint_subscriber.recv_keypoints()
-        if raw_keypoints is None:
+        data = self.transformed_hand_keypoint_subscriber.recv_keypoints()
+        if data is None:
             logger.warning("Warning: No keypoints received from subscriber")
             return None
 
         try:
+            raw_keypoints = data.keypoints
             finger_coords = {
                 "index": np.vstack([raw_keypoints[0], raw_keypoints[robots.OCULUS_JOINTS["index"]]]),
                 "middle": np.vstack([raw_keypoints[0], raw_keypoints[robots.OCULUS_JOINTS["middle"]]]),
@@ -285,7 +286,7 @@ class LeapHandOperator(Operator):
             host=self._publisher_host,
             port=self._joint_angle_publish_port,
             topic="joint_angles",  # keep topic; payload is now JointTarget
-            joint_target=JointTarget(
+            data=JointTarget(
                 timestamp_s=time.time(),
                 hand_side=self.hand_side,
                 joint_positions_rad=desired_joint_angles,

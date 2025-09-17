@@ -21,7 +21,7 @@ WRIST_HOME_STATE = {
 # -----------------------------------------------------------------------------
 # Joint Information
 # -----------------------------------------------------------------------------
-OCULUS_NUM_KEYPOINTS = 24
+OCULUS_NUM_KEYPOINTS = 26
 VR_THUMB_BOUND_VERTICES = 4
 GRIPPER_OPEN = 0
 GRIPPER_CLOSE = 1

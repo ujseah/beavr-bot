@@ -8,12 +8,12 @@ import numpy as np
 from beavr.teleop.common.factory.registry import GlobalRegistry
 from beavr.teleop.common.messaging.publisher import ZMQPublisherManager
 from beavr.teleop.common.messaging.utils import cleanup_zmq_resources
-from beavr.teleop.common.messaging.vr import ZMQKeypointSubscriber
+from beavr.teleop.common.messaging.vr.subscribers import ZMQSubscriber
 from beavr.teleop.common.ops import Ops
-from beavr.teleop.components.interface.controller.base_controller import RobotWrapper
 from beavr.teleop.components.interface.controller.robot.leap_control import (
     DexArmControl,
 )
+from beavr.teleop.components.interface.interface_base import RobotWrapper
 from beavr.teleop.components.interface.interface_types import RobotState
 from beavr.teleop.components.operator.operator_types import JointTarget
 from beavr.teleop.configs.constants import robots
@@ -77,12 +77,12 @@ class LeapHandRobot(RobotWrapper):
         )
 
         # Subscribers
-        self._joint_angle_subscriber = ZMQKeypointSubscriber(
+        self._joint_angle_subscriber = ZMQSubscriber(
             host=host, port=joint_angle_subscribe_port, topic="joint_angles"
         )
-        self._reset_subscriber = ZMQKeypointSubscriber(host=host, port=reset_subscribe_port, topic="reset")
+        self._reset_subscriber = ZMQSubscriber(host=host, port=reset_subscribe_port, topic="reset")
 
-        self._home_subscriber = ZMQKeypointSubscriber(host=host, port=home_subscribe_port, topic="home")
+        self._home_subscriber = ZMQSubscriber(host=host, port=home_subscribe_port, topic="home")
 
         self._subscribers = {
             "joint_angles": self._joint_angle_subscriber,
@@ -93,7 +93,7 @@ class LeapHandRobot(RobotWrapper):
         # Ops state subscriber --------------------------------------------------------
         # Checks if operation is stopped or continued.
         self._arm_teleop_state_subscriber = Ops(
-            arm_teleop_state_subscriber=ZMQKeypointSubscriber(
+            arm_teleop_state_subscriber=ZMQSubscriber(
                 host=host,
                 port=teleoperation_state_port,
                 topic="pause",
@@ -174,6 +174,10 @@ class LeapHandRobot(RobotWrapper):
 
     def get_joint_torque(self):
         return self._controller.get_hand_torque()
+
+    def get_cartesian_position(self):
+        """Leap hand does not expose a cartesian end-effector pose."""
+        return None
 
     def get_commanded_joint_position(self):
         """Get current commanded action as RobotState for recording."""
