@@ -27,13 +27,22 @@ GRIPPER_OPEN = 0
 GRIPPER_CLOSE = 1
 
 OCULUS_JOINTS = {
-    "metacarpals": [2, 6, 9, 12, 15],
-    "knuckles": [6, 9, 12, 16],
-    "thumb": [2, 3, 4, 5, 19],
-    "index": [6, 7, 8, 20],
-    "middle": [9, 10, 11, 21],
-    "ring": [12, 13, 14, 22],
-    "pinky": [15, 16, 17, 18, 23],
+    # Indices follow XRHandJointID order:
+    # 0 Wrist, 1 Palm,
+    # Thumb: 2 Metacarpal, 3 Proximal, 4 Distal, 5 Tip
+    # Index: 6 Metacarpal, 7 Proximal, 8 Intermediate, 9 Distal, 10 Tip
+    # Middle: 11 Metacarpal, 12 Proximal, 13 Intermediate, 14 Distal, 15 Tip
+    # Ring: 16 Metacarpal, 17 Proximal, 18 Intermediate, 19 Distal, 20 Tip
+    # Little: 21 Metacarpal, 22 Proximal, 23 Intermediate, 24 Distal, 25 Tip
+    "metacarpals": [2, 6, 11, 16, 21],
+    # Knuckles = first finger joints at the hand (proximal joints for non-thumb)
+    "knuckles": [7, 12, 17, 22],  # index, middle, ring, little
+    # Per-finger chains (4 joints) used with wrist stacked in code -> 5 points total
+    "thumb": [2, 3, 4, 5],
+    "index": [7, 8, 9, 10],
+    "middle": [12, 13, 14, 15],
+    "ring": [17, 18, 19, 20],
+    "pinky": [22, 23, 24, 25],  # little finger
 }
 
 OCULUS_VIEW_LIMITS = {
